@@ -77,7 +77,7 @@ const MainApp: React.FC = () => {
   const isDark = theme === 'dark';
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 w-full overflow-x-hidden ${
       isDark ? 'bg-[#080B0D] text-stone-100' : 'bg-stone-50 text-stone-900'
     } selection:bg-[#E4E98E] selection:text-stone-950`}>
       
@@ -85,7 +85,7 @@ const MainApp: React.FC = () => {
       {!isGuestFullscreen && <Header />}
 
       {/* Main View Router */}
-      <main className="flex-1">
+      <main className="flex-1 w-full overflow-x-hidden">
         {/* 1. Marketing 5 Pages */}
         {currentRoute === '/' && <LandingPage />}
         {currentRoute === '/features' && <FeaturesPage />}

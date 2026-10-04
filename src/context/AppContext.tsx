@@ -1,9 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Property, HostUser, AppRoute } from '../types';
-import { INITIAL_PROPERTIES, MOCK_HOST_USER } from '../data/mockData';
+import { 
+  Property, 
+  HostUser, 
+  AppRoute, 
+  StumariGem, 
+  StayFeedback, 
+  StayMoment, 
+  GemMood, 
+  GemExperience 
+} from '../types';
+import { INITIAL_PROPERTIES, MOCK_HOST_USER, MOCK_STAY_FEEDBACKS } from '../data/mockData';
+import { TBILISI_GEMS_LIBRARY } from '../data/stumariGemsData';
 import { Language, SUPPORTED_LANGUAGES } from '../i18n/types';
 import { translations, Translations } from '../i18n/translations';
 import { getLocalizedProperty } from '../data/localizedProperties';
+import { doc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 
 interface ToastState {
   id: number;
@@ -13,7 +25,7 @@ interface ToastState {
 
 export type ThemeMode = 'dark' | 'light';
 
-export type PropertyTab = 'overview' | 'guide' | 'preview' | 'qr' | 'settings';
+export type PropertyTab = 'overview' | 'guide' | 'gems' | 'reviews' | 'preview' | 'qr' | 'settings';
 export type GuideSectionKey = 
   | 'welcome' 
   | 'checkin' 
@@ -56,6 +68,24 @@ interface AppContextType {
   navigateToPropertyHub: (propId: string, subTab?: PropertyTab) => void;
   navigateTo: (route: AppRoute) => void;
   getLocalizedProperty: (prop: Property) => Property;
+
+  // Stumari Gems & Stay Moments
+  gems: StumariGem[];
+  togglePropertyGem: (propertyId: string, gemId: string) => void;
+  addCustomGem: (gem: StumariGem) => void;
+  activeMood: GemMood | 'all';
+  setActiveMood: (mood: GemMood | 'all') => void;
+  activeExperience: GemExperience | 'all';
+  setActiveExperience: (exp: GemExperience | 'all') => void;
+  activeMoment: StayMoment;
+  setActiveMoment: (moment: StayMoment) => void;
+
+  // Review Engine & Stay Feedback
+  feedbacks: StayFeedback[];
+  addStayFeedback: (feedback: Omit<StayFeedback, 'id' | 'createdAt' | 'status'>) => void;
+  resolveFeedback: (id: string) => void;
+  isFeedbackModalOpen: boolean;
+  setIsFeedbackModalOpen: (open: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -87,6 +117,175 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return MOCK_HOST_USER;
   });
+
+  // Stumari Gems State & Filters
+  const [gems, setGems] = useState<StumariGem[]>(() => {
+    try {
+      const saved = localStorage.getItem('stumari_gems_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return TBILISI_GEMS_LIBRARY;
+  });
+
+  const [activeMood, setActiveMood] = useState<GemMood | 'all'>('all');
+  const [activeExperience, setActiveExperience] = useState<GemExperience | 'all'>('all');
+  const [activeMoment, setActiveMoment] = useState<StayMoment>('during_stay');
+
+  // Stay Feedback & Review Engine State
+  const [feedbacks, setFeedbacks] = useState<StayFeedback[]>(() => {
+    try {
+      const saved = localStorage.getItem('stumari_feedbacks_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return MOCK_STAY_FEEDBACKS;
+  });
+
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('stumari_gems_v1', JSON.stringify(gems));
+    } catch {
+      // ignore
+    }
+  }, [gems]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('stumari_feedbacks_v1', JSON.stringify(feedbacks));
+    } catch {
+      // ignore
+    }
+  }, [feedbacks]);
+
+  // Firestore Real-Time Listeners & Seeding
+  useEffect(() => {
+    let unsubProps: (() => void) | undefined;
+    let unsubFeedbacks: (() => void) | undefined;
+    let unsubGems: (() => void) | undefined;
+
+    try {
+      unsubProps = onSnapshot(collection(db, 'properties'), (snapshot) => {
+        if (!snapshot.empty) {
+          const remoteList: Property[] = [];
+          snapshot.forEach(docSnap => {
+            remoteList.push(docSnap.data() as Property);
+          });
+          setProperties(remoteList);
+        } else {
+          // If Firestore is empty, seed initial properties so they persist across cloud sessions
+          INITIAL_PROPERTIES.forEach(prop => {
+            setDoc(doc(db, 'properties', prop.id), prop).catch(err => {
+              handleFirestoreError(err, OperationType.WRITE, `properties/${prop.id}`);
+            });
+          });
+        }
+      }, (err) => {
+        handleFirestoreError(err, OperationType.GET, 'properties');
+      });
+
+      unsubFeedbacks = onSnapshot(collection(db, 'feedbacks'), (snapshot) => {
+        if (!snapshot.empty) {
+          const remoteList: StayFeedback[] = [];
+          snapshot.forEach(docSnap => {
+            remoteList.push(docSnap.data() as StayFeedback);
+          });
+          setFeedbacks(remoteList);
+        }
+      }, (err) => {
+        handleFirestoreError(err, OperationType.GET, 'feedbacks');
+      });
+
+      unsubGems = onSnapshot(collection(db, 'gems'), (snapshot) => {
+        if (!snapshot.empty) {
+          const remoteList: StumariGem[] = [];
+          snapshot.forEach(docSnap => {
+            remoteList.push(docSnap.data() as StumariGem);
+          });
+          setGems(remoteList);
+        }
+      }, (err) => {
+        handleFirestoreError(err, OperationType.GET, 'gems');
+      });
+    } catch (e) {
+      console.warn('Firestore listener initialisation:', e);
+    }
+
+    return () => {
+      if (unsubProps) unsubProps();
+      if (unsubFeedbacks) unsubFeedbacks();
+      if (unsubGems) unsubGems();
+    };
+  }, []);
+
+  const addStayFeedback = (feedbackData: Omit<StayFeedback, 'id' | 'createdAt' | 'status'>) => {
+    const newFeedback: StayFeedback = {
+      id: `fb-${Date.now()}`,
+      createdAt: new Date().toLocaleString(),
+      status: 'new',
+      ...feedbackData
+    };
+    setFeedbacks(prev => [newFeedback, ...prev]);
+
+    // Persist to Firestore
+    try {
+      setDoc(doc(db, 'feedbacks', newFeedback.id), newFeedback).catch(err => {
+        handleFirestoreError(err, OperationType.CREATE, `feedbacks/${newFeedback.id}`);
+      });
+    } catch (e) {
+      // local fallback handled
+    }
+
+    if (feedbackData.sentiment === 'amazing' || feedbackData.sentiment === 'good') {
+      showToast('Thank you for your feedback! ❤️ Public review prompt opened.');
+    } else {
+      showToast('Private feedback delivered directly to your host. Thank you for helping us improve!');
+    }
+  };
+
+  const resolveFeedback = (id: string) => {
+    setFeedbacks(prev => prev.map(f => f.id === id ? { ...f, status: f.status === 'resolved' ? 'reviewed' : 'resolved' } : f));
+    try {
+      setDoc(doc(db, 'feedbacks', id), { status: 'resolved' }, { merge: true }).catch(err => {
+        handleFirestoreError(err, OperationType.UPDATE, `feedbacks/${id}`);
+      });
+    } catch (e) {}
+    showToast('Feedback item updated');
+  };
+
+  const togglePropertyGem = (propertyId: string, gemId: string) => {
+    let updatedGemIds: string[] = [];
+    setProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      const currentGemIds = p.gemIds || [];
+      const updated = currentGemIds.includes(gemId)
+        ? currentGemIds.filter(id => id !== gemId)
+        : [...currentGemIds, gemId];
+      updatedGemIds = updated;
+      return { ...p, gemIds: updated };
+    }));
+
+    try {
+      setDoc(doc(db, 'properties', propertyId), { gemIds: updatedGemIds }, { merge: true }).catch(err => {
+        handleFirestoreError(err, OperationType.UPDATE, `properties/${propertyId}`);
+      });
+    } catch (e) {}
+    showToast('Local gem saved to property guide');
+  };
+
+  const addCustomGem = (newGem: StumariGem) => {
+    setGems(prev => [newGem, ...prev]);
+    try {
+      setDoc(doc(db, 'gems', newGem.id), newGem).catch(err => {
+        handleFirestoreError(err, OperationType.CREATE, `gems/${newGem.id}`);
+      });
+    } catch (e) {}
+    showToast(`Added host secret "${newGem.title}"`);
+  };
 
   // Parse initial route from window.location.pathname or hash
   const getInitialRoute = (): AppRoute => {
@@ -286,19 +485,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateProperty = (updated: Property) => {
-    setProperties(prev => prev.map(p => p.id === updated.id ? { ...updated, updatedAt: new Date().toISOString().split('T')[0] } : p));
+    const withTimestamp = { ...updated, updatedAt: new Date().toISOString().split('T')[0] };
+    setProperties(prev => prev.map(p => p.id === updated.id ? withTimestamp : p));
+    try {
+      setDoc(doc(db, 'properties', updated.id), withTimestamp, { merge: true }).catch(err => {
+        handleFirestoreError(err, OperationType.UPDATE, `properties/${updated.id}`);
+      });
+    } catch (e) {}
     showToast('Guidebook changes saved successfully');
   };
 
   const togglePublishProperty = (id: string) => {
+    let nextStatus: 'published' | 'draft' = 'published';
     setProperties(prev => prev.map(p => {
       if (p.id === id) {
-        const nextStatus = p.status === 'published' ? 'draft' : 'published';
+        nextStatus = p.status === 'published' ? 'draft' : 'published';
         showToast(nextStatus === 'published' ? `"${p.title}" is now published and live` : `"${p.title}" is now set to draft`);
         return { ...p, status: nextStatus };
       }
       return p;
     }));
+    try {
+      setDoc(doc(db, 'properties', id), { status: nextStatus }, { merge: true }).catch(err => {
+        handleFirestoreError(err, OperationType.UPDATE, `properties/${id}`);
+      });
+    } catch (e) {}
   };
 
   const createProperty = (partial?: Partial<Property>): Property => {
@@ -398,6 +609,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setProperties(prev => [newProp, ...prev]);
     setCurrentPropertyId(newProp.id);
     setActiveGuestSlug(newProp.slug);
+
+    try {
+      setDoc(doc(db, 'properties', newProp.id), newProp).catch(err => {
+        handleFirestoreError(err, OperationType.CREATE, `properties/${newProp.id}`);
+      });
+    } catch (e) {}
+
     showToast(`Created new guide "${newProp.title}"`);
     return newProp;
   };
@@ -414,6 +632,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString().split('T')[0]
     };
     setProperties(prev => [duplicated, ...prev]);
+    try {
+      setDoc(doc(db, 'properties', duplicated.id), duplicated).catch(err => {
+        handleFirestoreError(err, OperationType.CREATE, `properties/${duplicated.id}`);
+      });
+    } catch (e) {}
     showToast(`Duplicated "${existing.title}"`);
   };
 
@@ -429,6 +652,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentPropertyId(remaining[0].id);
       setActiveGuestSlug(remaining[0].slug);
     }
+    try {
+      deleteDoc(doc(db, 'properties', id)).catch(err => {
+        handleFirestoreError(err, OperationType.DELETE, `properties/${id}`);
+      });
+    } catch (e) {}
     showToast(`Deleted "${propToDelete?.title || 'property'}"`);
   };
 
@@ -472,6 +700,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         navigateToPropertyHub,
         navigateTo,
         getLocalizedProperty: (p: Property) => getLocalizedProperty(p, language),
+
+        // Stumari Gems & Stay Moments
+        gems,
+        togglePropertyGem,
+        addCustomGem,
+        activeMood,
+        setActiveMood,
+        activeExperience,
+        setActiveExperience,
+        activeMoment,
+        setActiveMoment,
+
+        // Review Engine & Stay Feedback
+        feedbacks,
+        addStayFeedback,
+        resolveFeedback,
+        isFeedbackModalOpen,
+        setIsFeedbackModalOpen,
       }}
     >
       {children}

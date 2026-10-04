@@ -31,11 +31,13 @@ import {
 import { useApp } from '../../context/AppContext';
 import { Property, PropertyType } from '../../types';
 import { StumariArchIcon } from '../common/StumariLogo';
-import { LanguageSelector } from '../common/LanguageSelector';
+import { ThemeAndLanguageControls } from '../common/LanguageSelector';
+import { ONBOARDING_I18N } from '../../data/onboardingI18n';
 
 export const OnboardingWizard: React.FC = () => {
   const { createProperty, navigateToPropertyHub, setCurrentRoute, theme, showToast, t, language } = useApp();
   const isDark = theme === 'dark';
+  const obContent = ONBOARDING_I18N[language] || ONBOARDING_I18N.en;
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form');
@@ -112,8 +114,8 @@ export const OnboardingWizard: React.FC = () => {
     if (presetName === 'tbilisi') {
       setFormData(prev => ({
         ...prev,
-        title: 'Sunny Sololaki Terrace',
-        subtitle: 'Charming Old Town apartment with scenic balcony',
+        title: language === 'ka' ? 'მზიანი სოლოლაკის ტერასა' : language === 'ru' ? 'Солнечная терраса в Сололаки' : 'Sunny Sololaki Terrace',
+        subtitle: language === 'ka' ? 'მყუდრო აპარტამენტი ძველ თბილისში პანორამული აივნით' : language === 'ru' ? 'Уютные апартаменты в Старом городе с живописным балконом' : 'Charming Old Town apartment with scenic balcony',
         type: 'apartment',
         address: '8 Asatiani Street, Apt 4',
         city: 'Tbilisi',
@@ -123,12 +125,12 @@ export const OnboardingWizard: React.FC = () => {
         wifiPassword: 'TbilisiHost2026',
         doorKeypadCode: '4820#'
       }));
-      showToast('Loaded "Old Tbilisi Balcony" preset!');
+      showToast(obContent.presets.loadedToast(obContent.presets.tbilisiTitle));
     } else if (presetName === 'batumi') {
       setFormData(prev => ({
         ...prev,
-        title: 'Batumi Boulevard Sea Penthouse',
-        subtitle: 'Modern waterfront apartment with Black Sea sunset terrace',
+        title: language === 'ka' ? 'ბათუმის ბულვარის პენტჰაუსი' : language === 'ru' ? 'Пентхаус на бульваре Батуми' : 'Batumi Boulevard Sea Penthouse',
+        subtitle: language === 'ka' ? 'თანამედროვე აპარტამენტი შავი ზღვის მზის ჩასვლის ტერასით' : language === 'ru' ? 'Современные апартаменты с террасой и видом на Черное море' : 'Modern waterfront apartment with Black Sea sunset terrace',
         type: 'apartment',
         address: '15 Rustaveli Ave, 18th Floor',
         city: 'Batumi',
@@ -138,12 +140,12 @@ export const OnboardingWizard: React.FC = () => {
         wifiPassword: 'SeaBreeze2026',
         doorKeypadCode: '9182#'
       }));
-      showToast('Loaded "Batumi Sea Penthouse" preset!');
+      showToast(obContent.presets.loadedToast(obContent.presets.batumiTitle));
     } else {
       setFormData(prev => ({
         ...prev,
-        title: 'Kazbegi Alpine Chalet',
-        subtitle: 'Timber mountain retreat with panoramic Mount Kazbek view',
+        title: language === 'ka' ? 'ყაზბეგის ალპური შალე' : language === 'ru' ? 'Альпийское шале в Казбеги' : 'Kazbegi Alpine Chalet',
+        subtitle: language === 'ka' ? 'ხის მთის კოტეჯი მყინვარწვერის პანორამული ხედით' : language === 'ru' ? 'Уютный деревянный коттедж с видом на гору Казбек' : 'Timber mountain retreat with panoramic Mount Kazbek view',
         type: 'villa',
         address: 'Mountain Valley Way 12',
         city: 'Stepantsminda',
@@ -153,25 +155,25 @@ export const OnboardingWizard: React.FC = () => {
         wifiPassword: 'MountPeak2026',
         doorKeypadCode: '3311#'
       }));
-      showToast('Loaded "Kazbegi Alpine Chalet" preset!');
+      showToast(obContent.presets.loadedToast(obContent.presets.kazbegiTitle));
     }
   };
 
   const handlePublish = () => {
     const created = createProperty(formData);
-    showToast(`"${created.title}" successfully created!`);
+    showToast(`"${created.title}" ${t.common.saved || 'created'}`);
     navigateToPropertyHub(created.id, 'overview');
   };
 
   // Calculate readiness score
   const readinessChecklist = [
-    { label: 'Title & Address', done: !!formData.title && !!formData.city },
-    { label: 'Cover Photo', done: !!formData.coverImage },
-    { label: 'Door Keypad Code', done: !!formData.doorKeypadCode },
-    { label: 'Wi-Fi Credentials', done: !!formData.wifiPassword },
-    { label: 'House Rules', done: (formData.houseRules || []).length > 0 },
-    { label: 'Curated Recommendations', done: (formData.recommendations || []).length > 0 },
-    { label: 'Host WhatsApp Contact', done: !!formData.hostWhatsApp }
+    { label: obContent.readiness.items.titleAddress, done: !!formData.title && !!formData.city },
+    { label: obContent.readiness.items.coverPhoto, done: !!formData.coverImage },
+    { label: obContent.readiness.items.doorCode, done: !!formData.doorKeypadCode },
+    { label: obContent.readiness.items.wifi, done: !!formData.wifiPassword },
+    { label: obContent.readiness.items.rules, done: (formData.houseRules || []).length > 0 },
+    { label: obContent.readiness.items.recs, done: (formData.recommendations || []).length > 0 },
+    { label: obContent.readiness.items.contact, done: !!formData.hostWhatsApp }
   ];
   const completedCount = readinessChecklist.filter(c => c.done).length;
   const readinessPct = Math.round((completedCount / readinessChecklist.length) * 100);
@@ -195,23 +197,21 @@ export const OnboardingWizard: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-serif font-bold tracking-tight">
-                  {t.onboarding.title}
+                  {obContent.header.title}
                 </h1>
                 <span className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded-full ${
                   isDark ? 'bg-stone-800 text-[#E4E98E]' : 'bg-stone-100 text-stone-800'
                 }`}>
-                  {currentStep} / 7
+                  {obContent.header.stepCounter} {currentStep} / 7
                 </span>
               </div>
               <p className={`text-xs mt-0.5 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                {t.onboarding.subtitle}
+                {obContent.header.subtitle}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <LanguageSelector variant="dropdown" />
-
             {/* Stepper Progress Badges */}
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
               {stepTitles.map((title, idx) => {
@@ -249,8 +249,8 @@ export const OnboardingWizard: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile View Toggle: Form vs Live Phone Preview */}
-        <div className={`flex sm:hidden items-center justify-center p-1 rounded-2xl border max-w-xs mx-auto mb-4 ${
+        {/* Mobile & Tablet View Toggle: Form vs Live Phone Preview */}
+        <div className={`flex lg:hidden items-center justify-center p-1 rounded-2xl border max-w-xs mx-auto mb-4 ${
           isDark ? 'bg-[#14191C] border-stone-800' : 'bg-stone-100 border-stone-200'
         }`}>
           <button
@@ -261,7 +261,7 @@ export const OnboardingWizard: React.FC = () => {
                 : isDark ? 'text-stone-400' : 'text-stone-600'
             }`}
           >
-            Form (Step {currentStep}/7)
+            {obContent.header.mobileForm} ({currentStep}/7)
           </button>
           <button
             onClick={() => setMobileTab('preview')}
@@ -271,7 +271,7 @@ export const OnboardingWizard: React.FC = () => {
                 : isDark ? 'text-stone-400' : 'text-stone-600'
             }`}
           >
-            📱 Live Preview
+            {obContent.header.mobilePreview}
           </button>
         </div>
 
@@ -290,18 +290,18 @@ export const OnboardingWizard: React.FC = () => {
                   <span className={`text-[10px] font-mono uppercase tracking-wider font-bold block mb-1 ${
                     isDark ? 'text-[#E4E98E]' : 'text-amber-600'
                   }`}>
-                    Step 1 · Basic Property Identity
+                    {obContent.step1.badge}
                   </span>
-                  <h3 className="text-2xl font-serif font-bold">What is your property called?</h3>
+                  <h3 className="text-2xl font-serif font-bold">{obContent.step1.question}</h3>
                   <p className={`text-xs mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Enter the public title and address your guests will see.
+                    {obContent.step1.desc}
                   </p>
                 </div>
 
                 <div className="space-y-4 text-xs">
                   <div>
                     <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                      Property Title / Listing Name
+                      {obContent.step1.titleLabel}
                     </label>
                     <input
                       type="text"
@@ -312,13 +312,13 @@ export const OnboardingWizard: React.FC = () => {
                           ? 'bg-[#14191C] border-stone-700 text-white focus:ring-[#E4E98E]/50' 
                           : 'bg-stone-50 border-stone-300 text-stone-900 focus:ring-amber-500'
                       }`}
-                      placeholder="e.g. Sunny Sololaki Balcony Loft"
+                      placeholder={obContent.step1.titlePlaceholder}
                     />
                   </div>
 
                   <div>
                     <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                      Subtitle / Catchphrase
+                      {obContent.step1.subtitleLabel}
                     </label>
                     <input
                       type="text"
@@ -329,14 +329,14 @@ export const OnboardingWizard: React.FC = () => {
                           ? 'bg-[#14191C] border-stone-700 text-white focus:ring-[#E4E98E]/50' 
                           : 'bg-stone-50 border-stone-300 text-stone-900 focus:ring-amber-500'
                       }`}
-                      placeholder="e.g. Historic courtyard apartment with panoramic city views"
+                      placeholder={obContent.step1.subtitlePlaceholder}
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                       <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                        Property Type
+                        {obContent.step1.typeLabel}
                       </label>
                       <select
                         value={formData.type || 'apartment'}
@@ -347,16 +347,16 @@ export const OnboardingWizard: React.FC = () => {
                             : 'bg-stone-50 border-stone-300 text-stone-900 focus:ring-amber-500'
                         }`}
                       >
-                        <option value="apartment">Apartment</option>
-                        <option value="guesthouse">Guesthouse</option>
-                        <option value="hotel">Boutique Hotel</option>
-                        <option value="villa">Villa / Chalet</option>
+                        <option value="apartment">{obContent.step1.types.apartment}</option>
+                        <option value="guesthouse">{obContent.step1.types.guesthouse}</option>
+                        <option value="hotel">{obContent.step1.types.hotel}</option>
+                        <option value="villa">{obContent.step1.types.villa}</option>
                       </select>
                     </div>
 
                     <div>
                       <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                        City & Country
+                        {obContent.step1.cityCountryLabel}
                       </label>
                       <input
                         type="text"
@@ -374,14 +374,14 @@ export const OnboardingWizard: React.FC = () => {
                             ? 'bg-[#14191C] border-stone-700 text-white focus:ring-[#E4E98E]/50' 
                             : 'bg-stone-50 border-stone-300 text-stone-900 focus:ring-amber-500'
                         }`}
-                        placeholder="e.g. Tbilisi, Georgia"
+                        placeholder={obContent.step1.cityCountryPlaceholder}
                       />
                     </div>
                   </div>
 
                   <div>
                     <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                      Cover Photo URL
+                      {obContent.step1.coverPhotoLabel}
                     </label>
                     <input
                       type="text"
@@ -406,11 +406,11 @@ export const OnboardingWizard: React.FC = () => {
                   <span className={`text-[10px] font-mono uppercase tracking-wider font-bold block mb-1 ${
                     isDark ? 'text-[#E4E98E]' : 'text-amber-600'
                   }`}>
-                    Step 2 · Arrival & Keypad
+                    {obContent.step2.badge}
                   </span>
-                  <h3 className="text-2xl font-serif font-bold">Check-in times & door access</h3>
+                  <h3 className="text-2xl font-serif font-bold">{obContent.step2.question}</h3>
                   <p className={`text-xs mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Give exhausted guests clear access instructions so they never get stranded.
+                    {obContent.step2.desc}
                   </p>
                 </div>
 
@@ -418,7 +418,7 @@ export const OnboardingWizard: React.FC = () => {
                   <div className="grid grid-cols-2 gap-3.5">
                     <div>
                       <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                        Check-in Time
+                        {obContent.step2.checkInLabel}
                       </label>
                       <input
                         type="text"
@@ -431,7 +431,7 @@ export const OnboardingWizard: React.FC = () => {
                     </div>
                     <div>
                       <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                        Check-out Time
+                        {obContent.step2.checkOutLabel}
                       </label>
                       <input
                         type="text"
@@ -448,7 +448,7 @@ export const OnboardingWizard: React.FC = () => {
                     isDark ? 'bg-[#14191C] border-stone-700/80' : 'bg-stone-50 border-stone-200'
                   }`}>
                     <label className={`font-bold block ${isDark ? 'text-white' : 'text-stone-900'}`}>
-                      Door Keypad Pin Code
+                      {obContent.step2.keypadCodeLabel}
                     </label>
                     <input
                       type="text"
@@ -457,16 +457,16 @@ export const OnboardingWizard: React.FC = () => {
                       className={`w-full px-4 py-3 rounded-xl border text-base font-mono font-bold tracking-widest ${
                         isDark ? 'bg-[#1B2226] border-stone-600 text-[#E4E98E]' : 'bg-white border-stone-300 text-stone-900'
                       }`}
-                      placeholder="e.g. 4820#"
+                      placeholder={obContent.step2.keypadCodePlaceholder}
                     />
                     <span className={`text-[11px] block ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                      Tip: Include '#' or '*' if required to unlock the physical deadbolt.
+                      {obContent.step2.keypadTip}
                     </span>
                   </div>
 
                   <div>
                     <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                      Arrival Directions / Gate Code
+                      {obContent.step2.directionsLabel}
                     </label>
                     <textarea
                       rows={3}
@@ -475,7 +475,7 @@ export const OnboardingWizard: React.FC = () => {
                       className={`w-full px-4 py-3 rounded-2xl border text-xs font-medium focus:outline-none focus:ring-2 ${
                         isDark ? 'bg-[#14191C] border-stone-700 text-white focus:ring-[#E4E98E]/50' : 'bg-stone-50 border-stone-300 text-stone-900 focus:ring-amber-500'
                       }`}
-                      placeholder="e.g. Push the carved courtyard door, go up the spiraled stairs to the 2nd floor, blue door on right."
+                      placeholder={obContent.step2.directionsPlaceholder}
                     />
                   </div>
                 </div>
@@ -489,11 +489,11 @@ export const OnboardingWizard: React.FC = () => {
                   <span className={`text-[10px] font-mono uppercase tracking-wider font-bold block mb-1 ${
                     isDark ? 'text-[#E4E98E]' : 'text-amber-600'
                   }`}>
-                    Step 3 · Stay Essentials
+                    {obContent.step3.badge}
                   </span>
-                  <h3 className="text-2xl font-serif font-bold">1-Tap Wi-Fi & Appliances</h3>
+                  <h3 className="text-2xl font-serif font-bold">{obContent.step3.question}</h3>
                   <p className={`text-xs mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Guests can copy the Wi-Fi password with 1 tap or scan the router QR.
+                    {obContent.step3.desc}
                   </p>
                 </div>
 
@@ -503,7 +503,7 @@ export const OnboardingWizard: React.FC = () => {
                   }`}>
                     <div>
                       <label className={`font-bold block mb-1 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                        Wi-Fi Network Name (SSID)
+                        {obContent.step3.wifiNameLabel}
                       </label>
                       <input
                         type="text"
@@ -512,13 +512,13 @@ export const OnboardingWizard: React.FC = () => {
                         className={`w-full px-4 py-2.5 rounded-xl border text-sm font-semibold ${
                           isDark ? 'bg-[#1B2226] border-stone-600 text-white' : 'bg-white border-stone-300 text-stone-900'
                         }`}
-                        placeholder="e.g. Stumari_Guest_5G"
+                        placeholder={obContent.step3.wifiNamePlaceholder}
                       />
                     </div>
 
                     <div>
                       <label className={`font-bold block mb-1 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                        Wi-Fi Password
+                        {obContent.step3.wifiPassLabel}
                       </label>
                       <input
                         type="text"
@@ -527,14 +527,14 @@ export const OnboardingWizard: React.FC = () => {
                         className={`w-full px-4 py-2.5 rounded-xl border text-sm font-mono font-bold ${
                           isDark ? 'bg-[#1B2226] border-stone-600 text-emerald-400' : 'bg-white border-stone-300 text-emerald-600'
                         }`}
-                        placeholder="e.g. WelcomeGuest2026"
+                        placeholder={obContent.step3.wifiPassPlaceholder}
                       />
                     </div>
                   </div>
 
                   <div>
                     <label className={`font-bold block mb-2 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                      Key Appliances (AC, Coffee, Washer)
+                      {obContent.step3.appliancesLabel}
                     </label>
                     <div className="space-y-2">
                       {(formData.appliances || []).map((app, idx) => (
@@ -548,7 +548,7 @@ export const OnboardingWizard: React.FC = () => {
                           <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md ${
                             isDark ? 'bg-stone-800 text-stone-300' : 'bg-stone-100 text-stone-600'
                           }`}>
-                            Active
+                            {obContent.step3.activeBadge}
                           </span>
                         </div>
                       ))}
@@ -565,18 +565,18 @@ export const OnboardingWizard: React.FC = () => {
                   <span className={`text-[10px] font-mono uppercase tracking-wider font-bold block mb-1 ${
                     isDark ? 'text-[#E4E98E]' : 'text-amber-600'
                   }`}>
-                    Step 4 · Peaceful Hospitality
+                    {obContent.step4.badge}
                   </span>
-                  <h3 className="text-2xl font-serif font-bold">House Rules & Quiet Hours</h3>
+                  <h3 className="text-2xl font-serif font-bold">{obContent.step4.question}</h3>
                   <p className={`text-xs mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Set clear expectations for quiet hours, smoking, and garbage disposal.
+                    {obContent.step4.desc}
                   </p>
                 </div>
 
                 <div className="space-y-4 text-xs">
                   <div>
                     <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                      Quiet Hours
+                      {obContent.step4.quietHoursLabel}
                     </label>
                     <input
                       type="text"
@@ -590,7 +590,7 @@ export const OnboardingWizard: React.FC = () => {
 
                   <div>
                     <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                      Trash & Recycling Instructions
+                      {obContent.step4.trashLabel}
                     </label>
                     <textarea
                       rows={2}
@@ -604,7 +604,7 @@ export const OnboardingWizard: React.FC = () => {
 
                   <div>
                     <label className={`font-bold block mb-2 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                      House Rules List
+                      {obContent.step4.rulesListLabel}
                     </label>
                     <div className="space-y-2">
                       {(formData.houseRules || []).map((rule, idx) => (
@@ -630,11 +630,11 @@ export const OnboardingWizard: React.FC = () => {
                   <span className={`text-[10px] font-mono uppercase tracking-wider font-bold block mb-1 ${
                     isDark ? 'text-[#E4E98E]' : 'text-amber-600'
                   }`}>
-                    Step 5 · Local Secrets
+                    {obContent.step5.badge}
                   </span>
-                  <h3 className="text-2xl font-serif font-bold">Curated Neighborhood Spots</h3>
+                  <h3 className="text-2xl font-serif font-bold">{obContent.step5.question}</h3>
                   <p className={`text-xs mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Give your guests local insider recommendations they'll rave about in reviews.
+                    {obContent.step5.desc}
                   </p>
                 </div>
 
@@ -655,7 +655,7 @@ export const OnboardingWizard: React.FC = () => {
                       <div className={`p-2 rounded-xl text-[11px] ${
                         isDark ? 'bg-[#1C2327] text-stone-300' : 'bg-stone-50 text-stone-700'
                       }`}>
-                        <strong>Host insider tip:</strong> {rec.hostTip}
+                        <strong>{obContent.step5.hostTipPrefix}</strong> {rec.hostTip}
                       </div>
                     </div>
                   ))}
@@ -670,11 +670,11 @@ export const OnboardingWizard: React.FC = () => {
                   <span className={`text-[10px] font-mono uppercase tracking-wider font-bold block mb-1 ${
                     isDark ? 'text-[#E4E98E]' : 'text-amber-600'
                   }`}>
-                    Step 6 · Direct Communication
+                    {obContent.step6.badge}
                   </span>
-                  <h3 className="text-2xl font-serif font-bold">Host & Emergency Contact</h3>
+                  <h3 className="text-2xl font-serif font-bold">{obContent.step6.question}</h3>
                   <p className={`text-xs mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    1-tap WhatsApp chat button for instant questions and 112 emergency dialing.
+                    {obContent.step6.desc}
                   </p>
                 </div>
 
@@ -682,7 +682,7 @@ export const OnboardingWizard: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                       <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                        Host Full Name
+                        {obContent.step6.hostNameLabel}
                       </label>
                       <input
                         type="text"
@@ -695,7 +695,7 @@ export const OnboardingWizard: React.FC = () => {
                     </div>
                     <div>
                       <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                        WhatsApp Number (with country code)
+                        {obContent.step6.whatsappLabel}
                       </label>
                       <input
                         type="text"
@@ -704,14 +704,14 @@ export const OnboardingWizard: React.FC = () => {
                         className={`w-full px-4 py-3 rounded-2xl border text-sm font-mono font-semibold ${
                           isDark ? 'bg-[#14191C] border-stone-700 text-emerald-400' : 'bg-stone-50 border-stone-300 text-emerald-600'
                         }`}
-                        placeholder="+995 555 123 456"
+                        placeholder={obContent.step6.whatsappPlaceholder}
                       />
                     </div>
                   </div>
 
                   <div>
                     <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                      Emergency Secondary Contact
+                      {obContent.step6.emergencyLabel}
                     </label>
                     <input
                       type="text"
@@ -720,7 +720,7 @@ export const OnboardingWizard: React.FC = () => {
                       className={`w-full px-4 py-3 rounded-2xl border text-sm font-medium ${
                         isDark ? 'bg-[#14191C] border-stone-700 text-white' : 'bg-stone-50 border-stone-300 text-stone-900'
                       }`}
-                      placeholder="e.g. +995 555 987 654 (Building Manager)"
+                      placeholder={obContent.step6.emergencyPlaceholder}
                     />
                   </div>
                 </div>
@@ -732,11 +732,11 @@ export const OnboardingWizard: React.FC = () => {
               <div className="space-y-5 animate-in fade-in">
                 <div>
                   <span className={`text-[10px] font-mono uppercase tracking-wider font-bold block mb-1 text-emerald-500`}>
-                    Step 7 · Final Review
+                    {obContent.step7.badge}
                   </span>
-                  <h3 className="text-2xl font-serif font-bold">Your Stumari is ready to go live!</h3>
+                  <h3 className="text-2xl font-serif font-bold">{obContent.step7.question}</h3>
                   <p className={`text-xs mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Publish now to generate your QR placards, download printable flyers, and share with your guests.
+                    {obContent.step7.desc}
                   </p>
                 </div>
 
@@ -749,17 +749,17 @@ export const OnboardingWizard: React.FC = () => {
                       <p className="text-xs text-stone-400">{formData.city}, {formData.country} · {formData.type}</p>
                     </div>
                     <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-mono font-bold text-xs">
-                      100% Configured
+                      {obContent.step7.configured100}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-[#1B2226] border-stone-700' : 'bg-white border-stone-200'}`}>
-                      <span className="text-[10px] text-stone-400 block">Wi-Fi:</span>
+                      <span className="text-[10px] text-stone-400 block">{obContent.step7.wifiLabel}</span>
                       <strong className="truncate block">{formData.wifiNetwork}</strong>
                     </div>
                     <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-[#1B2226] border-stone-700' : 'bg-white border-stone-200'}`}>
-                      <span className="text-[10px] text-stone-400 block">Keypad:</span>
+                      <span className="text-[10px] text-stone-400 block">{obContent.step7.keypadLabel}</span>
                       <strong className="truncate block text-amber-500 font-mono">{formData.doorKeypadCode}</strong>
                     </div>
                   </div>
@@ -784,7 +784,7 @@ export const OnboardingWizard: React.FC = () => {
                 }`}
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>{t.onboarding.buttons.back}</span>
+                <span>{obContent.buttons.back}</span>
               </button>
 
               {currentStep < 7 ? (
@@ -797,7 +797,7 @@ export const OnboardingWizard: React.FC = () => {
                       : 'bg-stone-950 hover:bg-stone-850 text-white'
                   }`}
                 >
-                  <span>{t.onboarding.buttons.continue}</span>
+                  <span>{obContent.buttons.continue}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               ) : (
@@ -807,7 +807,7 @@ export const OnboardingWizard: React.FC = () => {
                   className="px-7 py-2.5 rounded-full font-bold text-xs shadow-lg bg-emerald-500 hover:bg-emerald-400 text-white transition-all flex items-center gap-2 active:scale-95"
                 >
                   <Sparkles className="w-4 h-4" />
-                  <span>{t.onboarding.buttons.finishAndLaunch}</span>
+                  <span>{obContent.buttons.finishAndLaunch}</span>
                 </button>
               )}
             </div>
@@ -825,11 +825,11 @@ export const OnboardingWizard: React.FC = () => {
                 <span className={`text-[10px] font-mono uppercase tracking-wider font-bold px-2.5 py-1 rounded-full ${
                   isDark ? 'bg-stone-800 text-[#E4E98E]' : 'bg-stone-100 text-stone-800'
                 }`}>
-                  Live Guest View
+                  {obContent.mirror.liveGuestView}
                 </span>
                 <span className="flex items-center gap-1 text-[11px] text-emerald-500 font-bold">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Real-time Mirror
+                  {obContent.mirror.realtimeMirror}
                 </span>
               </div>
 
@@ -844,6 +844,14 @@ export const OnboardingWizard: React.FC = () => {
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/40 to-transparent" />
+                  
+                  {/* Top-Right Theme and Language Controls Pair on Mirror */}
+                  <ThemeAndLanguageControls 
+                    className="absolute top-2.5 right-2.5 z-10 scale-90 origin-top-right" 
+                    themeButtonClassName="bg-black/60 hover:bg-black/80 border-white/20 text-stone-200"
+                    languageSelectorClassName="[&>button]:bg-black/60 [&>button]:hover:bg-black/80 [&>button]:border-white/20 [&>button]:text-stone-200"
+                  />
+
                   <div className="absolute bottom-3 left-3.5 right-3.5 text-white">
                     <span className="text-[10px] font-mono font-bold uppercase text-[#E4E98E]">
                       {formData.city || 'Tbilisi'}, {formData.country || 'Georgia'}
@@ -863,7 +871,7 @@ export const OnboardingWizard: React.FC = () => {
                       <Wifi className="w-3.5 h-3.5 text-emerald-400" />
                       <span className="font-bold text-[11px] truncate">{formData.wifiNetwork || 'Wi-Fi Name'}</span>
                     </div>
-                    <span className="text-[10px] font-mono text-emerald-500 font-bold">1-Tap Copy</span>
+                    <span className="text-[10px] font-mono text-emerald-500 font-bold">{obContent.mirror.tapCopy}</span>
                   </div>
 
                   {/* Door Keypad Pill */}
@@ -872,7 +880,7 @@ export const OnboardingWizard: React.FC = () => {
                   }`}>
                     <div className="flex items-center gap-2">
                       <KeyRound className="w-3.5 h-3.5 text-amber-500" />
-                      <span className="font-bold text-[11px]">Door Code:</span>
+                      <span className="font-bold text-[11px]">{obContent.mirror.doorCodeLabel}</span>
                     </div>
                     <span className="text-[11px] font-mono text-amber-500 font-bold">{formData.doorKeypadCode || '----'}</span>
                   </div>
@@ -888,16 +896,16 @@ export const OnboardingWizard: React.FC = () => {
                 <span className={`text-[10px] font-mono uppercase tracking-wider font-bold px-2.5 py-1 rounded-full ${
                   isDark ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-900'
                 }`}>
-                  Instant Presets
+                  {obContent.presets.badge}
                 </span>
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               </div>
 
               <h4 className="text-sm font-serif font-bold mb-1">
-                Load Realistic Sample Data
+                {obContent.presets.title}
               </h4>
               <p className={`text-xs mb-3 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                Click any preset to immediately test the complete wizard:
+                {obContent.presets.desc}
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -910,8 +918,8 @@ export const OnboardingWizard: React.FC = () => {
                       : 'bg-[#FDF0D5] border-[#F6E0B3] text-[#2C1F0D] hover:border-amber-400'
                   }`}
                 >
-                  <span className="text-[11px] font-bold block truncate">Tbilisi Loft</span>
-                  <span className="text-[9px] opacity-75 block truncate">Old Town Terrace</span>
+                  <span className="text-[11px] font-bold block truncate">{obContent.presets.tbilisiTitle}</span>
+                  <span className="text-[9px] opacity-75 block truncate">{obContent.presets.tbilisiSub}</span>
                 </button>
 
                 <button
@@ -923,8 +931,8 @@ export const OnboardingWizard: React.FC = () => {
                       : 'bg-[#E3EDF4] border-[#C9DEED] text-[#0F2230] hover:border-[#92B1C9]'
                   }`}
                 >
-                  <span className="text-[11px] font-bold block truncate">Batumi Penthouse</span>
-                  <span className="text-[9px] opacity-75 block truncate">Sea Boulevard</span>
+                  <span className="text-[11px] font-bold block truncate">{obContent.presets.batumiTitle}</span>
+                  <span className="text-[9px] opacity-75 block truncate">{obContent.presets.batumiSub}</span>
                 </button>
 
                 <button
@@ -936,8 +944,8 @@ export const OnboardingWizard: React.FC = () => {
                       : 'bg-[#E5ECE0] border-[#CFDEC7] text-[#192A17] hover:border-[#859768]'
                   }`}
                 >
-                  <span className="text-[11px] font-bold block truncate">Kazbegi Chalet</span>
-                  <span className="text-[9px] opacity-75 block truncate">Alpine Retreat</span>
+                  <span className="text-[11px] font-bold block truncate">{obContent.presets.kazbegiTitle}</span>
+                  <span className="text-[9px] opacity-75 block truncate">{obContent.presets.kazbegiSub}</span>
                 </button>
               </div>
             </div>
@@ -952,9 +960,9 @@ export const OnboardingWizard: React.FC = () => {
                     ? 'bg-emerald-500/20 text-emerald-400' 
                     : isDark ? 'bg-stone-800 text-[#E4E98E]' : 'bg-stone-100 text-stone-800'
                 }`}>
-                  Readiness Score: {readinessPct}%
+                  {obContent.readiness.scoreLabel}: {readinessPct}%
                 </span>
-                <span className="text-xs font-mono font-bold text-stone-400">{completedCount}/7 checks</span>
+                <span className="text-xs font-mono font-bold text-stone-400">{completedCount}/7 {obContent.readiness.checksLabel}</span>
               </div>
 
               {/* Progress Bar */}
@@ -970,7 +978,7 @@ export const OnboardingWizard: React.FC = () => {
                   <div key={idx} className="flex items-center justify-between text-[11px]">
                     <span className={item.done ? 'text-stone-300' : 'text-stone-500'}>{item.label}</span>
                     <span className={item.done ? 'text-emerald-400 font-bold' : 'text-stone-600'}>
-                      {item.done ? '✓ Done' : '○ Pending'}
+                      {item.done ? obContent.readiness.doneLabel : obContent.readiness.pendingLabel}
                     </span>
                   </div>
                 ))}

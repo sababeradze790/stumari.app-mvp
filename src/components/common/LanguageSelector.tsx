@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Globe, ChevronDown, Check } from 'lucide-react';
+import { Globe, ChevronDown, Check, Sun, Moon } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Language, SUPPORTED_LANGUAGES } from '../../i18n/types';
 
@@ -115,7 +115,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
       <div className={`relative ${className}`} ref={dropdownRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 active:scale-95 ${
+          className={`h-8 px-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 active:scale-95 ${
             isDark
               ? 'bg-stone-900/90 hover:bg-stone-850 text-stone-200 border-stone-800'
               : 'bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs'
@@ -227,5 +227,43 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
 
 export const GuestLanguageToggle: React.FC<{ className?: string }> = ({ className = '' }) => {
   return <LanguageSelector variant="segmented" className={className} />;
+};
+
+export interface ThemeAndLanguageControlsProps {
+  className?: string;
+  themeButtonClassName?: string;
+  languageSelectorClassName?: string;
+}
+
+export const ThemeAndLanguageControls: React.FC<ThemeAndLanguageControlsProps> = ({
+  className = '',
+  themeButtonClassName = '',
+  languageSelectorClassName = ''
+}) => {
+  const { theme, toggleTheme, language } = useApp();
+  const isDark = theme === 'dark';
+
+  return (
+    <div className={`flex items-center gap-1.5 shrink-0 ${className}`}>
+      <button
+        onClick={toggleTheme}
+        aria-label="Toggle dark/light mode"
+        className={`h-8 w-8 rounded-xl border flex items-center justify-center transition-all active:scale-95 shrink-0 ${
+          isDark
+            ? 'bg-stone-900/90 hover:bg-stone-850 text-stone-200 hover:text-white border-stone-800 shadow-sm'
+            : 'bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs'
+        } ${themeButtonClassName}`}
+        title={isDark ? (language === 'ka' ? 'ნათელი რეჟიმი' : language === 'ru' ? 'Светлая тема' : 'Switch to Light mode') : (language === 'ka' ? 'მუქი რეჟიმი' : language === 'ru' ? 'Темная тема' : 'Switch to Dark mode')}
+      >
+        {isDark ? (
+          <Sun className="w-4 h-4 text-[#E4E98E]" />
+        ) : (
+          <Moon className="w-4 h-4 text-stone-700" />
+        )}
+      </button>
+
+      <LanguageSelector variant="compact" className={languageSelectorClassName} />
+    </div>
+  );
 };
 

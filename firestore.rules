@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Properties: readable by guests via QR / URL, writable by hosts
+    match /properties/{propertyId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Stay Feedbacks: writable by guests at checkout, readable by hosts
+    match /feedbacks/{feedbackId} {
+      allow read, write: if true;
+    }
+
+    // Stumari Gems: public directory of local recommendations
+    match /gems/{gemId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Default deny for unmapped collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

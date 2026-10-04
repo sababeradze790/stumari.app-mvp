@@ -28,7 +28,139 @@ export interface LocalizedJourneyStep {
   desc: string;
 }
 
+export interface LocalizedPlan {
+  id: string;
+  name: string;
+  badge: string;
+  description: string;
+  features: string[];
+  cta: string;
+  priceMonthly: number;
+  priceAnnual: number;
+  isPopular: boolean;
+}
+
+export interface LandingPageCardItem {
+  badge: string;
+  title: string;
+  desc: string;
+}
+
+export interface LandingPageContent {
+  hero: {
+    badge: string;
+    titlePart1: string;
+    titleHighlight: string;
+    titlePart2: string;
+    subtitle: string;
+    primaryCta: string;
+    secondaryCta: string;
+    trustText: string;
+    filters: {
+      all: string;
+      demo: string;
+      automation: string;
+      proof: string;
+    };
+  };
+  phoneMockup: {
+    previewBadge: string;
+    interactiveBadge: string;
+    heading: string;
+    subtext: string;
+    fullScreenBtn: string;
+    mockupLocation: string;
+    mockupTitle: string;
+    mockupHost: string;
+    mockupVerified: string;
+    wifiLabel: string;
+    copyKey: string;
+    copied: string;
+    doorCodeLabel: string;
+    doorCodeTitle: string;
+    appliancesLabel: string;
+    appliancesTitle: string;
+    appliancesSub: string;
+    rulesLabel: string;
+    rulesTitle: string;
+    rulesSub: string;
+    secretsLabel: string;
+    secretsTitle: string;
+    secretsSub: string;
+  };
+  bentoCards: {
+    peaceOfMind: {
+      badge: string;
+      title: string;
+      desc: string;
+      problem: string;
+      solution: string;
+      savedTimeValue: string;
+      savedTimeLabel: string;
+      ratingValue: string;
+      ratingLabel: string;
+    };
+    reviews: {
+      badge: string;
+      title: string;
+      quote: string;
+      autonomyLabel: string;
+      autonomyValue: string;
+      author: string;
+      location: string;
+    };
+    hardware: {
+      badge: string;
+      title: string;
+      desc: string;
+      scanAction: string;
+      printLabel: string;
+      printStatus: string;
+    };
+    offline: {
+      badge: string;
+      title: string;
+      desc: string;
+      pwaChip: string;
+      whatsappChip: string;
+      syncLabel: string;
+      syncValue: string;
+    };
+  };
+  propertyTypes: {
+    badge: string;
+    title: string;
+    subtitle: string;
+    tabs: {
+      apartment: string;
+      villa: string;
+      hotel: string;
+      guesthouse: string;
+    };
+    apartmentCards: [LandingPageCardItem, LandingPageCardItem, LandingPageCardItem];
+    villaCards: [LandingPageCardItem, LandingPageCardItem, LandingPageCardItem];
+    hotelCards: [LandingPageCardItem, LandingPageCardItem, LandingPageCardItem];
+    guesthouseCards: [LandingPageCardItem, LandingPageCardItem, LandingPageCardItem];
+  };
+  onboardingProcess: {
+    badge: string;
+    title: string;
+    subtitle: string;
+    step1: { title: string; desc: string; foot: string };
+    step2: { title: string; desc: string; foot: string };
+    step3: { title: string; desc: string; foot: string };
+  };
+  ctaBanner: {
+    badge: string;
+    title: string;
+    subtitle: string;
+    primaryBtn: string;
+    secondaryBtn: string;
+  };
+}
+
 export interface MarketingContent {
+  landingPage: LandingPageContent;
   featuresPage: {
     badge: string;
     titlePart1: string;
@@ -76,6 +208,7 @@ export interface MarketingContent {
     featuresTitle: string;
     faqTitle: string;
     faqs: LocalizedFaq[];
+    plans: LocalizedPlan[];
   };
   demoPage: {
     badge: string;
@@ -97,6 +230,194 @@ export interface MarketingContent {
 export const MARKETING_I18N: Record<Language, MarketingContent> = {
   // 🇬🇪 GEORGIAN (ქართული)
   ka: {
+    landingPage: {
+      hero: {
+        badge: 'STUMARI · ციფრული მასპინძლობის პლატფორმა',
+        titlePart1: 'სტუმრის სრული გზამკვლევი.',
+        titleHighlight: 'ჩამოტვირთვის გარეშე.',
+        titlePart2: 'და ზედმეტი კითხვების გარეშე.',
+        subtitle: 'დაემშვიდობეთ ღამის 12 საათზე შემოსულ კითხვებს Wi-Fi-სა და კარების კოდზე. შექმენით ელეგანტური ციფრული გიდი 5 წუთში და დაბეჭდეთ QR სადგამი თქვენი სახლისთვის.',
+        primaryCta: 'შექმენით გიდი უფასოდ',
+        secondaryCta: 'სტუმრის ცოცხალი დემო',
+        trustText: 'საკრედიტო ბარათი არ არის საჭირო · 2 წუთიანი შექმნა',
+        filters: {
+          all: '✨ მთავარი',
+          demo: '📱 ცოცხალი დემო',
+          automation: '⚡ სიმშვიდე',
+          proof: '⭐ 5-ვარსკვლავიანი'
+        }
+      },
+      phoneMockup: {
+        previewBadge: 'სტუმრის ციფრული გიდი',
+        interactiveBadge: 'ინტერაქტიული',
+        heading: 'რას ხედავენ თქვენი სტუმრები მოსვლისთანავე',
+        subtext: 'ჩამოტვირთვის გარეშე. სკანირდება სამზარეულოს QR სადგამიდან ან NFC შეხებით.',
+        fullScreenBtn: 'სრულ ეკრანზე ნახვა',
+        mockupLocation: 'თბილისი · სოლოლაკი',
+        mockupTitle: 'ძველი თბილისის პანორამული ტერასა',
+        mockupHost: 'მასპინძელი საბა · სუპერჰოსტი ★ 4.98',
+        mockupVerified: 'აქტიური & გადამოწმებული',
+        wifiLabel: '1-შეხებით Wi-Fi პაროლი',
+        copyKey: 'კოპირება',
+        copied: 'დაკოპირდა!',
+        doorCodeLabel: 'კოდი',
+        doorCodeTitle: 'კარის პინი',
+        appliancesLabel: 'გიდი',
+        appliancesTitle: 'ტექნიკა',
+        appliancesSub: 'კონდიციონერი & ყავა',
+        rulesLabel: 'წესები',
+        rulesTitle: 'სახლის წესები',
+        rulesSub: 'სიჩუმე 23:00-დან',
+        secretsLabel: 'ადგილები',
+        secretsTitle: 'რჩევები',
+        secretsSub: 'ღვინო და კაფეები'
+      },
+      bentoCards: {
+        peaceOfMind: {
+          badge: 'სრული სიმშვიდე',
+          title: 'აღარავითარი ღამის შეტყობინებები WhatsApp-ში',
+          desc: 'ქაღალდის ბროშურები იხევა და იკარგება. როუტერის გაცვეთილი სტიკერები ღამის ზარებს იწვევს. Stumari სტუმარს ყველაფერს ეკრანზე 1 სკანირებით ახვედრებს.',
+          problem: '"რა არის Wi-Fi-ს პაროლი?" 23:45-ზე',
+          solution: '1 შეხება მაგიდის სადგამზე. მშვიდი ძილი',
+          savedTimeValue: '~45 წთ',
+          savedTimeLabel: 'დაზოგილი თითო ჯავშანზე',
+          ratingValue: '5.0 ★',
+          ratingLabel: 'შესვლის შეფასება'
+        },
+        reviews: {
+          badge: 'გადამოწმებული სტუმარი',
+          title: '5-ვარსკვლავიანი შეფასებები',
+          quote: '"Wi-Fi-ს კოპირება და ბინის ინსტრუქცია პირდაპირ ტელეფონში უმარტივესი იყო. 5 ვარსკვლავი check-in-ში!"',
+          autonomyLabel: 'სტუმრის დამოუკიდებლობა',
+          autonomyValue: '100% 5-ვარსკვლავიანი',
+          author: 'სოფი ტ. · Airbnb',
+          location: 'პარიზი, საფრანგეთი'
+        },
+        hardware: {
+          badge: 'მატერიალური სადგამი',
+          title: 'QR სადგამი + საწოლის NFC ჩიპი',
+          desc: 'აკრილის მაგიდის კარავი სამზარეულოსთვის და NFC მონეტა ტუმბოსთვის. ტელეფონის 1 მიდებით ყველაფერი იხსნება.',
+          scanAction: 'დაასკანერეთ ან მიადეთ NFC',
+          printLabel: '300 DPI საბეჭდი ფლაერი',
+          printStatus: 'შედის გეგმაში'
+        },
+        offline: {
+          badge: 'კავშირის გარეშეც მუშაობს',
+          title: 'ოფლაინ Service Worker ქეშირება',
+          desc: 'უცხოელი მოგზაურები როუმინგის გარეშე გარეთ არ დარჩებიან. კარის კოდები და საგანგებო კონტაქტები ქეშირებულია.',
+          pwaChip: 'მყისიერი PWA ქეში',
+          whatsappChip: 'პირდაპირი WhatsApp',
+          syncLabel: 'კოდების სინქრონიზაცია',
+          syncValue: '1 წამში'
+        }
+      },
+      propertyTypes: {
+        badge: 'მორგებული გადაწყვეტილებები',
+        title: 'შექმნილია ნებისმიერი ტიპის სივრცისთვის',
+        subtitle: 'ქალაქის ბინებიდან მთის კოტეჯებამდე, ვილებამდე და სასტუმროებამდე.',
+        tabs: {
+          apartment: 'ბინა',
+          villa: 'კოტეჯი / ვილა',
+          hotel: 'ბუტიკ-სასტუმრო',
+          guesthouse: 'საოჯახო სასტუმრო'
+        },
+        apartmentCards: [
+          {
+            badge: 'ქალაქის ბინები & ლოფტები',
+            title: 'დამოუკიდებელი შესვლის კოდები',
+            desc: 'გაუგზავნეთ სტუმრებს სადარბაზოს დომოფონის და ჭკვიანი საკეტის პინ-კოდები, რომლებიც მოსვლის დღეს ავტომატურად ჩნდება.'
+          },
+          {
+            badge: 'შერჩეული უბანი',
+            title: 'საყვარელი საიდუმლო ადგილები',
+            desc: 'მონიშნეთ თქვენი რჩეული თონე, ნატურალური ღვინის ბარი და 24/7 აფთიაქი, რათა სტუმრებმა ტურისტულ ხაფანგებს თავი აარიდონ.'
+          },
+          {
+            badge: 'ტექნიკა & ნაგავი',
+            title: 'როგორ მუშაობს სახლი',
+            desc: 'მკაფიო ინსტრუქციები კონდიციონერის გათბობა/გაგრილებაზე, ყავის აპარატზე, ჭურჭლის სარეცხსა და ნაგვის ურნებზე.'
+          }
+        ],
+        villaCards: [
+          {
+            badge: 'მთის კოტეჯები & ვილები',
+            title: 'ჯაკუზი & ბუხრის წესები',
+            desc: 'მიეცით ზუსტი ინსტრუქცია გათბობის რეგულატორზე, შეშის მარაგზე და აუზის/ჯაკუზის უსაფრთხო მოხმარებაზე.'
+          },
+          {
+            badge: 'აქტივობები ბუნებაში',
+            title: 'საფეხმავლო ბილიკები & ტრანსფერი',
+            desc: 'შეარჩიეთ ადგილობრივი მთის ბილიკები, სანდო სათხილამურო ინსტრუქტორები და 4x4 ჯიპების მძღოლები.'
+          },
+          {
+            badge: 'სოფლად მისვლა',
+            title: 'დეტალური GPS & ჭიშკრის წვდომა',
+            desc: 'ფოტო-გიდები მოხვევის ადგილებით, პარკინგის ჭიშკრის კოდებითა და ეზოში შესვლის ინსტრუქციით.'
+          }
+        ],
+        hotelCards: [
+          {
+            badge: 'ბუტიკ სასტუმროები',
+            title: 'ციფრული კონსიერჟის სერვისი',
+            desc: 'საუზმის საათები, რესტორნის მენიუს QR, ბარგის სათავსო და დაგვიანებული გასვლის (Late Checkout) მოთხოვნა.'
+          },
+          {
+            badge: 'მრავალოთახიანი ნომრები',
+            title: 'ინდივიდუალური ოთახის QR სადგამები',
+            desc: 'განათავსეთ უნიკალური QR კოდი თითოეულ ნომერში, რომელიც ავტომატურად შესაბამის სართულსა და კოდებს აჩვენებს.'
+          },
+          {
+            badge: 'სერვისები & სპა',
+            title: 'სპა, აუზი & აეროპორტის ტაქსი',
+            desc: 'მიეცით სტუმრებს შესაძლებლობა მობილურიდანვე დაჯავშნონ ტრანსფერი ან გაეცნონ სასტუმროს სერვისებს.'
+          }
+        ],
+        guesthouseCards: [
+          {
+            badge: 'საოჯახო სასტუმროები',
+            title: 'თბილი ქართული მასპინძლობა',
+            desc: 'პერსონალური მისალმება, ხელნაკეთი საუზმის დრო და საერთო ეზოს ეთიკა.'
+          },
+          {
+            badge: 'ადგილობრივი კულტურა',
+            title: 'ქვევრის ღვინო & ქართული პური',
+            desc: 'გააცანით სტუმრებს ტრადიციული მეკეცეები, ყველით მოვაჭრეები და ნატურალური მეღვინეები.'
+          },
+          {
+            badge: 'მრავალენოვანი',
+            title: 'მყისიერი თარგმანი',
+            desc: 'სტუმრებს შეუძლიათ წაიკითხონ სახლის ინსტრუქციები ქართულად, ინგლისურად ან რუსულად ენობრივი ბარიერის გარეშე.'
+          }
+        ]
+      },
+      onboardingProcess: {
+        badge: 'მარტივი გამართვა',
+        title: 'მზადაა 5 წუთში',
+        subtitle: 'ტექნიკური ცოდნა არ არის საჭირო. შეავსეთ ჩვენი მარტივი ოსტატი და დაბეჭდეთ მისასალმებელი ფლაერი მყისიერად.',
+        step1: {
+          title: 'შეავსეთ სწრაფი ოსტატი',
+          desc: 'შეიყვანეთ ობიექტის სახელი, Wi-Fi პაროლი, კარის კოდი და 3-4 თქვენი საყვარელი ადგილი უბანში.',
+          foot: 'საშუალო დრო: 3.5 წუთი'
+        },
+        step2: {
+          title: 'ჩამოტვირთეთ QR ან მიაბით NFC',
+          desc: 'ჩამოტვირთეთ მაღალი რეზოლუციის საბეჭდი ფლაერი ან შეუკვეთეთ აკრილის სადგამი თქვენი QR კოდით.',
+          foot: 'მყისიერი 300 DPI ვექტორული PDF'
+        },
+        step3: {
+          title: 'სტუმრები ასკანერებენ და ხარობენ',
+          desc: 'სტუმარი ასკანერებს მოსვლისთანავე და მომენტალურად იღებს Wi-Fi-სა და კარის კოდს. თქვენ ტკბებით მშვიდი 5-ვარსკვლავიანი მასპინძლობით.',
+          foot: 'არანაირი აპლიკაციის ჩამოტვირთვა'
+        }
+      },
+      ctaBanner: {
+        badge: 'დაიწყეთ უფასოდ დღესვე',
+        title: 'აჩუქეთ თქვენს სტუმრებს დაუვიწყარი 5-ვარსკვლავიანი დახვედრა',
+        subtitle: 'შეუერთდით მასპინძლებს, რომლებმაც გააქრეს ერთფეროვანი შეტყობინებები, ზოგავენ 45 წუთს თითო სტუმარზე და აოცებენ მოგზაურებს მთელი მსოფლიოდან.',
+        primaryBtn: 'შექმენით თქვენი Stumari ახლავე',
+        secondaryBtn: 'ტარიფების ნახვა'
+      }
+    },
     featuresPage: {
       badge: 'STUMARI - ძირითადი შესაძლებლობები',
       titlePart1: 'ყველაფერი, რაც თქვენს სტუმარს სჭირდება.',
@@ -295,6 +616,62 @@ export const MARKETING_I18N: Record<Language, MarketingContent> = {
           q: 'შემიძლია ტარიფის ნებისმიერ დროს გაუქმება ან შეცვლა?',
           a: 'რა თქმა უნდა. არანაირი გრძელვადიანი კონტრაქტები ან ჯარიმები. შეგიძლიათ შეცვალოთ ან გააუქმოთ 1 დაწკაპუნებით.'
         }
+      ],
+      plans: [
+        {
+          id: 'free',
+          name: 'სტარტერი',
+          priceMonthly: 0,
+          priceAnnual: 0,
+          badge: 'მუდმივად უფასო',
+          description: 'იდეალურია დამოუკიდებელი მასპინძლებისთვის 1 ობიექტით, რომელთაც ციფრული გიდის დაწყება სურთ.',
+          features: [
+            '1 აქტიური ობიექტის გიდი',
+            'QR კოდის გენერირება და ჩამოტვირთვა',
+            'მყისიერი 1-შეხებით Wi-Fi კოპირება',
+            'ტექნიკის ინსტრუქციები და სახლის წესები',
+            'ადგილობრივი შერჩეული რეკომენდაციები',
+            'ოფლაინ ქეშირება სტუმრებისთვის'
+          ],
+          cta: 'დაიწყეთ უფასოდ',
+          isPopular: false
+        },
+        {
+          id: 'pro',
+          name: 'პრო მასპინძელი',
+          priceMonthly: 9,
+          priceAnnual: 7,
+          badge: 'ყველაზე პოპულარული',
+          description: 'აქტიური მასპინძლებისთვის, რომელთაც სურთ დროის დაზოგვა, მაღალი შეფასებები და ბრენდირებული QR და NFC სადგამები.',
+          features: [
+            'ულიმიტო ობიექტები',
+            'საკუთარი ბმული (stumari.app/g/tbilisi-view)',
+            'NFC უკონტაქტო ჩიპების დაკავშირება',
+            'მაღალი ხარისხის საბეჭდი ფლაერები (300 DPI)',
+            'მრავალენოვანი გიდები (ქართული, ინგლისური, რუსული)',
+            'პირდაპირი WhatsApp ჩატი მასპინძელთან',
+            'პრიორიტეტული მხარდაჭერა'
+          ],
+          cta: '14-დღიანი უფასო ტესტი',
+          isPopular: true
+        },
+        {
+          id: 'enterprise',
+          name: 'უძრავი ქონების მმართველი',
+          priceMonthly: 29,
+          priceAnnual: 24,
+          badge: 'გუნდებისთვის & სასტუმროებისთვის',
+          description: 'ბუტიკ-სასტუმროებისთვის, საოჯახო სასტუმროებისა და მმართველებისთვის 10+ ობიექტით.',
+          features: [
+            'ყველაფერი Pro გეგმიდან',
+            'ნომრების ნუმერაცია და საკეტების რუკა',
+            'ფასდაკლება QR & NFC სადგამების საბითუმო შეკვეთაზე',
+            'საკუთარი ბრენდინგი და ფერები',
+            'პერსონალური ექაუნთ მენეჯერი'
+          ],
+          cta: 'დაუკავშირდით გაყიდვებს',
+          isPopular: false
+        }
       ]
     },
     demoPage: {
@@ -332,6 +709,194 @@ export const MARKETING_I18N: Record<Language, MarketingContent> = {
 
   // 🇷🇺 RUSSIAN (Русский)
   ru: {
+    landingPage: {
+      hero: {
+        badge: 'STUMARI · Цифровой путеводитель гостя',
+        titlePart1: 'Всё, что нужно вашим гостям.',
+        titleHighlight: 'Без скачивания приложений',
+        titlePart2: 'и без лишних звонков.',
+        subtitle: 'Забудьте о ночных вопросах в WhatsApp о Wi-Fi и домофоне. Создайте стильный цифровой путеводитель за 5 минут и распечатайте стильную QR-стойку для вашего жилья.',
+        primaryCta: 'Создать бесплатно',
+        secondaryCta: 'Интерактивное демо гостя',
+        trustText: 'Без привязки карты · Готово за 2 минуты',
+        filters: {
+          all: '✨ Главное',
+          demo: '📱 Демо гостя',
+          automation: '⚡ Спокойствие',
+          proof: '⭐ 5 звёзд'
+        }
+      },
+      phoneMockup: {
+        previewBadge: 'Вид путеводителя для гостя',
+        interactiveBadge: 'Интерактивно',
+        heading: 'Что видят ваши гости сразу по прибытии',
+        subtext: 'Без скачивания. Сканируется с настольной стойки или касанием NFC.',
+        fullScreenBtn: 'Открыть во весь экран',
+        mockupLocation: 'Тбилиси · Сололаки',
+        mockupTitle: 'Терраса в Старом Тбилиси',
+        mockupHost: 'Хост Саба · Суперхост ★ 4.98',
+        mockupVerified: 'Проверено & Активно',
+        wifiLabel: 'Wi-Fi пароль в 1 касание',
+        copyKey: 'Скопировать',
+        copied: 'Скопировано!',
+        doorCodeLabel: 'Код',
+        doorCodeTitle: 'Пин двери',
+        appliancesLabel: 'Гайд',
+        appliancesTitle: 'Техника',
+        appliancesSub: 'Кондиционер & Кофе',
+        rulesLabel: 'Правила',
+        rulesTitle: 'Правила дома',
+        rulesSub: 'Тишина с 23:00',
+        secretsLabel: 'Места',
+        secretsTitle: 'Где поесть',
+        secretsSub: 'Вино и пекарни'
+      },
+      bentoCards: {
+        peaceOfMind: {
+          badge: 'Полное спокойствие',
+          title: 'Забудьте о ночных сообщениях в WhatsApp',
+          desc: 'Бумажные папки рвутся и теряются. Выцветшие наклейки на роутере вызывают звонки в полночь. Stumari даёт гостю всё на экране смартфона за 1 секунду.',
+          problem: '"Какой пароль от Wi-Fi?" в 23:45',
+          solution: '1 касание стойки. Спокойный сон',
+          savedTimeValue: '~45 мин',
+          savedTimeLabel: 'Экономия на каждом заезде',
+          ratingValue: '5.0 ★',
+          ratingLabel: 'Оценка за заселение'
+        },
+        reviews: {
+          badge: 'Проверенный гость',
+          title: '5-звёздочные отзывы гостей',
+          quote: '"Копирование пароля Wi-Fi и инструкции по квартире прямо в телефоне — это просто супер. 5 звёзд за заселение!"',
+          autonomyLabel: 'Автономия гостя',
+          autonomyValue: '100% 5 звёзд',
+          author: 'Софи Т. · Airbnb',
+          location: 'Париж, Франция'
+        },
+        hardware: {
+          badge: 'Фирменная стойка',
+          title: 'QR-стойка + NFC-метка у кровати',
+          desc: 'Акриловая настольная стойка для кухни и NFC-диск для прикроватной тумбочки. 1 касание телефоном открывает всё.',
+          scanAction: 'Сканируйте или коснитесь NFC',
+          printLabel: '300 DPI флаер для печати',
+          printStatus: 'Включено'
+        },
+        offline: {
+          badge: 'Работает без связи',
+          title: 'Офлайн-кэширование Service Worker',
+          desc: 'Иностранные гости без местной сим-карты не останутся у запертой двери. Коды от замков и экстренные контакты закэшированы.',
+          pwaChip: 'Мгновенный PWA-кэш',
+          whatsappChip: 'Прямой WhatsApp',
+          syncLabel: 'Синхронизация кодов',
+          syncValue: '1 секунда'
+        }
+      },
+      propertyTypes: {
+        badge: 'Индивидуальные решения',
+        title: 'Подходит для любого типа жилья',
+        subtitle: 'От стильных городских квартир до горных шале, вилл и бутик-отелей.',
+        tabs: {
+          apartment: 'Квартира',
+          villa: 'Шале / Вилла',
+          hotel: 'Бутик-отель',
+          guesthouse: 'Гостевой дом'
+        },
+        apartmentCards: [
+          {
+            badge: 'Городские квартиры & лофты',
+            title: 'Коды самостоятельного заселения',
+            desc: 'Отправляйте коды от домофона и электронного замка, которые автоматически показываются в день заселения.'
+          },
+          {
+            badge: 'Любимый район',
+            title: 'Скрытые жемчужины района',
+            desc: 'Отметьте любимую пекарню, бар натурального вина и дежурную аптеку, чтобы гости не попадали в туристические ловушки.'
+          },
+          {
+            badge: 'Техника & мусор',
+            title: 'Как всё работает',
+            desc: 'Понятные инструкции по включению кондиционера на обогрев, капсульной кофемашине и графику вывоза мусора.'
+          }
+        ],
+        villaCards: [
+          {
+            badge: 'Горные шале & виллы',
+            title: 'Правила джакузи & камина',
+            desc: 'Понятные инструкции по регуляторам тепла, запасу сухих дров и правилам безопасности в бассейне или спа.'
+          },
+          {
+            badge: 'Активный отдых',
+            title: 'Пешие маршруты & лыжный трансфер',
+            desc: 'Соберите проверенных горных гидов, лыжных инструкторов и контакты местных водителей на внедорожниках.'
+          },
+          {
+            badge: 'Прибытие за город',
+            title: 'Точный GPS & въездные ворота',
+            desc: 'Фото-гиды с указанием поворотов с трассы, кодами от въездных шлагбаумов и схемами парковки.'
+          }
+        ],
+        hotelCards: [
+          {
+            badge: 'Бутик-отели',
+            title: 'Цифровой консьерж-сервис',
+            desc: 'Часы подачи завтрака, меню рум-сервиса по QR, камера хранения багажа и запрос позднего выезда.'
+          },
+          {
+            badge: 'Номерной фонд',
+            title: 'Уникальные стойки для каждого номера',
+            desc: 'Размещайте индивидуальные QR-коды для каждого номера, отражающие коды доступа к конкретному этажу.'
+          },
+          {
+            badge: 'Удобства & спа',
+            title: 'Спа, тренажёрный зал & трансфер',
+            desc: 'Позвольте гостям заказывать утренний трансфер в аэропорт и бронировать спа прямо со своего смартфона.'
+          }
+        ],
+        guesthouseCards: [
+          {
+            badge: 'Семейные гостевые дома',
+            title: 'Душевное гостеприимство',
+            desc: 'Персональное приветствие, время домашнего завтрака и правила уютного общего дворика.'
+          },
+          {
+            badge: 'Местный колорит',
+            title: 'Домашнее вино & сыры',
+            desc: 'Познакомьте гостей с местными сыроварами, пекарями грузинского хлеба и органическими виноделами.'
+          },
+          {
+            badge: 'Многоязычность',
+            title: 'Мгновенный перевод',
+            desc: 'Гости читают инструкции к жилью на родном языке — без языковых барьеров и недопониманий.'
+          }
+        ]
+      },
+      onboardingProcess: {
+        badge: 'Простая настройка',
+        title: 'Готово за 5 минут',
+        subtitle: 'Технические навыки не требуются. Заполните понятный мастер и сразу распечатайте приветственный флаер.',
+        step1: {
+          title: 'Заполните быстрый мастер',
+          desc: 'Укажите название объекта, пароль Wi-Fi, код от двери и 3-4 ваших любимых места в округе.',
+          foot: 'Среднее время: 3.5 минуты'
+        },
+        step2: {
+          title: 'Скачайте QR или привяжите NFC',
+          desc: 'Скачайте флаер для печати в высоком разрешении или закажите акриловые стойки с вашим кодом.',
+          foot: 'Векторный PDF 300 DPI'
+        },
+        step3: {
+          title: 'Гости сканируют и наслаждаются',
+          desc: 'Гости сканируют по прибытии и сразу получают пароль Wi-Fi и ключи от двери. Вы наслаждаетесь спокойным приёмом гостей на 5 звёзд.',
+          foot: 'Без скачивания приложений'
+        }
+      },
+      ctaBanner: {
+        badge: 'НАЧНИТЕ БЕСПЛАТНО СЕГОДНЯ',
+        title: 'Подарите вашим гостям незабываемый 5-звёздочный приём',
+        subtitle: 'Присоединяйтесь к хозяевам, которые избавились от повторяющихся вопросов, экономят 45 минут на каждом заезде и радуют путешественников со всего мира.',
+        primaryBtn: 'Создать свой Stumari сейчас',
+        secondaryBtn: 'Тарифы и планы'
+      }
+    },
     featuresPage: {
       badge: 'STUMARI - ОСНОВНЫЕ ВОЗМОЖНОСТИ',
       titlePart1: 'Всё, что нужно вашим гостям.',
@@ -530,6 +1095,62 @@ export const MARKETING_I18N: Record<Language, MarketingContent> = {
           q: 'Могу ли я отменить подписку в любой момент?',
           a: 'Конечно. Никаких долгосрочных контрактов или комиссий. Вы можете сменить тариф или отменить подписку в 1 клик.'
         }
+      ],
+      plans: [
+        {
+          id: 'free',
+          name: 'Стартовый',
+          priceMonthly: 0,
+          priceAnnual: 0,
+          badge: 'Бесплатно навсегда',
+          description: 'Идеально для индивидуальных хозяев с 1 объектом, начинающих работу с цифровыми гидами.',
+          features: [
+            '1 активный путеводитель',
+            'Генерация и скачивание QR-кода',
+            'Копирование Wi-Fi в 1 касание',
+            'Инструкции к технике и правила дома',
+            'Рекомендации лучших мест района',
+            'Офлайн-кэширование для гостей'
+          ],
+          cta: 'Начать бесплатно',
+          isPopular: false
+        },
+        {
+          id: 'pro',
+          name: 'Про Хозяин',
+          priceMonthly: 9,
+          priceAnnual: 7,
+          badge: 'Самый популярный',
+          description: 'Для активных хозяев, желающих экономить время, повышать отзывы и печатать брендированные QR и NFC стойки.',
+          features: [
+            'Неограниченно объектов',
+            'Персональный красивый адрес (stumari.app/g/tbilisi-view)',
+            'Привязка бесконтактных NFC-меток',
+            'Флаеры для печати в высоком качестве (300 DPI)',
+            'Многоязычные гиды (грузинский, русский, английский)',
+            'Прямой чат в WhatsApp с хозяином',
+            'Приоритетная поддержка'
+          ],
+          cta: '14 дней бесплатно',
+          isPopular: true
+        },
+        {
+          id: 'enterprise',
+          name: 'Управляющая компания',
+          priceMonthly: 29,
+          priceAnnual: 24,
+          badge: 'Для команд и отелей',
+          description: 'Для бутик-отелей, гостевых домов и управляющих с портфолио от 10 объектов.',
+          features: [
+            'Всё, что входит в тариф Про',
+            'Нумерация комнат и привязка отдельных кейбоксов',
+            'Скидки на оптовый заказ QR и NFC стоек',
+            'Индивидуальный брендинг и цвета',
+            'Персональный менеджер поддержки'
+          ],
+          cta: 'Связаться с отделом продаж',
+          isPopular: false
+        }
       ]
     },
     demoPage: {
@@ -567,6 +1188,194 @@ export const MARKETING_I18N: Record<Language, MarketingContent> = {
 
   // 🇬🇧 ENGLISH
   en: {
+    landingPage: {
+      hero: {
+        badge: 'STUMARI · DIGITAL HOSPITALITY PLATFORM',
+        titlePart1: 'The digital guide your guests need.',
+        titleHighlight: 'No app download.',
+        titlePart2: 'Zero midnight confusion.',
+        subtitle: 'Eliminate repetitive midnight messages about Wi-Fi passwords and door codes. Generate an elegant mobile guide in 5 minutes and print a custom QR counter stand for your rental.',
+        primaryCta: 'Create Your Stumari Free',
+        secondaryCta: 'Live Guest Guide Demo',
+        trustText: 'No credit card required · 2 min setup',
+        filters: {
+          all: '✨ All Highlights',
+          demo: '📱 Live Guest Demo',
+          automation: '⚡ Host Superpowers',
+          proof: '⭐ 5-Star Reviews'
+        }
+      },
+      phoneMockup: {
+        previewBadge: 'Live Guest Guide Preview',
+        interactiveBadge: 'Interactive',
+        heading: 'What your guests see the moment they arrive',
+        subtext: 'No app download. Scanned from an acrylic kitchen counter stand or tapped via nightstand NFC.',
+        fullScreenBtn: 'Full screen test',
+        mockupLocation: 'Tbilisi · Old Town',
+        mockupTitle: 'Old Tbilisi Panoramic Terrace',
+        mockupHost: 'Hosted by Saba · Superhost ★ 4.98',
+        mockupVerified: 'Live Verified',
+        wifiLabel: '1-Tap Wi-Fi Password',
+        copyKey: 'Copy Key',
+        copied: 'Copied!',
+        doorCodeLabel: 'Door Code',
+        doorCodeTitle: 'Front Door Pin',
+        appliancesLabel: 'Guide',
+        appliancesTitle: 'Appliances',
+        appliancesSub: 'AC & Coffee',
+        rulesLabel: 'Rules',
+        rulesTitle: 'House Rules',
+        rulesSub: 'Quiet 11 PM',
+        secretsLabel: 'Secrets',
+        secretsTitle: 'Local Spots',
+        secretsSub: 'Wine & Food'
+      },
+      bentoCards: {
+        peaceOfMind: {
+          badge: 'Peace of Mind',
+          title: 'Stop midnight WhatsApp messages',
+          desc: 'Paper binders tear. Faded router stickers cause late-night texts. Stumari puts everything on the guest’s screen in 1 scan.',
+          problem: '"What\'s the Wi-Fi?" at 11:45 PM',
+          solution: '1-Tap tap on stand. Peaceful sleep',
+          savedTimeValue: '~45 mins',
+          savedTimeLabel: 'Saved per booking',
+          ratingValue: '5.0 ★',
+          ratingLabel: 'Check-in score'
+        },
+        reviews: {
+          badge: 'Verified Guest',
+          title: '5-Star Guest Reviews',
+          quote: '"Having the Wi-Fi copy and apartment instructions right on my phone was amazing. 5 stars for check-in!"',
+          autonomyLabel: 'Guest autonomy',
+          autonomyValue: '100% 5-Star',
+          author: 'Sophie T. · Airbnb',
+          location: 'Paris, France'
+        },
+        hardware: {
+          badge: 'Hardware',
+          title: 'QR Stand + Bedside NFC Tag',
+          desc: 'Acrylic QR placard for kitchen counters, plus NFC coins for nightstands. 1 phone tap opens everything.',
+          scanAction: 'Scan or Tap NFC',
+          printLabel: '300 DPI print flyer',
+          printStatus: 'Included'
+        },
+        offline: {
+          badge: 'Zero Cell Signal',
+          title: 'Offline Service Worker Caching',
+          desc: 'International travelers without local SIMs won\'t get locked out. Keypad codes and emergency pins remain cached.',
+          pwaChip: 'Instant PWA Cache',
+          whatsappChip: 'Direct WhatsApp',
+          syncLabel: 'Door code sync',
+          syncValue: '1 Sec'
+        }
+      },
+      propertyTypes: {
+        badge: 'Tailored Solutions',
+        title: 'Designed for any hospitality space',
+        subtitle: 'From boutique city lofts to remote alpine chalets and multi-room guesthouses.',
+        tabs: {
+          apartment: 'Apartment',
+          villa: 'Villa',
+          hotel: 'Boutique Hotel',
+          guesthouse: 'Guesthouse'
+        },
+        apartmentCards: [
+          {
+            badge: 'City Lofts & Condos',
+            title: 'Self Check-in Keypads',
+            desc: 'Send guests intercom entrance codes and smart lock keypad pins that automatically show up the day of check-in.'
+          },
+          {
+            badge: 'Curated Neighborhood',
+            title: 'Favorite Hidden Gems',
+            desc: 'Pin your favorite bakery, natural wine bar, and late-night pharmacy so guests don’t end up at tourist traps.'
+          },
+          {
+            badge: 'Appliances & Trash',
+            title: 'How Things Work',
+            desc: 'Clear instructions for AC heating modes, coffee pod machines, dishwasher cycles, and garbage disposal bins.'
+          }
+        ],
+        villaCards: [
+          {
+            badge: 'Mountain Chalets & Villas',
+            title: 'Hot Tub & Fireplace Rules',
+            desc: 'Give clear heating dial instructions, firewood storage locations, and pool/spa guidelines.'
+          },
+          {
+            badge: 'Outdoor Activities',
+            title: 'Hiking Trails & Ski Shuttle',
+            desc: 'Curate local mountain trail maps, trusted ski instructors, and local 4x4 drivers.'
+          },
+          {
+            badge: 'Rural Arrival',
+            title: 'Detailed GPS & Gate Access',
+            desc: 'Photo guides showing turn-offs, parking gate codes, and driveway instructions.'
+          }
+        ],
+        hotelCards: [
+          {
+            badge: 'Boutique Hotels',
+            title: 'Digital Concierge Desk',
+            desc: 'Breakfast dining hours, room service menu QR, luggage storage desk, and late checkout requests.'
+          },
+          {
+            badge: 'Multi-Room Fleet',
+            title: 'Unique Room QR Placards',
+            desc: 'Deploy distinct QR codes per room number that automatically reflect specific floor keypad codes.'
+          },
+          {
+            badge: 'Amenities',
+            title: 'Spa, Gym & Airport Taxi',
+            desc: 'Empower guests to book morning shuttles or browse hotel amenities right on their mobile device.'
+          }
+        ],
+        guesthouseCards: [
+          {
+            badge: 'Family Guesthouses',
+            title: 'Warm Host Hospitality',
+            desc: 'Personalized greetings, homemade breakfast timing, and shared courtyard etiquette.'
+          },
+          {
+            badge: 'Local Culture',
+            title: 'Artisan Wine & Bread',
+            desc: 'Introduce guests to traditional pottery makers, local cheese vendors, and organic winemakers.'
+          },
+          {
+            badge: 'Multilingual',
+            title: 'Instant Translation',
+            desc: 'Guests can read house instructions in English, Georgian, or Russian without language barriers.'
+          }
+        ]
+      },
+      onboardingProcess: {
+        badge: 'Effortless Setup',
+        title: 'Ready in 5 minutes',
+        subtitle: 'No technical knowledge required. Fill our intuitive wizard and print your welcome flyer immediately.',
+        step1: {
+          title: 'Fill the Quick Wizard',
+          desc: 'Enter your property title, Wi-Fi password, keypad code, and 3-4 neighborhood spots you love.',
+          foot: 'Avg. time: 3.5 minutes'
+        },
+        step2: {
+          title: 'Download QR or Tag NFC',
+          desc: 'Download our high-res print flyer or order custom acrylic stands with your property\'s QR code.',
+          foot: 'Instant 300 DPI vector PDF'
+        },
+        step3: {
+          title: 'Guests Tap & Enjoy',
+          desc: 'Guests scan upon arrival and get instant Wi-Fi and door keys. You enjoy peaceful 5-star hosting.',
+          foot: 'Zero guest app downloads'
+        }
+      },
+      ctaBanner: {
+        badge: 'START FREE TODAY',
+        title: 'Give your guests an unforgettable 5-star welcome',
+        subtitle: 'Join hosts who eliminate repetitive messages, save 45 minutes every stay, and delight travelers worldwide.',
+        primaryBtn: 'Create your Stumari now',
+        secondaryBtn: 'View Plans & Pricing'
+      }
+    },
     featuresPage: {
       badge: 'STUMARI CORE MVP FEATURES',
       titlePart1: 'Everything your guests need.',
@@ -764,6 +1573,62 @@ export const MARKETING_I18N: Record<Language, MarketingContent> = {
         {
           q: 'Can I cancel or switch plans anytime?',
           a: 'Absolutely. There are no contracts or cancellation fees. You can upgrade, downgrade, or cancel with one click.'
+        }
+      ],
+      plans: [
+        {
+          id: 'free',
+          name: 'Starter',
+          priceMonthly: 0,
+          priceAnnual: 0,
+          badge: 'Free Forever',
+          description: 'Perfect for independent hosts with 1 property getting started with digital guides.',
+          features: [
+            '1 Active Property Guide',
+            'QR Code generation & download',
+            'Instant Wi-Fi 1-tap copy',
+            'Appliance guides & house rules',
+            'Local curated recommendations',
+            'Offline caching for guests'
+          ],
+          cta: 'Start Free',
+          isPopular: false
+        },
+        {
+          id: 'pro',
+          name: 'Pro Host',
+          priceMonthly: 9,
+          priceAnnual: 7,
+          badge: 'Most Popular',
+          description: 'For active hosts looking to save time, elevate reviews, and deploy custom branded QR & NFC tags.',
+          features: [
+            'Unlimited Properties',
+            'Custom vanity URL (stumari.app/g/your-name)',
+            'NFC contactless tag linking',
+            'High-res printable frame flyers',
+            'Multilingual guest guides (EN, KA, etc.)',
+            'WhatsApp host chat integration',
+            'Priority support'
+          ],
+          cta: 'Start 14-Day Free Trial',
+          isPopular: true
+        },
+        {
+          id: 'enterprise',
+          name: 'Property Manager',
+          priceMonthly: 29,
+          priceAnnual: 24,
+          badge: 'For Teams',
+          description: 'For boutique hotels, guesthouses, and managers handling 10+ doors with custom branding.',
+          features: [
+            'Everything in Pro',
+            'Multi-unit room numbers & lockbox mapping',
+            'Bulk QR & NFC tag ordering discounts',
+            'Custom branding & colors',
+            'Dedicated account manager'
+          ],
+          cta: 'Contact Sales',
+          isPopular: false
         }
       ]
     },

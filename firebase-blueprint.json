@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "Property": {
+      "title": "Property",
+      "description": "A rental property digital guide and stay manual",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "slug": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "country": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "hostName": { "type": "string" },
+        "hostPhone": { "type": "string" },
+        "hostWhatsApp": { "type": "string" },
+        "checkInTime": { "type": "string" },
+        "checkOutTime": { "type": "string" },
+        "wifiNetwork": { "type": "string" },
+        "wifiPassword": { "type": "string" }
+      },
+      "required": ["id", "slug", "title", "city"]
+    },
+    "StayFeedback": {
+      "title": "StayFeedback",
+      "description": "Private guest feedback and review routing for a property stay",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "propertyName": { "type": "string" },
+        "guestName": { "type": "string" },
+        "sentiment": { "type": "string" },
+        "comment": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "propertyId", "sentiment", "createdAt"]
+    },
+    "StumariGem": {
+      "title": "StumariGem",
+      "description": "Curated local secret or host recommendation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "type": { "type": "string" },
+        "experience": { "type": "string" },
+        "distance": { "type": "string" },
+        "priceLevel": { "type": "string" },
+        "whyWeRecommend": { "type": "string" },
+        "localTip": { "type": "string" }
+      },
+      "required": ["id", "title", "experience"]
+    }
+  },
+  "firestore": {
+    "/properties/{propertyId}": {
+      "schema": { "$ref": "#/entities/Property" },
+      "description": "Public property stay guides published by hosts"
+    },
+    "/feedbacks/{feedbackId}": {
+      "schema": { "$ref": "#/entities/StayFeedback" },
+      "description": "Private stay feedback submitted by guests"
+    },
+    "/gems/{gemId}": {
+      "schema": { "$ref": "#/entities/StumariGem" },
+      "description": "Curated Tbilisi local gems library and host secrets"
+    }
+  }
+}

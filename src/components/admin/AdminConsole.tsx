@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { MOCK_ADMIN_HOSTS, MOCK_ADMIN_PROPERTIES_SUMMARY, MOCK_PLATFORM_STATS } from '../../data/mockData';
-import { LanguageSelector } from '../common/LanguageSelector';
+import { ADMIN_I18N } from '../../data/adminI18n';
 
 export const AdminConsole: React.FC = () => {
   const { 
@@ -32,9 +32,11 @@ export const AdminConsole: React.FC = () => {
     navigateToPropertyHub,
     showToast,
     theme,
-    t
+    t,
+    language
   } = useApp();
   const isDark = theme === 'dark';
+  const adminContent = ADMIN_I18N[language] || ADMIN_I18N.en;
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'hosts' | 'properties' | 'settings'>(() => {
     if (currentRoute === '/admin/hosts') return 'hosts';
@@ -61,7 +63,7 @@ export const AdminConsole: React.FC = () => {
   };
 
   const handlePurgeCache = () => {
-    showToast('Edge PWA service worker cache purged across all regions.');
+    showToast(adminContent.dashboard.cachePurgedToast);
   };
 
   return (
@@ -81,7 +83,7 @@ export const AdminConsole: React.FC = () => {
             }`}
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>{t.propertyHub.backToDashboard}</span>
+            <span>{adminContent.header.backToDashboard}</span>
           </button>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-serif font-bold tracking-tight">
@@ -90,7 +92,7 @@ export const AdminConsole: React.FC = () => {
             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider ${
               isDark ? 'bg-[#E4E98E]/15 text-[#E4E98E] border border-[#E4E98E]/30' : 'bg-amber-100 text-amber-900 border border-amber-200'
             }`}>
-              Superuser
+              {adminContent.header.superuserBadge}
             </span>
           </div>
           <p className={`text-xs mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
@@ -99,17 +101,15 @@ export const AdminConsole: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <LanguageSelector variant="dropdown" />
-
           {/* Dynamic Segmented Admin Tabs */}
           <div className={`flex items-center gap-1 p-1 rounded-2xl border overflow-x-auto no-scrollbar max-w-full ${
             isDark ? 'bg-[#14191C] border-stone-800' : 'bg-stone-100 border-stone-200'
           }`}>
             {[
-              { id: 'dashboard', label: t.admin.tabs.overview },
-              { id: 'hosts', label: t.admin.tabs.hosts },
-              { id: 'properties', label: t.admin.tabs.properties },
-              { id: 'settings', label: t.admin.tabs.settings }
+              { id: 'dashboard', label: adminContent.header.tabs.overview },
+              { id: 'hosts', label: adminContent.header.tabs.hosts },
+              { id: 'properties', label: adminContent.header.tabs.properties },
+              { id: 'settings', label: adminContent.header.tabs.settings }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -147,13 +147,13 @@ export const AdminConsole: React.FC = () => {
                   <span className={`text-[10px] font-mono uppercase tracking-wider font-bold px-2 py-0.5 rounded-full ${
                     isDark ? 'bg-stone-800 text-[#E4E98E]' : 'bg-stone-100 text-stone-800'
                   }`}>
-                    Platform Scale
+                    {adminContent.dashboard.platformScale}
                   </span>
-                  <h3 className="text-xl font-serif font-bold mt-1.5">Guidebook Network Volume</h3>
+                  <h3 className="text-xl font-serif font-bold mt-1.5">{adminContent.dashboard.volumeTitle}</h3>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-emerald-500 font-bold">
                   <TrendingUp className="w-4 h-4" />
-                  <span>+24.6% this month</span>
+                  <span>{adminContent.dashboard.growthMonth}</span>
                 </div>
               </div>
 
@@ -163,25 +163,25 @@ export const AdminConsole: React.FC = () => {
                   isDark ? 'bg-[#14191C] border-stone-800/80' : 'bg-stone-50 border-stone-200'
                 }`}>
                   <span className={`text-[10px] font-mono uppercase tracking-wider block ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Active Hosts
+                    {adminContent.dashboard.activeHosts}
                   </span>
                   <div className={`text-2xl sm:text-3xl font-bold font-serif mt-1 ${isDark ? 'text-white' : 'text-stone-900'}`}>
                     {MOCK_PLATFORM_STATS.totalHosts}
                   </div>
-                  <span className="text-[10px] text-emerald-500 font-medium mt-1 block">100% active</span>
+                  <span className="text-[10px] text-emerald-500 font-medium mt-1 block">{adminContent.dashboard.activeHostsSub}</span>
                 </div>
 
                 <div className={`p-4 rounded-2xl border ${
                   isDark ? 'bg-[#14191C] border-stone-800/80' : 'bg-stone-50 border-stone-200'
                 }`}>
                   <span className={`text-[10px] font-mono uppercase tracking-wider block ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Total Guides
+                    {adminContent.dashboard.totalGuides}
                   </span>
                   <div className={`text-2xl sm:text-3xl font-bold font-serif mt-1 ${isDark ? 'text-white' : 'text-stone-900'}`}>
                     {MOCK_PLATFORM_STATS.totalProperties}
                   </div>
                   <span className={`text-[10px] block mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Across 3 cities
+                    {adminContent.dashboard.totalGuidesSub}
                   </span>
                 </div>
 
@@ -189,25 +189,25 @@ export const AdminConsole: React.FC = () => {
                   isDark ? 'bg-[#14191C] border-stone-800/80' : 'bg-stone-50 border-stone-200'
                 }`}>
                   <span className={`text-[10px] font-mono uppercase tracking-wider block ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Published
+                    {adminContent.dashboard.published}
                   </span>
                   <div className="text-2xl sm:text-3xl font-bold font-serif mt-1 text-emerald-500">
                     {MOCK_PLATFORM_STATS.publishedProperties}
                   </div>
-                  <span className="text-[10px] text-emerald-500 font-medium mt-1 block">Live scanned</span>
+                  <span className="text-[10px] text-emerald-500 font-medium mt-1 block">{adminContent.dashboard.publishedSub}</span>
                 </div>
 
                 <div className={`p-4 rounded-2xl border ${
                   isDark ? 'bg-[#14191C] border-stone-800/80' : 'bg-stone-50 border-stone-200'
                 }`}>
                   <span className={`text-[10px] font-mono uppercase tracking-wider block ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Draft Guides
+                    {adminContent.dashboard.draftGuides}
                   </span>
                   <div className="text-2xl sm:text-3xl font-bold font-serif mt-1 text-amber-500">
                     {MOCK_PLATFORM_STATS.draftProperties}
                   </div>
                   <span className={`text-[10px] block mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    In setup wizard
+                    {adminContent.dashboard.draftGuidesSub}
                   </span>
                 </div>
               </div>
@@ -222,29 +222,29 @@ export const AdminConsole: React.FC = () => {
                   <span className={`text-[10px] font-mono uppercase tracking-wider font-bold px-2.5 py-1 rounded-full ${
                     isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                   }`}>
-                    System Health
+                    {adminContent.dashboard.systemHealth}
                   </span>
                   <Server className="w-4 h-4 text-emerald-500" />
                 </div>
 
                 <h3 className="text-lg font-serif font-bold mb-1">
-                  Edge PWA & Offline Sync
+                  {adminContent.dashboard.edgePwaTitle}
                 </h3>
                 <p className={`text-xs mb-4 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                  Zero latency guest experience cached worldwide.
+                  {adminContent.dashboard.edgePwaSub}
                 </p>
 
                 <div className="space-y-2.5 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className={isDark ? 'text-stone-400' : 'text-stone-600'}>Service Worker Uptime</span>
+                    <span className={isDark ? 'text-stone-400' : 'text-stone-600'}>{adminContent.dashboard.swUptime}</span>
                     <strong className="text-emerald-500 font-mono">99.98%</strong>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className={isDark ? 'text-stone-400' : 'text-stone-600'}>QR Code Resolution</span>
+                    <span className={isDark ? 'text-stone-400' : 'text-stone-600'}>{adminContent.dashboard.qrResolution}</span>
                     <strong className="font-mono">18ms</strong>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className={isDark ? 'text-stone-400' : 'text-stone-600'}>Active Guest Sessions</span>
+                    <span className={isDark ? 'text-stone-400' : 'text-stone-600'}>{adminContent.dashboard.activeSessions}</span>
                     <strong className={`font-mono ${isDark ? 'text-[#E4E98E]' : 'text-stone-900'}`}>342 live</strong>
                   </div>
                 </div>
@@ -258,7 +258,7 @@ export const AdminConsole: React.FC = () => {
                   }`}
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Purge Edge Cache</span>
+                  <span>{adminContent.dashboard.purgeCacheBtn}</span>
                 </button>
               </div>
             </div>
@@ -275,15 +275,15 @@ export const AdminConsole: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <span className={`text-[10px] font-mono uppercase tracking-wider font-bold block ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Account Directory
+                    {adminContent.dashboard.accountDirectory}
                   </span>
-                  <h3 className="font-serif text-lg font-bold">Top Performing Hosts</h3>
+                  <h3 className="font-serif text-lg font-bold">{adminContent.dashboard.topHostsTitle}</h3>
                 </div>
                 <button
                   onClick={() => handleTabChange('hosts')}
                   className={`text-xs font-bold transition-colors ${isDark ? 'text-[#E4E98E] hover:underline' : 'text-stone-900 hover:underline'}`}
                 >
-                  View all ({MOCK_ADMIN_HOSTS.length})
+                  {adminContent.dashboard.viewAll} ({MOCK_ADMIN_HOSTS.length})
                 </button>
               </div>
 
@@ -313,7 +313,7 @@ export const AdminConsole: React.FC = () => {
                           ? isDark ? 'bg-[#E4E98E]/15 text-[#E4E98E]' : 'bg-emerald-100 text-emerald-800'
                           : isDark ? 'bg-stone-800 text-stone-300' : 'bg-stone-200 text-stone-700'
                       }`}>
-                        {h.plan} · {h.propertyCount} properties
+                        {h.plan} · {h.propertyCount} {adminContent.dashboard.propertiesCount}
                       </span>
                     </div>
                   </div>
@@ -328,15 +328,15 @@ export const AdminConsole: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <span className={`text-[10px] font-mono uppercase tracking-wider font-bold block ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                    Live Guideboard
+                    {adminContent.dashboard.liveGuideboard}
                   </span>
-                  <h3 className="font-serif text-lg font-bold">Active Properties Telemetry</h3>
+                  <h3 className="font-serif text-lg font-bold">{adminContent.dashboard.liveTelemetryTitle}</h3>
                 </div>
                 <button
                   onClick={() => handleTabChange('properties')}
                   className={`text-xs font-bold transition-colors ${isDark ? 'text-[#E4E98E] hover:underline' : 'text-stone-900 hover:underline'}`}
                 >
-                  View all ({properties.length})
+                  {adminContent.dashboard.viewAll} ({properties.length})
                 </button>
               </div>
 
@@ -364,14 +364,14 @@ export const AdminConsole: React.FC = () => {
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                         p.status === 'published' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'
                       }`}>
-                        {p.status}
+                        {p.status === 'published' ? adminContent.dashboard.published : adminContent.dashboard.draftGuides}
                       </span>
                       <button
                         onClick={() => navigateToGuestGuide(p.slug)}
                         className={`p-1.5 rounded-lg transition-colors ${
                           isDark ? 'hover:bg-stone-800 text-[#E4E98E]' : 'hover:bg-stone-200 text-stone-800'
                         }`}
-                        title="View Guest Guide"
+                        title={adminContent.dashboard.viewGuestGuide}
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                       </button>
@@ -393,15 +393,15 @@ export const AdminConsole: React.FC = () => {
         }`}>
           <div className={`p-6 border-b flex items-center justify-between ${isDark ? 'border-stone-800' : 'border-stone-200'}`}>
             <div>
-              <h3 className="font-serif text-xl font-bold">Registered Host Accounts</h3>
+              <h3 className="font-serif text-xl font-bold">{adminContent.hosts.title}</h3>
               <p className={`text-xs mt-0.5 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                Audit user subscriptions, properties managed, and status.
+                {adminContent.hosts.subtitle}
               </p>
             </div>
             <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full ${
               isDark ? 'bg-stone-800 text-[#E4E98E]' : 'bg-stone-100 text-stone-800'
             }`}>
-              {MOCK_ADMIN_HOSTS.length} Total Hosts
+              {MOCK_ADMIN_HOSTS.length} {adminContent.hosts.totalHostsTag}
             </span>
           </div>
 
@@ -411,11 +411,11 @@ export const AdminConsole: React.FC = () => {
                 isDark ? 'bg-[#14191C] border-stone-800 text-stone-400' : 'bg-stone-50 border-stone-200 text-stone-500'
               }`}>
                 <tr>
-                  <th className="px-6 py-3.5">Host Name</th>
-                  <th className="px-5 py-3.5">Email</th>
-                  <th className="px-5 py-3.5">Plan</th>
-                  <th className="px-5 py-3.5">Properties</th>
-                  <th className="px-5 py-3.5">Actions</th>
+                  <th className="px-6 py-3.5">{adminContent.hosts.thHost}</th>
+                  <th className="px-5 py-3.5">{adminContent.hosts.thEmail}</th>
+                  <th className="px-5 py-3.5">{adminContent.hosts.thPlan}</th>
+                  <th className="px-5 py-3.5">{adminContent.hosts.thProperties}</th>
+                  <th className="px-5 py-3.5">{adminContent.hosts.thActions}</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-stone-800/80' : 'divide-stone-100'}`}>
@@ -439,18 +439,18 @@ export const AdminConsole: React.FC = () => {
                         {h.plan}
                       </span>
                     </td>
-                    <td className="px-5 py-4 font-mono font-semibold">{h.propertyCount} listings</td>
+                    <td className="px-5 py-4 font-mono font-semibold">{h.propertyCount} {adminContent.hosts.listings}</td>
                     <td className="px-5 py-4">
                       <button
                         onClick={() => {
-                          showToast(`Impersonating host: ${h.name}`);
+                          showToast(adminContent.hosts.impersonateToast(h.name));
                           setCurrentRoute('/app');
                         }}
                         className={`px-3 py-1 rounded-xl font-bold text-xs transition-colors ${
                           isDark ? 'bg-stone-800 hover:bg-stone-750 text-white' : 'bg-stone-100 hover:bg-stone-200 text-stone-900'
                         }`}
                       >
-                        Inspect SaaS
+                        {adminContent.hosts.inspectSaas}
                       </button>
                     </td>
                   </tr>
@@ -468,15 +468,15 @@ export const AdminConsole: React.FC = () => {
         }`}>
           <div className={`p-6 border-b flex items-center justify-between ${isDark ? 'border-stone-800' : 'border-stone-200'}`}>
             <div>
-              <h3 className="font-serif text-xl font-bold">Properties Database</h3>
+              <h3 className="font-serif text-xl font-bold">{adminContent.properties.title}</h3>
               <p className={`text-xs mt-0.5 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                Inspect live guidebook URLs, door codes, and status.
+                {adminContent.properties.subtitle}
               </p>
             </div>
             <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full ${
               isDark ? 'bg-stone-800 text-[#E4E98E]' : 'bg-stone-100 text-stone-800'
             }`}>
-              {properties.length} Properties
+              {properties.length} {adminContent.properties.totalPropertiesTag}
             </span>
           </div>
 
@@ -486,11 +486,11 @@ export const AdminConsole: React.FC = () => {
                 isDark ? 'bg-[#14191C] border-stone-800 text-stone-400' : 'bg-stone-50 border-stone-200 text-stone-500'
               }`}>
                 <tr>
-                  <th className="px-6 py-3.5">Property</th>
-                  <th className="px-5 py-3.5">Host</th>
-                  <th className="px-5 py-3.5">Type</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5">Actions</th>
+                  <th className="px-6 py-3.5">{adminContent.properties.thProperty}</th>
+                  <th className="px-5 py-3.5">{adminContent.properties.thHost}</th>
+                  <th className="px-5 py-3.5">{adminContent.properties.thType}</th>
+                  <th className="px-5 py-3.5">{adminContent.properties.thStatus}</th>
+                  <th className="px-5 py-3.5">{adminContent.properties.thActions}</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-stone-800/80' : 'divide-stone-100'}`}>
@@ -515,7 +515,7 @@ export const AdminConsole: React.FC = () => {
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                         p.status === 'published' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'
                       }`}>
-                        {p.status}
+                        {p.status === 'published' ? adminContent.dashboard.published : adminContent.dashboard.draftGuides}
                       </span>
                     </td>
                     <td className="px-5 py-4">
@@ -526,14 +526,14 @@ export const AdminConsole: React.FC = () => {
                             isDark ? 'bg-stone-800 hover:bg-stone-750 text-white' : 'bg-stone-100 hover:bg-stone-200 text-stone-900'
                           }`}
                         >
-                          Manage
+                          {adminContent.properties.manageBtn}
                         </button>
                         <button
                           onClick={() => navigateToGuestGuide(p.slug)}
                           className={`p-1.5 rounded-lg transition-colors ${
                             isDark ? 'hover:bg-stone-800 text-[#E4E98E]' : 'hover:bg-stone-200 text-stone-900'
                           }`}
-                          title="Open live guest view"
+                          title={adminContent.properties.openLiveGuest}
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                         </button>
@@ -553,16 +553,16 @@ export const AdminConsole: React.FC = () => {
           isDark ? 'bg-[#0C1013] border-stone-800 text-stone-100' : 'bg-white border-stone-200 text-stone-900'
         }`}>
           <div>
-            <h2 className="text-2xl font-serif font-bold">Platform Parameters</h2>
+            <h2 className="text-2xl font-serif font-bold">{adminContent.settings.title}</h2>
             <p className={`text-xs mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-              Control global platform settings, support credentials, and maintenance mode.
+              {adminContent.settings.subtitle}
             </p>
           </div>
 
           <div className="space-y-4">
             <div>
               <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                Platform Brand Name
+                {adminContent.settings.brandNameLabel}
               </label>
               <input
                 type="text"
@@ -576,7 +576,7 @@ export const AdminConsole: React.FC = () => {
 
             <div>
               <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                Platform Support Email
+                {adminContent.settings.emailLabel}
               </label>
               <input
                 type="email"
@@ -590,7 +590,7 @@ export const AdminConsole: React.FC = () => {
 
             <div>
               <label className={`font-bold block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                Support WhatsApp Number
+                {adminContent.settings.whatsappLabel}
               </label>
               <input
                 type="text"
@@ -606,32 +606,33 @@ export const AdminConsole: React.FC = () => {
               isDark ? 'bg-[#14191C] border-stone-700/80' : 'bg-stone-50 border-stone-200'
             }`}>
               <div>
-                <span className="font-bold block text-sm">Global Maintenance Mode</span>
+                <span className="font-bold block text-sm">{adminContent.settings.maintenanceTitle}</span>
                 <span className={`text-[11px] block mt-0.5 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                  Temporarily pause new property creation. Existing guest guides remain cached offline.
+                  {adminContent.settings.maintenanceDesc}
                 </span>
               </div>
               <button
                 onClick={() => {
-                  setPlatformSettings({ ...platformSettings, maintenanceMode: !platformSettings.maintenanceMode });
-                  showToast(!platformSettings.maintenanceMode ? 'Maintenance mode enabled' : 'Maintenance mode disabled');
+                  const newMode = !platformSettings.maintenanceMode;
+                  setPlatformSettings({ ...platformSettings, maintenanceMode: newMode });
+                  showToast(newMode ? adminContent.settings.maintenanceEnabledToast : adminContent.settings.maintenanceDisabledToast);
                 }}
                 className={`px-4 py-2 rounded-xl font-bold text-xs transition-all ${
                   platformSettings.maintenanceMode ? 'bg-red-600 text-white' : isDark ? 'bg-stone-800 text-stone-300' : 'bg-stone-200 text-stone-700'
                 }`}
               >
-                {platformSettings.maintenanceMode ? 'Enabled' : 'Disabled'}
+                {platformSettings.maintenanceMode ? adminContent.settings.enabled : adminContent.settings.disabled}
               </button>
             </div>
 
             <div className="pt-2">
               <button
-                onClick={() => showToast('Platform settings saved successfully')}
+                onClick={() => showToast(adminContent.settings.savedSettingsToast)}
                 className={`px-7 py-3 rounded-full font-bold text-xs shadow-md transition-all ${
                   isDark ? 'bg-[#E4E98E] text-[#0C1510] hover:bg-[#d9de7d]' : 'bg-stone-900 text-white hover:bg-stone-850'
                 }`}
               >
-                Save Settings
+                {adminContent.settings.saveSettingsBtn}
               </button>
             </div>
           </div>

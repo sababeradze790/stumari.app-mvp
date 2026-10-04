@@ -23,7 +23,95 @@ export interface ApplianceGuide {
   icon: 'Thermometer' | 'Coffee' | 'Shirt' | 'Tv' | 'Flame' | 'Sparkles' | 'Utensils' | 'Zap';
   instructions: string;
   troubleshooting?: string;
+  category?: 'climate' | 'kitchen' | 'laundry' | 'entertainment' | 'access' | 'other';
 }
+
+// ==========================================
+// 2. STUMARI GEMS & EXPERIENCES
+// ==========================================
+export type GemExperience = 
+  | 'eat'        // Best khinkali, Best khachapuri, Cheap local, Family, Late-night, Georgian breakfast, Bakeries, Vegetarian, Modern Georgian, Wine bars
+  | 'drink'      // Best coffee, Wine, Cocktails, Georgian wine, Quiet places, Rooftops
+  | 'explore'    // Famous places, Hidden courtyards, Old Tbilisi, Markets, Museums, Architecture, Photography spots
+  | 'escape'     // Parks, Views, Nature, Quiet places, Sunset spots
+  | 'experience' // Sulfur baths, Cooking, Wine tasting, Markets, Art, Local workshops, Nightlife
+  | 'local_life';// Markets, Georgian products, Souvenirs, Vintage, Handmade
+
+export type GemMood = 
+  | 'hungry'     // 🍽 I'm hungry
+  | 'coffee'     // ☕ I want coffee
+  | 'explore'    // 🗺 I want to explore
+  | 'romantic'   // ❤️ I want something romantic
+  | 'cheap'      // 💰 I want something cheap
+  | 'authentic'  // 🇬🇪 I want something authentic
+  | 'nightlife'  // 🌙 I want nightlife
+  | 'quiet'      // 🌿 I want somewhere quiet
+  | 'quick'      // ⏱ I have 2 hours
+  | 'nearby';    // 📍 I want something nearby
+
+export interface StumariGem {
+  id: string;
+  title: string;
+  subtitle: string;
+  type: 'host' | 'stumari'; // 🏠 Host Gem vs ✨ Stumari Gem
+  experience: GemExperience;
+  subCategory?: string; // e.g. "Best Khinkali", "Hidden Courtyards", "Wine Bars"
+  moods: GemMood[];
+  distance: string; // e.g. "12 min walk"
+  priceLevel: '$' | '$$' | '$$$' | 'Free';
+  timeNeeded: string; // e.g. "30–45 min", "1–2 hours"
+  bestTime: string; // e.g. "Best after 19:00", "Morning or late afternoon"
+  whyWeRecommend: string; // "A neighborhood-style place where you can experience Georgian food..."
+  whatToTry: string[]; // ["🥟 Khinkali", "🧀 Khachapuri", "🥗 Badrijani", "🍷 Local wine"]
+  localTip: string; // "Don't order everything at once. Start with khinkali and add dishes after."
+  address: string;
+  mapsUrl: string;
+  image: string;
+  rating?: number; // e.g. 5
+  hostQuote?: string; // "Saba's favorite khinkali in Old Tbilisi"
+  isHostFavorite?: boolean;
+}
+
+// ==========================================
+// 3. STAY FEEDBACK & REVIEW ENGINE
+// ==========================================
+export type GuestSentiment = 'amazing' | 'good' | 'could_be_better' | 'problem';
+
+export type StayFeedbackCategory = 
+  | 'cleanliness'
+  | 'check_in'
+  | 'wifi'
+  | 'noise'
+  | 'temperature'
+  | 'location'
+  | 'communication'
+  | 'equipment'
+  | 'other';
+
+export interface StayFeedback {
+  id: string;
+  propertyId: string;
+  propertyName?: string;
+  createdAt: string;
+  guestName?: string;
+  sentiment: GuestSentiment;
+  categories?: StayFeedbackCategory[];
+  comment?: string;
+  publicReviewPlatformChosen?: 'airbnb' | 'google' | 'booking' | 'none';
+  status: 'new' | 'reviewed' | 'resolved';
+}
+
+// ==========================================
+// 4. STAY JOURNEY MOMENTS
+// ==========================================
+export type StayMoment = 
+  | 'before_arrival'  // Welcome, check-in instructions, address, parking, Wi-Fi prep
+  | 'first_10_min'    // Wi-Fi, apartment appliances, "What should I do first?"
+  | 'first_evening'   // "Where should I eat tonight?" (best local dinner)
+  | 'next_morning'    // "Where should I have breakfast & coffee?"
+  | 'during_stay'     // Gems, moods, explore, transport, questions
+  | 'before_checkout' // Check-out instructions, luggage, airport transfer
+  | 'after_checkout'; // How was your stay? Review engine
 
 export interface Property {
   id: string;
@@ -82,8 +170,15 @@ export interface Property {
   quietHours: string;
   trashSchedule: string;
 
-  // 6. Explore / Recommendations
+  // 6. Explore / Recommendations & Stumari Gems
   recommendations: Recommendation[];
+  gemIds?: string[];
+  customGems?: StumariGem[];
+  publicReviewLinks?: {
+    airbnb?: string;
+    google?: string;
+    booking?: string;
+  };
 
   // 7. Transport
   taxiInfo: string;

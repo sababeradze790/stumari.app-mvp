@@ -28,7 +28,6 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Property } from '../../types';
-import { LanguageSelector } from '../common/LanguageSelector';
 
 interface HostDashboardSimpleProps {
   isFullList?: boolean;
@@ -105,8 +104,6 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({ isFull
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          <LanguageSelector variant="dropdown" />
-
           <button
             onClick={() => setCurrentRoute('/onboarding')}
             className="w-full sm:w-auto px-4 sm:px-5 py-2.5 rounded-full bg-[#E4E98E] hover:bg-[#d8dd80] text-[#0C1510] font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 active:scale-95"

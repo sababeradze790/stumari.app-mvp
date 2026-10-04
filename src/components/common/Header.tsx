@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StumariArchIcon } from './StumariLogo';
-import { LanguageSelector } from './LanguageSelector';
+import { LanguageSelector, ThemeAndLanguageControls } from './LanguageSelector';
 
 export const Header: React.FC = () => {
   const { 
@@ -143,12 +143,10 @@ export const Header: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex items-center gap-2.5 text-stone-400 shrink-0 text-[11px]">
-          <div className="hidden md:flex items-center gap-1.5">
-            <span>{t.nav.activeProp} <strong className={isHost ? 'text-[#E4E98E]' : 'text-stone-200'}>{currentProperty.title}</strong></span>
+        <div className="flex items-center gap-2 text-stone-400 shrink-0 text-[11px]">
+          <div className="hidden lg:flex items-center gap-1.5">
+            <span>{t.nav.activeProp} <strong className={`max-w-[140px] truncate inline-block align-bottom ${isHost ? 'text-[#E4E98E]' : 'text-stone-200'}`}>{currentProperty.title}</strong></span>
           </div>
-          {/* Top Bar Language Switcher */}
-          <LanguageSelector variant="compact" />
         </div>
       </div>
 
@@ -185,7 +183,7 @@ export const Header: React.FC = () => {
 
         {/* Dynamic Nav Links */}
         {isMarketing ? (
-          <nav ref={navRef} className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-stone-700 relative">
+          <nav ref={navRef} className="hidden lg:flex items-center gap-1.5 text-sm font-semibold text-stone-700 relative">
             {/* 1. Features Dropdown */}
             <div className="relative">
               <button 
@@ -204,7 +202,7 @@ export const Header: React.FC = () => {
                     : 'text-stone-700 hover:text-stone-950 hover:bg-stone-100/90'
                 }`}
               >
-                <span>Features</span>
+                <span>{t.nav.features}</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown === 'features' ? 'rotate-180' : ''}`} />
               </button>
 
@@ -375,7 +373,7 @@ export const Header: React.FC = () => {
             </div>
           </nav>
         ) : isHost ? (
-          <nav className={`hidden md:flex items-center gap-1.5 text-xs font-semibold ${isDarkHeader ? 'text-stone-400' : 'text-stone-600'}`}>
+          <nav className={`hidden lg:flex items-center gap-1.5 text-xs font-semibold ${isDarkHeader ? 'text-stone-400' : 'text-stone-600'}`}>
             <button 
               onClick={() => setCurrentRoute('/app')}
               className={`px-3.5 py-1.5 rounded-full transition-all ${
@@ -417,21 +415,19 @@ export const Header: React.FC = () => {
             </button>
           </nav>
         ) : (
-          <div className="hidden md:flex items-center gap-3 text-xs text-stone-500">
-            <span>Stumari Hospitality Guide</span>
+          <div className="hidden xl:flex items-center gap-3 text-xs text-stone-500">
+            <span>{language === 'ka' ? 'Stumari ციფრული მასპინძლობის გიდი' : language === 'ru' ? 'Stumari Цифровой путеводитель гостя' : 'Stumari Hospitality Guide'}</span>
           </div>
         )}
 
-        {/* Right CTA + Language Selector */}
-        <div className="hidden sm:flex items-center gap-2.5">
-          {/* Main Navbar Language Dropdown */}
-          <LanguageSelector variant="dropdown" />
-
+        {/* Right Actions & CTAs */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Action CTAs (Marketing / Host) */}
           {isMarketing ? (
-            <>
+            <div className="hidden sm:flex items-center gap-2">
               <button
                 onClick={() => setCurrentRoute('/app')}
-                className={`text-xs font-semibold px-3 py-2 rounded-xl transition-colors ${
+                className={`hidden xl:inline-flex text-xs font-semibold px-3 py-2 rounded-xl transition-colors ${
                   isDarkHeader ? 'text-stone-300 hover:text-white hover:bg-stone-800' : 'text-stone-700 hover:text-stone-950 hover:bg-stone-100'
                 }`}
               >
@@ -439,7 +435,7 @@ export const Header: React.FC = () => {
               </button>
               <button
                 onClick={() => setCurrentRoute('/demo')}
-                className={`px-3.5 py-2 text-xs font-bold rounded-xl border transition-colors ${
+                className={`hidden md:inline-flex px-3.5 py-2 text-xs font-bold rounded-xl border transition-colors ${
                   isDarkHeader ? 'text-stone-200 bg-stone-900 hover:bg-stone-800 border-stone-750' : 'text-stone-800 bg-white hover:bg-stone-100 border-stone-300'
                 }`}
               >
@@ -447,16 +443,16 @@ export const Header: React.FC = () => {
               </button>
               <button
                 onClick={() => setCurrentRoute('/onboarding')}
-                className={`px-4 py-2 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 ${
+                className={`px-3.5 sm:px-4 py-2 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 ${
                   isDarkHeader ? 'text-[#0C1510] bg-[#E4E98E] hover:bg-[#d8dd80]' : 'text-white bg-stone-900 hover:bg-stone-800'
                 }`}
               >
                 <span>{t.nav.createStumari}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
-            </>
+            </div>
           ) : isHost ? (
-            <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2">
               <button
                 onClick={() => navigateToGuestGuide(currentProperty.slug)}
                 className={`px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-colors flex items-center gap-1.5 ${
@@ -481,57 +477,37 @@ export const Header: React.FC = () => {
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setCurrentRoute('/app')}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg shadow-xs transition-colors ${
-                isDarkHeader ? 'text-[#0C1510] bg-[#E4E98E] hover:bg-[#d8dd80]' : 'text-white bg-stone-900 hover:bg-stone-800'
-              }`}
-            >
-              {t.nav.hostSaas}
-            </button>
+            <div className="hidden sm:flex items-center">
+              <button
+                onClick={() => setCurrentRoute('/app')}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-lg shadow-xs transition-colors ${
+                  isDarkHeader ? 'text-[#0C1510] bg-[#E4E98E] hover:bg-[#d8dd80]' : 'text-white bg-stone-900 hover:bg-stone-800'
+                }`}
+              >
+                {t.nav.hostSaas}
+              </button>
+            </div>
           )}
 
-          {/* Dark / Light Theme Toggle Button */}
-          <button
-            onClick={toggleTheme}
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-              isDarkHeader
-                ? 'bg-stone-900 border border-stone-800 text-[#E4E98E] hover:bg-stone-850 hover:border-stone-700 shadow-xs'
-                : 'bg-stone-100 border border-stone-200 text-stone-800 hover:bg-stone-200 shadow-xs'
-            }`}
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
-            aria-label="Toggle theme"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-stone-800" />}
-          </button>
-        </div>
+          {/* Theme & Language Controls Pair Placed Right on the Main Navbar */}
+          <ThemeAndLanguageControls />
 
-        {/* Mobile menu toggle */}
-        <div className="md:hidden flex items-center gap-2">
-          <button
-            onClick={toggleTheme}
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-              isDarkHeader
-                ? 'bg-stone-900 border border-stone-800 text-[#E4E98E]'
-                : 'bg-stone-100 border border-stone-200 text-stone-700'
-            }`}
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
-            aria-label="Toggle theme"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className={`p-2 rounded-lg transition-colors ${isDarkHeader ? 'text-stone-300 hover:text-white' : 'text-stone-700 hover:text-stone-950'}`}
-          >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          {/* Mobile / Tablet menu toggle */}
+          <div className="lg:hidden flex items-center">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className={`p-2 rounded-lg transition-colors ${isDarkHeader ? 'text-stone-300 hover:text-white' : 'text-stone-700 hover:text-stone-950'}`}
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* MOBILE HOST SAAS TOP BAR MENU (Prominent, Touch-Optimized Page Switcher for Phone) */}
+      {/* MOBILE & TABLET HOST SAAS TOP BAR MENU (Prominent, Touch-Optimized Page Switcher for Phone/Tablet) */}
       {isHost && (
-        <div className={`md:hidden px-3 py-2 border-t flex items-center justify-between gap-1 overflow-x-auto no-scrollbar transition-colors ${
+        <div className={`lg:hidden px-3 py-2 border-t flex items-center justify-between gap-1 overflow-x-auto no-scrollbar transition-colors ${
           isDarkHeader 
             ? 'bg-[#0B0F12] border-stone-800 text-stone-200' 
             : 'bg-stone-100/95 border-stone-200 text-stone-800'
@@ -549,7 +525,7 @@ export const Header: React.FC = () => {
               }`}
             >
               <Building2 className="w-3.5 h-3.5" />
-              <span>Dashboard</span>
+              <span>{t.nav.dashboard}</span>
             </button>
 
             <button
@@ -561,7 +537,7 @@ export const Header: React.FC = () => {
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>Properties ({properties.length})</span>
+              <span>{t.nav.myProperties} ({properties.length})</span>
             </button>
 
             <button
@@ -573,7 +549,7 @@ export const Header: React.FC = () => {
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Hub & Edit</span>
+              <span>{t.nav.propertyHub}</span>
             </button>
 
             <button
@@ -585,7 +561,7 @@ export const Header: React.FC = () => {
               }`}
             >
               <Smartphone className="w-3.5 h-3.5" />
-              <span>Guest View</span>
+              <span>{t.nav.guestView}</span>
             </button>
           </div>
 
@@ -594,24 +570,24 @@ export const Header: React.FC = () => {
             className="px-3 py-1.5 rounded-full text-xs font-bold bg-[#E4E98E] text-[#0C1510] hover:bg-[#d8dd80] shrink-0 flex items-center gap-1 shadow-sm active:scale-95 ml-2"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Add</span>
+            <span>{language === 'ka' ? 'დამატება' : language === 'ru' ? 'Добавить' : 'Add'}</span>
           </button>
         </div>
       )}
 
-      {/* Mobile Drawer (Theme-Adaptive & Context-Aware Command Overlay) */}
+      {/* Mobile & Tablet Drawer (Theme-Adaptive & Context-Aware Command Overlay) */}
       {mobileMenuOpen && (
-        <div className={`md:hidden absolute top-full left-0 right-0 z-50 border-b px-4 pt-3.5 pb-6 space-y-4 animate-in slide-in-from-top-2 duration-200 transition-colors shadow-2xl max-h-[82vh] overflow-y-auto ${
+        <div className={`lg:hidden absolute top-full left-0 right-0 z-50 border-b px-4 pt-3.5 pb-6 space-y-4 animate-in slide-in-from-top-2 duration-200 transition-colors shadow-2xl max-h-[82vh] overflow-y-auto ${
           isDarkHeader 
             ? 'bg-[#0B0F12]/98 border-stone-800 text-stone-100' 
             : 'bg-white/98 border-stone-200 text-stone-900'
         }`}>
-          {/* Prominent Mobile Language Switcher (1-tap 🇬🇪 KA / 🇷🇺 RU / 🇬🇧 EN) */}
+          {/* Unified Theme & Language Controls Pair */}
           <div className="flex items-center justify-between pb-3 border-b border-stone-200/80 dark:border-stone-800/80">
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-stone-400">
-              {t.common.language}:
+              {language === 'ka' ? 'თემა და ენა' : language === 'ru' ? 'Тема и язык' : 'Theme & Language'}:
             </span>
-            <LanguageSelector variant="pills" />
+            <ThemeAndLanguageControls />
           </div>
 
           {isHost ? (
@@ -847,7 +823,7 @@ export const Header: React.FC = () => {
             <div className="flex flex-col space-y-2 text-sm font-semibold">
               <div className="flex items-center justify-between pb-2 border-b border-stone-200 dark:border-stone-800">
                 <span className="text-xs font-mono font-bold uppercase tracking-wider text-stone-400">
-                  Navigation
+                  {language === 'ka' ? 'ნავიგაცია' : language === 'ru' ? 'Навигация' : 'Navigation'}
                 </span>
                 <button
                   onClick={() => setMobileMenuOpen(false)}

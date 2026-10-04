@@ -29,7 +29,7 @@ import QRCode from 'qrcode';
 import { useApp, PropertyTab, GuideSectionKey } from '../../context/AppContext';
 import { Property, ApplianceGuide, Recommendation, PropertyType } from '../../types';
 import { GuestGuideSimple } from '../guest/GuestGuideSimple';
-import { LanguageSelector } from '../common/LanguageSelector';
+import { PROPERTY_HUB_I18N } from '../../data/propertyHubI18n';
 
 export const PropertyHub: React.FC = () => {
   const { 
@@ -45,10 +45,13 @@ export const PropertyHub: React.FC = () => {
     setCurrentRoute,
     showToast,
     theme,
-    t
+    t,
+    language
   } = useApp();
 
   const isDarkMode = theme === 'dark';
+  const hubContent = PROPERTY_HUB_I18N[language] || PROPERTY_HUB_I18N.en;
+
   const [prop, setProp] = useState<Property>(currentProperty);
   const [copiedLink, setCopiedLink] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
@@ -58,19 +61,19 @@ export const PropertyHub: React.FC = () => {
     setProp(currentProperty);
   }, [currentProperty]);
 
-  // Generate QR code for the guest URL
+  // Generate QR Code data URL
   useEffect(() => {
     const guestUrl = `${window.location.origin}/#/g/${prop.slug}`;
     QRCode.toDataURL(guestUrl, {
-      width: 320,
+      width: 400,
       margin: 2,
       color: {
-        dark: '#0C1013',
-        light: '#ffffff',
-      },
+        dark: '#0C1510',
+        light: '#FFFFFF'
+      }
     })
-      .then((url) => setQrDataUrl(url))
-      .catch((err) => console.error(err));
+      .then(url => setQrDataUrl(url))
+      .catch(err => console.error('Error generating QR:', err));
   }, [prop.slug]);
 
   const handleFieldChange = (field: keyof Property, value: any) => {
@@ -138,64 +141,73 @@ export const PropertyHub: React.FC = () => {
               {prop.title}
             </h1>
             <span
-              className={`px-3 py-1 rounded-full text-xs font-mono font-bold flex items-center gap-1.5 ${
+              className={`px-3 py-0.5 rounded-full text-xs font-mono font-bold capitalize ${
                 prop.status === 'published'
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-stone-800 text-stone-400 border border-stone-700'
+                  : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${prop.status === 'published' ? 'bg-emerald-400 animate-pulse' : 'bg-stone-500'}`} />
-              <span>{prop.status === 'published' ? t.hostDashboard.live : t.hostDashboard.draft}</span>
+              {prop.status === 'published' ? t.hostDashboard.card.published : t.hostDashboard.card.draft}
             </span>
           </div>
-          <p className={`text-xs sm:text-sm font-normal ${isDarkMode ? 'text-stone-400' : 'text-stone-500'}`}>
-            {prop.address}, {prop.city} · <span className={`capitalize font-medium ${isDarkMode ? 'text-stone-300' : 'text-stone-800'}`}>{prop.type}</span>
+          <p className={`text-xs flex items-center gap-1.5 ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>
+            <MapPin className="w-3.5 h-3.5" />
+            <span>{prop.address}, {prop.city}, {prop.country}</span>
           </p>
         </div>
 
-        {/* Quick Top Actions & Language Switcher */}
+        {/* Action Header Shortcuts */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          <LanguageSelector variant="dropdown" />
-
           <button
             onClick={handleCopyLink}
-            className="px-4 py-2.5 rounded-full border border-stone-800 hover:border-stone-700 bg-stone-900/80 hover:bg-stone-850 text-stone-200 text-xs font-semibold flex items-center gap-2 transition-all active:scale-95"
+            className={`px-4 py-2 rounded-full border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+              isDarkMode 
+                ? 'border-stone-700 bg-stone-900 text-stone-200 hover:bg-stone-800' 
+                : 'border-stone-300 bg-white text-stone-800 hover:bg-stone-100'
+            }`}
           >
-            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-stone-400" />}
-            <span>{copiedLink ? t.common.copied : t.common.copy}</span>
+            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copiedLink ? hubContent.qr.copied : t.common.copy}</span>
           </button>
 
           <button
             onClick={() => navigateToGuestGuide(prop.slug)}
-            className="px-5 py-2.5 rounded-full bg-[#E4E98E] hover:bg-[#d8dd80] text-[#0C1510] text-xs font-bold transition-all flex items-center gap-1.5 shadow-md active:scale-95 group"
+            className="px-4 py-2 rounded-full bg-[#E4E98E] hover:bg-[#d8dd80] text-[#0C1510] text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
           >
-            <span>{t.propertyHub.overview.openGuestView}</span>
-            <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            <span>{t.guestGuide.liveView}</span>
+            <ExternalLink className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* 5 MAIN TABS: Overview | Guide | Preview | QR/NFC | Settings */}
-      <div className="bg-[#14191C] border border-stone-800/80 p-1.5 rounded-full flex items-center gap-1 overflow-x-auto no-scrollbar max-w-fit shadow-inner">
+      {/* Main Subtabs Navigation (Reference Styling matching screenshot) */}
+      <div className={`flex items-center gap-1.5 border-b pb-1 overflow-x-auto no-scrollbar ${
+        isDarkMode ? 'border-stone-800/80' : 'border-stone-200'
+      }`}>
         {[
-          { id: 'overview', label: t.propertyHub.tabs.overview, icon: <Building2 className="w-4 h-4" /> },
-          { id: 'guide', label: t.propertyHub.tabs.guide, icon: <BookOpen className="w-4 h-4" /> },
-          { id: 'preview', label: t.propertyHub.tabs.preview, icon: <Smartphone className="w-4 h-4" /> },
-          { id: 'qr', label: t.propertyHub.tabs.qr, icon: <QrIcon className="w-4 h-4" /> },
-          { id: 'settings', label: t.propertyHub.tabs.settings, icon: <SettingsIcon className="w-4 h-4" /> },
+          { id: 'overview', label: t.propertyHub.tabs.overview, icon: Building2 },
+          { id: 'guide', label: t.propertyHub.tabs.guide, icon: BookOpen },
+          { id: 'preview', label: t.propertyHub.tabs.preview, icon: Smartphone },
+          { id: 'qr', label: t.propertyHub.tabs.qr, icon: QrIcon },
+          { id: 'settings', label: t.propertyHub.tabs.settings, icon: SettingsIcon },
         ].map((tab) => {
+          const Icon = tab.icon;
           const isActive = propertySubTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setPropertySubTab(tab.id as PropertyTab)}
-              className={`py-2 px-4 text-xs font-semibold rounded-full flex items-center gap-2 whitespace-nowrap transition-all ${
+              className={`px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center gap-2 transition-all shrink-0 ${
                 isActive
-                  ? 'bg-[#E4E98E] text-[#0C1510] font-bold shadow-xs'
-                  : 'text-stone-400 hover:text-white hover:bg-stone-800/50'
+                  ? isDarkMode 
+                    ? 'bg-[#E4E98E] text-[#0C1510] font-bold shadow-sm' 
+                    : 'bg-stone-900 text-white font-bold shadow-sm'
+                  : isDarkMode
+                    ? 'text-stone-400 hover:text-white hover:bg-stone-900/60'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
               }`}
             >
-              {tab.icon}
+              <Icon className="w-4 h-4" />
               <span>{tab.label}</span>
             </button>
           );
@@ -213,10 +225,10 @@ export const PropertyHub: React.FC = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-[#0C1510]/70 block">
-                    Guidebook Status
+                    {hubContent.overview.guidebookStatus}
                   </span>
                   <div className="text-2xl sm:text-3xl font-serif font-bold text-[#0C1510] mt-1 capitalize leading-none">
-                    {prop.status}
+                    {prop.status === 'published' ? t.hostDashboard.card.published : t.hostDashboard.card.draft}
                   </div>
                 </div>
                 <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-[#0C1510]/20 flex items-center justify-center text-[#0C1510]">
@@ -224,7 +236,7 @@ export const PropertyHub: React.FC = () => {
                 </div>
               </div>
               <p className="text-xs font-semibold text-[#0C1510]/90">
-                Direct guest URL is live and instant.
+                {hubContent.overview.liveAndInstant}
               </p>
             </div>
 
@@ -233,7 +245,7 @@ export const PropertyHub: React.FC = () => {
               <div className="flex items-start justify-between">
                 <div className="min-w-0">
                   <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-wider font-bold text-[#0C1510]/70 block">
-                    High-Speed Wi-Fi
+                    {hubContent.overview.highSpeedWifi}
                   </span>
                   <div className="text-sm sm:text-xl font-bold text-[#0C1510] mt-1 truncate">
                     {prop.wifiNetwork}
@@ -244,7 +256,7 @@ export const PropertyHub: React.FC = () => {
                 </div>
               </div>
               <p className="text-[11px] sm:text-xs font-mono font-bold text-[#0C1510]/90 truncate">
-                Pass: {prop.wifiPassword}
+                {t.propertyHub.overview.wifiCard}: {prop.wifiPassword}
               </p>
             </div>
 
@@ -253,7 +265,7 @@ export const PropertyHub: React.FC = () => {
               <div className="flex items-start justify-between">
                 <div className="min-w-0">
                   <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-wider font-bold text-[#0C1510]/70 block">
-                    Front Keypad Code
+                    {hubContent.overview.frontKeypadCode}
                   </span>
                   <div className="text-xl sm:text-3xl font-mono font-bold text-[#0C1510] mt-1 leading-none truncate">
                     {prop.doorKeypadCode}
@@ -264,7 +276,7 @@ export const PropertyHub: React.FC = () => {
                 </div>
               </div>
               <p className="text-[11px] sm:text-xs font-semibold text-[#0C1510]/90 truncate">
-                Backup: {prop.lockboxCode || 'Not set'}
+                {hubContent.overview.backupLockbox} {prop.lockboxCode || hubContent.overview.notSet}
               </p>
             </div>
 
@@ -273,7 +285,7 @@ export const PropertyHub: React.FC = () => {
           {/* Quick Management Shortcuts */}
           <div className="bg-[#161B1E] rounded-[28px] border border-stone-800/80 p-6 sm:p-8 space-y-5">
             <h3 className="font-serif text-xl font-bold text-white tracking-tight">
-              Quick Management Shortcuts
+              {hubContent.overview.quickShortcutsTitle}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               <button
@@ -285,10 +297,10 @@ export const PropertyHub: React.FC = () => {
                 </div>
                 <div>
                   <span className="font-bold text-white block text-sm group-hover:text-[#E4E98E] transition-colors">
-                    Edit Guidebook Content
+                    {hubContent.overview.editGuidebook}
                   </span>
                   <span className="text-stone-400 mt-1 block">
-                    Update Wi-Fi, door codes, and house rules.
+                    {hubContent.overview.editGuidebookSub}
                   </span>
                 </div>
               </button>
@@ -302,10 +314,10 @@ export const PropertyHub: React.FC = () => {
                 </div>
                 <div>
                   <span className="font-bold text-white block text-sm group-hover:text-[#E4E98E] transition-colors">
-                    Get QR Flyer & NFC Link
+                    {hubContent.overview.qrFlyerNfc}
                   </span>
                   <span className="text-stone-400 mt-1 block">
-                    Download printable stand cards for the unit.
+                    {hubContent.overview.qrFlyerNfcSub}
                   </span>
                 </div>
               </button>
@@ -319,10 +331,10 @@ export const PropertyHub: React.FC = () => {
                 </div>
                 <div>
                   <span className="font-bold text-white block text-sm group-hover:text-[#E4E98E] transition-colors">
-                    Live Smartphone Preview
+                    {hubContent.overview.livePreview}
                   </span>
                   <span className="text-stone-400 mt-1 block">
-                    Test exact interactions as a guest.
+                    {hubContent.overview.livePreviewSub}
                   </span>
                 </div>
               </button>
@@ -338,7 +350,7 @@ export const PropertyHub: React.FC = () => {
           {/* Left Guide Sidebar (10 Sections) */}
           <div className="md:col-span-4 bg-[#161B1E] rounded-[28px] border border-stone-800/90 p-3 space-y-1">
             <span className="text-[10px] font-mono uppercase tracking-widest text-stone-400 font-bold block px-3 py-2">
-              GUIDE SECTIONS
+              {hubContent.guide.guideSectionsTitle}
             </span>
             {guideSections.map((sec) => {
               const isActive = guideActiveSection === sec.id;
@@ -369,21 +381,21 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'welcome' && (
               <div className="space-y-5">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">Welcome Section</h3>
-                  <p className="text-xs text-stone-400 mt-1">First impression and personalized greeting when guests tap in.</p>
+                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.welcomeTitle}</h3>
+                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.welcomeSub}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Headline Greeting</label>
+                  <label className="text-xs font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.headlineGreeting}</label>
                   <input
                     type="text"
                     value={prop.welcomeTitle || ''}
                     onChange={(e) => handleFieldChange('welcomeTitle', e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
-                    placeholder="Welcome to Old Tbilisi!"
+                    placeholder="Welcome!"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Welcome Tagline / Note</label>
+                  <label className="text-xs font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.welcomeNote}</label>
                   <textarea
                     rows={3}
                     value={prop.welcomeGreeting || ''}
@@ -398,12 +410,12 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'checkin' && (
               <div className="space-y-5">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">Check-in Details</h3>
-                  <p className="text-xs text-stone-400 mt-1">Arrival timing, digital keypad codes, and arrival directions.</p>
+                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.checkinTitle}</h3>
+                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.checkinSub}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Check-in Time</label>
+                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.checkinTime}</label>
                     <input
                       type="text"
                       value={prop.checkInTime}
@@ -412,7 +424,7 @@ export const PropertyHub: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Front Door Keypad Code</label>
+                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.doorCode}</label>
                     <input
                       type="text"
                       value={prop.doorKeypadCode}
@@ -423,7 +435,7 @@ export const PropertyHub: React.FC = () => {
                 </div>
 
                 <div className="text-xs">
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Backup Lockbox Combination</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.lockboxCode}</label>
                   <input
                     type="text"
                     value={prop.lockboxCode}
@@ -433,7 +445,7 @@ export const PropertyHub: React.FC = () => {
                 </div>
 
                 <div className="text-xs">
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Step-by-Step Entry Directions</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.entryDirections}</label>
                   <textarea
                     rows={3}
                     value={prop.arrivalDirections}
@@ -443,7 +455,7 @@ export const PropertyHub: React.FC = () => {
                 </div>
 
                 <div className="text-xs">
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Parking Instructions</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.parkingInstructions}</label>
                   <textarea
                     rows={2}
                     value={prop.parkingInstructions}
@@ -458,12 +470,12 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'wifi' && (
               <div className="space-y-5">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">Wi-Fi Network & Password</h3>
-                  <p className="text-xs text-stone-400 mt-1">Guests can tap a single button to copy this password straight to their phone.</p>
+                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.wifiTitle}</h3>
+                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.wifiSub}</p>
                 </div>
                 <div className="space-y-4 text-xs">
                   <div>
-                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Network Name (SSID)</label>
+                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.ssid}</label>
                     <input
                       type="text"
                       value={prop.wifiNetwork}
@@ -472,7 +484,7 @@ export const PropertyHub: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Wi-Fi Password</label>
+                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.wifiPass}</label>
                     <input
                       type="text"
                       value={prop.wifiPassword}
@@ -488,8 +500,8 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'how-it-works' && (
               <div className="space-y-5">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">How Things Work (Appliances)</h3>
-                  <p className="text-xs text-stone-400 mt-1">Clear guides for AC, heater, washing machine, and coffee maker.</p>
+                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.appliancesTitle}</h3>
+                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.appliancesSub}</p>
                 </div>
                 <div className="space-y-3">
                   {prop.appliances.map((app, idx) => (
@@ -517,11 +529,11 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'rules' && (
               <div className="space-y-5 text-xs">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">House Rules & Quiet Hours</h3>
-                  <p className="text-xs text-stone-400 mt-1">Set expectations clearly to protect your property and neighbors.</p>
+                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.rulesTitle}</h3>
+                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.rulesSub}</p>
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Quiet Hours</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.quietHours}</label>
                   <input
                     type="text"
                     value={prop.quietHours}
@@ -530,7 +542,7 @@ export const PropertyHub: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Trash & Recycling Schedule</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.trashSchedule}</label>
                   <input
                     type="text"
                     value={prop.trashSchedule}
@@ -539,7 +551,7 @@ export const PropertyHub: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">House Rules List</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.rulesList}</label>
                   <div className="space-y-2">
                     {prop.houseRules.map((rule, idx) => (
                       <input
@@ -563,8 +575,8 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'recommendations' && (
               <div className="space-y-5 text-xs">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">Curated Local Spots</h3>
-                  <p className="text-xs text-stone-400 mt-1">Your personal favorites for dining, wine, and sightseeing.</p>
+                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.recsTitle}</h3>
+                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.recsSub}</p>
                 </div>
                 <div className="space-y-3">
                   {prop.recommendations.map((rec, idx) => (
@@ -579,7 +591,7 @@ export const PropertyHub: React.FC = () => {
                             handleFieldChange('recommendations', updated);
                           }}
                           className="px-3 py-2 rounded-xl bg-[#0C1013] border border-stone-700 text-white font-bold text-xs focus:border-[#E4E98E] focus:outline-none"
-                          placeholder="Place name"
+                          placeholder={hubContent.guide.placeNamePlaceholder}
                         />
                         <input
                           type="text"
@@ -590,7 +602,7 @@ export const PropertyHub: React.FC = () => {
                             handleFieldChange('recommendations', updated);
                           }}
                           className="px-3 py-2 rounded-xl bg-[#0C1013] border border-stone-700 text-stone-300 text-xs focus:border-[#E4E98E] focus:outline-none"
-                          placeholder="Distance (e.g. 3 min walk)"
+                          placeholder={hubContent.guide.distancePlaceholder}
                         />
                       </div>
                       <textarea
@@ -613,11 +625,11 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'transport' && (
               <div className="space-y-5 text-xs">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">Transport & Airport Guidance</h3>
-                  <p className="text-xs text-stone-400 mt-1">Taxi apps, metro cards, and airport transfers.</p>
+                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.transportTitle}</h3>
+                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.transportSub}</p>
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Taxi / Ride-hailing Info</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.taxiInfo}</label>
                   <textarea
                     rows={2}
                     value={prop.taxiInfo}
@@ -626,7 +638,7 @@ export const PropertyHub: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Public Transit / Metro</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.publicTransit}</label>
                   <textarea
                     rows={2}
                     value={prop.transitInfo}
@@ -635,7 +647,7 @@ export const PropertyHub: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Airport Transit</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.airportTransit}</label>
                   <textarea
                     rows={2}
                     value={prop.airportTransit}
@@ -650,11 +662,11 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'checkout' && (
               <div className="space-y-5 text-xs">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">Departure & Check-out</h3>
-                  <p className="text-xs text-stone-400 mt-1">Make check-out smooth and avoid delayed turnovers.</p>
+                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.checkoutTitle}</h3>
+                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.checkoutSub}</p>
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Check-out Time</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.checkoutTime}</label>
                   <input
                     type="text"
                     value={prop.checkOutTime}
@@ -663,7 +675,7 @@ export const PropertyHub: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Departure Checklist</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.departureChecklist}</label>
                   <div className="space-y-2">
                     {prop.departureChecklist.map((step, idx) => (
                       <input
@@ -687,12 +699,12 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'contact' && (
               <div className="space-y-5 text-xs">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">Host Contact Channels</h3>
-                  <p className="text-xs text-stone-400 mt-1">Direct lines for guest peace of mind.</p>
+                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.contactTitle}</h3>
+                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.contactSub}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Host Name</label>
+                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.hostName}</label>
                     <input
                       type="text"
                       value={prop.hostName}
@@ -701,7 +713,7 @@ export const PropertyHub: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Host Phone</label>
+                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.hostPhone}</label>
                     <input
                       type="text"
                       value={prop.hostPhone}
@@ -711,7 +723,7 @@ export const PropertyHub: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Host WhatsApp (International format)</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.hostWhatsApp}</label>
                   <input
                     type="text"
                     value={prop.hostWhatsApp}
@@ -726,11 +738,11 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'emergency' && (
               <div className="space-y-5 text-xs">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">Emergency & Building Support</h3>
-                  <p className="text-xs text-stone-400 mt-1">Critical local contacts for foreign guests in urgent situations.</p>
+                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.emergencyTitle}</h3>
+                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.emergencySub}</p>
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Universal Emergency Services Number</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.emergencyServicesNum}</label>
                   <input
                     type="text"
                     value={prop.emergencyServicesNumber || '112'}
@@ -739,7 +751,7 @@ export const PropertyHub: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Co-host or Building Emergency Contact</label>
+                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.emergencyContact}</label>
                   <input
                     type="text"
                     value={prop.emergencyContact}
@@ -751,12 +763,12 @@ export const PropertyHub: React.FC = () => {
             )}
 
             <div className="pt-6 border-t border-stone-800/80 flex items-center justify-between text-xs text-stone-400">
-              <span>Changes auto-save directly to your Stumari database</span>
+              <span>{hubContent.guide.autoSaveNotice}</span>
               <button
-                onClick={() => showToast('All guide updates saved!')}
+                onClick={() => showToast(hubContent.guide.savedToast)}
                 className="px-5 py-2.5 rounded-full bg-[#E4E98E] hover:bg-[#d8dd80] text-[#0C1510] font-bold text-xs shadow-md active:scale-95 transition-all"
               >
-                Save Changes
+                {hubContent.guide.saveChanges}
               </button>
             </div>
 
@@ -770,14 +782,14 @@ export const PropertyHub: React.FC = () => {
         <div className="space-y-6 animate-in fade-in duration-200">
           <div className="flex items-center justify-between bg-[#161B1E] p-5 rounded-2xl border border-stone-800">
             <div>
-              <span className="text-sm font-bold text-white block">Smartphone Guest Simulator</span>
-              <span className="text-xs text-stone-400">This is exactly what your guest sees when opening stumari.app/g/{prop.slug}</span>
+              <span className="text-sm font-bold text-white block">{hubContent.preview.simulatorTitle}</span>
+              <span className="text-xs text-stone-400">{hubContent.preview.simulatorSub}</span>
             </div>
             <button
               onClick={() => navigateToGuestGuide(prop.slug)}
               className="px-5 py-2.5 rounded-full bg-[#E4E98E] hover:bg-[#d8dd80] text-[#0C1510] font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
             >
-              <span>Open Guest Guide ↗</span>
+              <span>{hubContent.preview.openGuideBtn}</span>
             </button>
           </div>
 
@@ -796,10 +808,10 @@ export const PropertyHub: React.FC = () => {
         <div className="max-w-2xl mx-auto bg-[#161B1E] rounded-[32px] border border-stone-800/90 p-8 sm:p-10 shadow-xl space-y-6 text-center animate-in fade-in duration-200">
           <div>
             <h2 className="text-3xl font-serif font-bold text-white tracking-tight">
-              Connect your guests
+              {hubContent.qr.connectGuestsTitle}
             </h2>
             <p className="text-xs text-stone-400 mt-1.5">
-              Place the QR code on your nightstand or program an NFC tag for contactless instant access.
+              {hubContent.qr.connectGuestsSub}
             </p>
           </div>
 
@@ -809,7 +821,7 @@ export const PropertyHub: React.FC = () => {
               <img src={qrDataUrl} alt="Stumari QR Code" className="w-56 h-56 mx-auto rounded-xl" />
             ) : (
               <div className="w-56 h-56 bg-stone-100 animate-pulse rounded-xl flex items-center justify-center text-xs text-stone-400">
-                Generating QR...
+                {hubContent.qr.generatingQr}
               </div>
             )}
           </div>
@@ -820,7 +832,7 @@ export const PropertyHub: React.FC = () => {
               className="px-6 py-3 rounded-full bg-[#E4E98E] hover:bg-[#d8dd80] text-[#0C1510] font-bold text-xs transition-all inline-flex items-center gap-2 shadow-md active:scale-95"
             >
               <Download className="w-4 h-4 stroke-[2.2]" />
-              <span>Download High-Res QR Code (PNG)</span>
+              <span>{hubContent.qr.downloadQrBtn}</span>
             </button>
           </div>
 
@@ -831,21 +843,21 @@ export const PropertyHub: React.FC = () => {
                 <Radio className="w-4 h-4" />
               </div>
               <div>
-                <span className="font-bold text-white block">NFC Tag Ready</span>
+                <span className="font-bold text-white block">{hubContent.qr.nfcReadyTitle}</span>
                 <span className="text-[11px] text-stone-400">
-                  Write the URL below to any NTAG213/215 tag using the free "NFC Tools" mobile app.
+                  {hubContent.qr.nfcReadySub}
                 </span>
               </div>
             </div>
             <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-bold font-mono text-[10px] shrink-0 border border-emerald-500/30 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Active</span>
+              <span>{hubContent.qr.nfcActive}</span>
             </span>
           </div>
 
           {/* Guest URL with Copy */}
           <div className="text-left space-y-1.5 pt-2">
-            <label className="text-xs font-mono uppercase tracking-wider text-stone-300 font-semibold block">Guest URL</label>
+            <label className="text-xs font-mono uppercase tracking-wider text-stone-300 font-semibold block">{hubContent.qr.guestUrlLabel}</label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -858,7 +870,7 @@ export const PropertyHub: React.FC = () => {
                 className="px-5 py-2.5 rounded-xl bg-[#E4E98E] hover:bg-[#d8dd80] text-[#0C1510] font-bold text-xs shrink-0 flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
               >
                 {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
+                <span>{copiedLink ? hubContent.qr.copied : hubContent.qr.copyLink}</span>
               </button>
             </div>
           </div>
@@ -870,16 +882,16 @@ export const PropertyHub: React.FC = () => {
         <div className="max-w-2xl mx-auto bg-[#161B1E] rounded-[32px] border border-stone-800/90 p-8 sm:p-10 shadow-xl space-y-6 text-xs text-stone-300 animate-in fade-in duration-200">
           <div>
             <h2 className="text-3xl font-serif font-bold text-white tracking-tight">
-              Property Settings
+              {hubContent.settings.settingsTitle}
             </h2>
             <p className="text-xs text-stone-400 mt-1.5">
-              Configure general parameters, cover images, and publish status.
+              {hubContent.settings.settingsSub}
             </p>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Property Name</label>
+              <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.settings.propName}</label>
               <input
                 type="text"
                 value={prop.title}
@@ -890,7 +902,7 @@ export const PropertyHub: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Property Type</label>
+                <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.settings.propType}</label>
                 <select
                   value={prop.type}
                   onChange={(e) => handleFieldChange('type', e.target.value as PropertyType)}
@@ -905,7 +917,7 @@ export const PropertyHub: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Guest URL Slug</label>
+                <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.settings.guestUrlSlug}</label>
                 <input
                   type="text"
                   value={prop.slug}
@@ -916,7 +928,7 @@ export const PropertyHub: React.FC = () => {
             </div>
 
             <div>
-              <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Address & Location</label>
+              <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.settings.addressLocation}</label>
               <input
                 type="text"
                 value={prop.address}
@@ -926,7 +938,7 @@ export const PropertyHub: React.FC = () => {
             </div>
 
             <div>
-              <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Cover Image URL</label>
+              <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.settings.coverImageUrl}</label>
               <input
                 type="text"
                 value={prop.coverImage}
@@ -936,7 +948,7 @@ export const PropertyHub: React.FC = () => {
             </div>
 
             <div className="pt-1">
-              <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">Airbnb or Booking Link</label>
+              <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.settings.airbnbBookingLink}</label>
               <input
                 type="text"
                 value={prop.sourceUrl || ''}
@@ -949,11 +961,11 @@ export const PropertyHub: React.FC = () => {
             {/* Publish / Unpublish Toggle */}
             <div className="p-4 rounded-2xl bg-stone-900 border border-stone-800 flex items-center justify-between">
               <div>
-                <span className="font-bold text-white block">Publish Status</span>
+                <span className="font-bold text-white block">{hubContent.settings.publishStatus}</span>
                 <span className="text-stone-400 text-[11px]">
                   {prop.status === 'published'
-                    ? 'Property guide is publicly accessible to guests.'
-                    : 'Property guide is set to draft and hidden from visitors.'}
+                    ? hubContent.settings.publishedNotice
+                    : hubContent.settings.draftNotice}
                 </span>
               </div>
               <button
@@ -964,16 +976,16 @@ export const PropertyHub: React.FC = () => {
                     : 'bg-[#E4E98E] text-[#0C1510] hover:bg-[#d8dd80]'
                 }`}
               >
-                {prop.status === 'published' ? 'Unpublish Guide' : 'Publish Guide'}
+                {prop.status === 'published' ? hubContent.settings.unpublishGuide : hubContent.settings.publishGuide}
               </button>
             </div>
 
             {/* Danger Zone: Delete */}
             <div className="p-4 rounded-2xl bg-red-950/20 border border-red-500/30 flex items-center justify-between">
               <div>
-                <span className="font-bold text-red-400 block">Delete Property</span>
+                <span className="font-bold text-red-400 block">{hubContent.settings.deleteProperty}</span>
                 <span className="text-red-300/70 text-[11px]">
-                  Permanently remove this property and its guest guide.
+                  {hubContent.settings.deleteWarning}
                 </span>
               </div>
               <button
@@ -984,7 +996,7 @@ export const PropertyHub: React.FC = () => {
                 className="px-4 py-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete</span>
+                <span>{hubContent.settings.deleteBtn}</span>
               </button>
             </div>
           </div>

@@ -12,6 +12,7 @@ export const PricingPage: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const content = MARKETING_I18N[language]?.pricingPage || MARKETING_I18N.en.pricingPage;
+  const plans = content.plans || PRICING_PLANS;
 
   return (
     <div className={`min-h-screen pb-20 font-sans transition-colors duration-300 ${
@@ -75,7 +76,7 @@ export const PricingPage: React.FC = () => {
           >
             {content.allPlans}
           </button>
-          {PRICING_PLANS.map((plan) => (
+          {plans.map((plan) => (
             <button
               key={plan.id}
               onClick={() => setSelectedMobilePlan(plan.id)}
@@ -94,7 +95,7 @@ export const PricingPage: React.FC = () => {
       {/* Pricing Bento Cards */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 sm:-mt-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
-          {PRICING_PLANS.filter(p => selectedMobilePlan === 'all' || p.id === selectedMobilePlan).map((plan, index) => {
+          {plans.filter(p => selectedMobilePlan === 'all' || p.id === selectedMobilePlan).map((plan, index) => {
             const price = annualBilling ? plan.priceAnnual : plan.priceMonthly;
             const isHeroCard = plan.isPopular;
 

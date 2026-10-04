@@ -1,4 +1,4 @@
-import { Property, HostUser, PlatformMetric } from '../types';
+import { Property, HostUser, PlatformMetric, StayFeedback } from '../types';
 
 export const INITIAL_PROPERTIES: Property[] = [
   {
@@ -447,5 +447,52 @@ export const PRICING_PLANS = [
     ],
     cta: 'Contact Sales',
     isPopular: false
+  }
+];
+
+export const MOCK_STAY_FEEDBACKS: StayFeedback[] = [
+  {
+    id: 'fb-1',
+    propertyId: 'prop-1',
+    propertyName: 'Old Tbilisi Apartment',
+    createdAt: '2026-03-29 14:20',
+    guestName: 'Elena & Lucas (Berlin)',
+    sentiment: 'amazing',
+    comment: 'Best Airbnb stay we have ever had! The heating instructions and Amo Rame khinkali tip made our whole weekend. Left a 5-star review on Airbnb!',
+    publicReviewPlatformChosen: 'airbnb',
+    status: 'reviewed'
+  },
+  {
+    id: 'fb-2',
+    propertyId: 'prop-1',
+    propertyName: 'Old Tbilisi Apartment',
+    createdAt: '2026-03-25 11:05',
+    guestName: 'David K. (London)',
+    sentiment: 'could_be_better',
+    categories: ['temperature', 'equipment'],
+    comment: 'The apartment was slightly chilly when we arrived late at night because we did not realize the French doors had to be clicked firmly shut for the AC heater to kick in. The host manual helped, but good to know in advance!',
+    status: 'resolved'
+  },
+  {
+    id: 'fb-3',
+    propertyId: 'prop-1',
+    propertyName: 'Old Tbilisi Apartment',
+    createdAt: '2026-03-22 09:40',
+    guestName: 'Sophie M. (Paris)',
+    sentiment: 'amazing',
+    comment: 'The Leghvtakhevi waterfall and Dadi wine recommendations were pure gold. We felt like locals from day 1.',
+    publicReviewPlatformChosen: 'google',
+    status: 'reviewed'
+  },
+  {
+    id: 'fb-4',
+    propertyId: 'prop-1',
+    propertyName: 'Old Tbilisi Apartment',
+    createdAt: '2026-03-18 16:30',
+    guestName: 'Michael T. (Warsaw)',
+    sentiment: 'problem',
+    categories: ['wifi'],
+    comment: 'Wi-Fi cut off briefly during a morning Zoom call. We used the router reset instructions in the guide and it came back in 2 minutes. Glad we did not have to wake Saba up!',
+    status: 'resolved'
   }
 ];

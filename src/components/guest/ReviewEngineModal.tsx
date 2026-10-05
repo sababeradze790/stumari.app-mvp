@@ -120,7 +120,7 @@ export const ReviewEngineModal: React.FC<ReviewEngineModalProps> = ({ property, 
               <h3 className="text-2xl font-serif font-bold tracking-tight">
                 {language === 'ka' ? 'როგორ ჩაიარა თქვენმა ყოფნამ?' : language === 'ru' ? 'Как прошло ваше пребывание?' : 'How was your stay?'}
               </h3>
-              <p className={`text-xs mt-1 ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+              <p className={`text-xs sm:text-sm mt-1.5 font-medium leading-relaxed ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
                 {language === 'ka' 
                   ? `${property.title} — თქვენი აზრი გვეხმარება გავაუმჯობესოთ მასპინძლობა.`
                   : language === 'ru'
@@ -140,22 +140,22 @@ export const ReviewEngineModal: React.FC<ReviewEngineModalProps> = ({ property, 
                 <button
                   key={item.id}
                   onClick={() => setSentiment(item.id)}
-                  className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 active:scale-95 ${
+                  className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 active:scale-95 shadow-2xs ${
                     sentiment === item.id
                       ? item.id === 'amazing'
-                        ? 'border-emerald-500 bg-emerald-500/15 shadow-md text-emerald-400 font-bold'
+                        ? 'border-emerald-500 bg-emerald-500/20 shadow-md text-emerald-700 dark:text-emerald-300 font-black ring-1 ring-emerald-500/30'
                         : item.id === 'good'
-                        ? 'border-blue-500 bg-blue-500/15 shadow-md text-blue-400 font-bold'
+                        ? 'border-blue-500 bg-blue-500/20 shadow-md text-blue-700 dark:text-blue-300 font-black ring-1 ring-blue-500/30'
                         : item.id === 'could_be_better'
-                        ? 'border-amber-500 bg-amber-500/15 shadow-md text-amber-400 font-bold'
-                        : 'border-rose-500 bg-rose-500/15 shadow-md text-rose-400 font-bold'
+                        ? 'border-amber-500 bg-amber-500/20 shadow-md text-amber-700 dark:text-amber-300 font-black ring-1 ring-amber-500/30'
+                        : 'border-rose-500 bg-rose-500/20 shadow-md text-rose-700 dark:text-rose-300 font-black ring-1 ring-rose-500/30'
                       : isDark
-                      ? `border-stone-800 bg-[#14191C] text-stone-300 ${item.bg}`
-                      : `border-stone-200 bg-stone-50 text-stone-700 ${item.bg}`
+                      ? `border-stone-800 bg-[#14191C] text-stone-200 ${item.bg}`
+                      : `border-stone-300 bg-stone-50 text-stone-900 ${item.bg}`
                   }`}
                 >
                   <span className="text-2xl">{item.icon}</span>
-                  <span className="text-xs font-semibold">{item.label}</span>
+                  <span className="text-xs sm:text-sm font-bold text-stone-950 dark:text-stone-100">{item.label}</span>
                 </button>
               ))}
             </div>
@@ -163,11 +163,11 @@ export const ReviewEngineModal: React.FC<ReviewEngineModalProps> = ({ property, 
             {/* BRANCH A: AMAZING / GOOD */}
             {(sentiment === 'amazing' || sentiment === 'good') && (
               <div className="space-y-4 animate-in fade-in duration-200">
-                <div className={`p-4 rounded-2xl border ${
-                  isDark ? 'bg-emerald-950/20 border-emerald-800/40 text-emerald-200' : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                <div className={`p-4 rounded-2xl border shadow-xs ${
+                  isDark ? 'bg-emerald-950/30 border-emerald-800/50 text-emerald-100' : 'bg-emerald-50 border-emerald-300 text-stone-950'
                 }`}>
-                  <div className="flex items-center gap-2 font-bold text-sm mb-1">
-                    <Heart className="w-4 h-4 text-emerald-400 fill-emerald-400" />
+                  <div className="flex items-center gap-2 font-bold text-sm sm:text-base mb-1">
+                    <Heart className="w-5 h-5 text-emerald-500 fill-emerald-500 shrink-0" />
                     <span>
                       {language === 'ka' 
                         ? 'ძალიან გვიხარია, რომ ისიამოვნეთ!' 
@@ -176,7 +176,7 @@ export const ReviewEngineModal: React.FC<ReviewEngineModalProps> = ({ property, 
                         : 'We are thrilled you enjoyed your stay!'}
                     </span>
                   </div>
-                  <p className="text-xs opacity-90">
+                  <p className="text-xs sm:text-sm leading-relaxed font-medium">
                     {language === 'ka'
                       ? 'გაუზიარეთ თქვენი შთაბეჭდილება სხვა მოგზაურებს public შეფასებით:'
                       : language === 'ru'
@@ -186,50 +186,50 @@ export const ReviewEngineModal: React.FC<ReviewEngineModalProps> = ({ property, 
                 </div>
 
                 {/* Pre-composed draft copy */}
-                <div className={`p-3.5 rounded-2xl border text-xs ${
-                  isDark ? 'bg-[#14191C] border-stone-800' : 'bg-stone-50 border-stone-200'
+                <div className={`p-4 rounded-2xl border text-xs sm:text-sm shadow-xs ${
+                  isDark ? 'bg-[#14191C] border-stone-800' : 'bg-stone-50 border-stone-300'
                 }`}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold">
+                    <span className={`text-xs font-mono uppercase tracking-wider font-black ${isDark ? 'text-[#E4E98E]' : 'text-stone-900'}`}>
                       {language === 'ka' ? 'მზა ტექსტი დასაკოპირებლად' : language === 'ru' ? 'Шаблон отзыва' : 'Ready Review Template'}
                     </span>
                     <button
                       onClick={copyDraftReview}
-                      className="flex items-center gap-1 text-[11px] font-bold text-[#E4E98E] hover:underline"
+                      className={`flex items-center gap-1.5 text-xs font-black hover:underline ${isDark ? 'text-[#E4E98E]' : 'text-stone-950'}`}
                     >
-                      {copiedReview ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      {copiedReview ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{copiedReview ? 'Copied!' : 'Copy draft'}</span>
                     </button>
                   </div>
-                  <p className="italic text-stone-300">"{defaultPublicReview}"</p>
+                  <p className={`italic leading-relaxed font-semibold ${isDark ? 'text-stone-100' : 'text-stone-950'}`}>"{defaultPublicReview}"</p>
                 </div>
 
                 {/* Direct Platform Links */}
                 <div className="space-y-2">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block">
+                  <span className={`text-xs font-mono uppercase tracking-wider font-black block ${isDark ? 'text-stone-300' : 'text-stone-900'}`}>
                     {language === 'ka' ? 'აირჩიეთ პლატფორმა:' : language === 'ru' ? 'Оставить отзыв на:' : 'Share review directly on:'}
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <button
                       onClick={() => handleSubmit('airbnb')}
-                      className="px-4 py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 bg-[#FF5A5F] hover:bg-[#e04e53] text-white transition-all shadow-sm active:scale-95"
+                      className="px-4 py-3 rounded-xl border font-bold text-xs sm:text-sm flex items-center justify-center gap-2 bg-[#FF5A5F] hover:bg-[#e04e53] text-white transition-all shadow-sm active:scale-95"
                     >
                       <span>Airbnb</span>
-                      <ExternalLink className="w-3 h-3" />
+                      <ExternalLink className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleSubmit('google')}
-                      className="px-4 py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-sm active:scale-95"
+                      className="px-4 py-3 rounded-xl border font-bold text-xs sm:text-sm flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-sm active:scale-95"
                     >
                       <span>Google Maps</span>
-                      <ExternalLink className="w-3 h-3" />
+                      <ExternalLink className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleSubmit('booking')}
-                      className="px-4 py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 bg-[#003580] hover:bg-[#002b66] text-white transition-all shadow-sm active:scale-95"
+                      className="px-4 py-3 rounded-xl border font-bold text-xs sm:text-sm flex items-center justify-center gap-2 bg-[#003580] hover:bg-[#002b66] text-white transition-all shadow-sm active:scale-95"
                     >
                       <span>Booking.com</span>
-                      <ExternalLink className="w-3 h-3" />
+                      <ExternalLink className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -239,11 +239,11 @@ export const ReviewEngineModal: React.FC<ReviewEngineModalProps> = ({ property, 
             {/* BRANCH B: COULD BE BETTER / HAD A PROBLEM */}
             {(sentiment === 'could_be_better' || sentiment === 'problem') && (
               <div className="space-y-4 animate-in fade-in duration-200">
-                <div className={`p-4 rounded-2xl border ${
-                  isDark ? 'bg-amber-950/20 border-amber-800/40 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900'
+                <div className={`p-4 rounded-2xl border shadow-xs ${
+                  isDark ? 'bg-amber-950/30 border-amber-800/50 text-amber-100' : 'bg-amber-50 border-amber-300 text-stone-950'
                 }`}>
-                  <div className="flex items-center gap-2 font-bold text-sm mb-1">
-                    <ShieldAlert className="w-4 h-4 text-amber-400" />
+                  <div className="flex items-center gap-2 font-bold text-sm sm:text-base mb-1">
+                    <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0" />
                     <span>
                       {language === 'ka'
                         ? 'ბოდიშს გიხდით, რომ ყველაფერი იდეალური არ იყო.'
@@ -252,7 +252,7 @@ export const ReviewEngineModal: React.FC<ReviewEngineModalProps> = ({ property, 
                         : "We're sorry something wasn't perfect."}
                     </span>
                   </div>
-                  <p className="text-xs opacity-90">
+                  <p className="text-xs sm:text-sm leading-relaxed font-medium">
                     {language === 'ka'
                       ? 'გთხოვთ გვითხრათ რა მოხდა. ეს წერილი პირდაპირ მასპინძელთან მიდის პირად არხში, რათა მყისიერად გამოსწორდეს.'
                       : language === 'ru'
@@ -263,24 +263,24 @@ export const ReviewEngineModal: React.FC<ReviewEngineModalProps> = ({ property, 
 
                 {/* Category Pills */}
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block mb-2">
+                  <span className={`text-xs font-mono uppercase tracking-wider font-black block mb-2 ${isDark ? 'text-stone-300' : 'text-stone-900'}`}>
                     {language === 'ka' ? 'რა საკითხს ეხებოდა პრობლემა?' : language === 'ru' ? 'Что можно улучшить?' : 'What could we improve?'}
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {categoriesList.map((cat) => {
                       const isSelected = selectedCategories.includes(cat.id);
                       return (
                         <button
                           key={cat.id}
                           onClick={() => toggleCategory(cat.id)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 active:scale-95 ${
+                          className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs ${
                             isSelected
                               ? isDark
-                                ? 'bg-[#E4E98E] text-[#0C1510] border-[#E4E98E] font-bold shadow-xs'
-                                : 'bg-stone-900 text-white border-stone-900 font-bold shadow-xs'
+                                ? 'bg-[#E4E98E] text-[#0C1510] border-[#E4E98E] font-black shadow-xs'
+                                : 'bg-stone-950 text-white border-stone-950 font-black shadow-xs'
                               : isDark
-                              ? 'bg-[#14191C] border-stone-800 text-stone-300 hover:border-stone-700'
-                              : 'bg-stone-50 border-stone-200 text-stone-700 hover:border-stone-300'
+                              ? 'bg-[#14191C] border-stone-800 text-stone-200 hover:border-stone-700'
+                              : 'bg-white border-stone-300 text-stone-900 hover:border-stone-400'
                           }`}
                         >
                           <span>{cat.icon}</span>
@@ -293,7 +293,7 @@ export const ReviewEngineModal: React.FC<ReviewEngineModalProps> = ({ property, 
 
                 {/* Optional Guest Name */}
                 <div>
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block mb-1">
+                  <label className={`text-xs font-mono uppercase tracking-wider font-black block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-900'}`}>
                     {language === 'ka' ? 'თქვენი სახელი (სურვილისამებრ)' : language === 'ru' ? 'Ваше имя (необязательно)' : 'Your name (optional)'}
                   </label>
                   <input
@@ -301,15 +301,15 @@ export const ReviewEngineModal: React.FC<ReviewEngineModalProps> = ({ property, 
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
                     placeholder="e.g. David / Apartment 3"
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-medium focus:outline-none focus:ring-2 ${
-                      isDark ? 'bg-[#14191C] border-stone-800 text-white focus:ring-[#E4E98E]/50' : 'bg-stone-50 border-stone-200 text-stone-900 focus:ring-amber-500'
+                    className={`w-full px-4 py-3 rounded-xl border text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 ${
+                      isDark ? 'bg-[#14191C] border-stone-800 text-white focus:ring-[#E4E98E]/50' : 'bg-white border-stone-300 text-stone-900 focus:ring-amber-500'
                     }`}
                   />
                 </div>
 
                 {/* Private Comment Note */}
                 <div>
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold block mb-1">
+                  <label className={`text-xs font-mono uppercase tracking-wider font-black block mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-900'}`}>
                     {language === 'ka' ? 'პირადი კომენტარი მასპინძელს' : language === 'ru' ? 'Личное сообщение хозяину' : 'Private note to host'}
                   </label>
                   <textarea
@@ -317,8 +317,8 @@ export const ReviewEngineModal: React.FC<ReviewEngineModalProps> = ({ property, 
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     placeholder={language === 'ka' ? 'მოგვიყევით რა მოხდა...' : language === 'ru' ? 'Опишите ситуацию подробно...' : 'Tell Saba what went wrong so we can fix it right away...'}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-medium focus:outline-none focus:ring-2 resize-none ${
-                      isDark ? 'bg-[#14191C] border-stone-800 text-white focus:ring-[#E4E98E]/50' : 'bg-stone-50 border-stone-200 text-stone-900 focus:ring-amber-500'
+                    className={`w-full px-4 py-3 rounded-xl border text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 resize-none ${
+                      isDark ? 'bg-[#14191C] border-stone-800 text-white focus:ring-[#E4E98E]/50' : 'bg-white border-stone-300 text-stone-900 focus:ring-amber-500'
                     }`}
                   />
                 </div>
@@ -326,9 +326,9 @@ export const ReviewEngineModal: React.FC<ReviewEngineModalProps> = ({ property, 
                 {/* Dispatch Button */}
                 <button
                   onClick={() => handleSubmit()}
-                  className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+                  className="w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  <Send className="w-4 h-4 stroke-[2.2]" />
                   <span>
                     {language === 'ka' 
                       ? 'პირადი შეფასების გაგზავნა მასპინძელთან' 

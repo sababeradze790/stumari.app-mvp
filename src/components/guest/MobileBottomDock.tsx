@@ -4,8 +4,7 @@ import {
   Sparkles, 
   MapPin, 
   Star, 
-  MessageCircle,
-  KeyRound
+  MessageCircle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -20,7 +19,7 @@ interface MobileBottomDockProps {
 export const MobileBottomDock: React.FC<MobileBottomDockProps> = ({
   activeTab,
   onSelectTab,
-  unreadFeedbackBadge = false
+  unreadFeedbackBadge = true
 }) => {
   const { theme, language } = useApp();
   const isDark = theme === 'dark';
@@ -30,9 +29,7 @@ export const MobileBottomDock: React.FC<MobileBottomDockProps> = ({
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         navigator.vibrate(8);
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
   };
 
   const handleTabClick = (tab: GuestTab) => {
@@ -44,40 +41,44 @@ export const MobileBottomDock: React.FC<MobileBottomDockProps> = ({
     {
       id: 'stay',
       label: language === 'ka' ? 'ბინა' : language === 'ru' ? 'Жильё' : 'Stay',
-      icon: <Home className="w-5 h-5" />
+      icon: <Home className="w-5 h-5 stroke-[2.2]" />
     },
     {
       id: 'gems',
       label: language === 'ka' ? 'ადგილები' : language === 'ru' ? 'Секреты' : 'Gems',
-      icon: <Sparkles className="w-5 h-5" />
+      icon: <Sparkles className="w-5 h-5 stroke-[2.2]" />
     },
     {
       id: 'explore',
       label: language === 'ka' ? 'რუკა' : language === 'ru' ? 'Карта' : 'Explore',
-      icon: <MapPin className="w-5 h-5" />
+      icon: <MapPin className="w-5 h-5 stroke-[2.2]" />
     },
     {
       id: 'feedback',
       label: language === 'ka' ? 'შეფასება' : language === 'ru' ? 'Отзыв' : 'Review',
-      icon: <Star className="w-5 h-5" />,
+      icon: <Star className="w-5 h-5 stroke-[2.2]" />,
       badge: unreadFeedbackBadge
     },
     {
       id: 'host',
       label: language === 'ka' ? 'კონტაქტი' : language === 'ru' ? 'Хозяин' : 'Host',
-      icon: <MessageCircle className="w-5 h-5" />
+      icon: <MessageCircle className="w-5 h-5 stroke-[2.2]" />
     }
   ];
 
   return (
-    <div className="fixed bottom-3 inset-x-0 mx-auto max-w-sm px-4 z-40 pointer-events-none">
+    /* FIXED NATIVE APP BOTTOM BAR: Docked flush to the bottom as native apps do */
+    <div className="fixed bottom-0 inset-x-0 z-40 w-full flex justify-center pointer-events-auto">
       <nav 
-        aria-label="Mobile Navigation Dock"
-        className={`pointer-events-auto rounded-full border shadow-2xl backdrop-blur-xl p-1.5 flex items-center justify-between transition-all duration-300 ${
+        aria-label="Guest App Navigation Bar"
+        className={`w-full max-w-xl border-t backdrop-blur-2xl px-2 sm:px-4 pt-2 pb-safe pb-2.5 flex items-center justify-around transition-all duration-300 ${
           isDark 
-            ? 'bg-[#0E1317]/90 border-stone-800/90 shadow-black/80 text-stone-400' 
-            : 'bg-white/92 border-stone-200/90 shadow-stone-900/15 text-stone-600'
+            ? 'bg-[#0B0F13]/98 border-stone-800/90 shadow-[0_-10px_35px_rgba(0,0,0,0.7)] text-stone-200' 
+            : 'bg-white/98 border-stone-200/90 shadow-[0_-10px_35px_rgba(0,0,0,0.08)] text-stone-800'
         }`}
+        style={{
+          paddingBottom: 'max(0.65rem, env(safe-area-inset-bottom, 0px))'
+        }}
       >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -85,27 +86,43 @@ export const MobileBottomDock: React.FC<MobileBottomDockProps> = ({
             <button
               key={tab.id}
               onClick={() => handleTabClick(tab.id)}
-              className={`relative flex-1 py-1.5 px-1 rounded-full flex flex-col items-center justify-center transition-all duration-200 active:scale-90 select-none ${
-                isActive
-                  ? isDark 
-                    ? 'bg-[#E4E98E] text-[#0A100D] font-bold shadow-md shadow-[#E4E98E]/20' 
-                    : 'bg-stone-900 text-white font-bold shadow-md shadow-stone-900/20'
-                  : isDark 
-                    ? 'hover:text-stone-200' 
-                    : 'hover:text-stone-900'
-              }`}
+              className="relative flex-1 py-1 flex flex-col items-center justify-center transition-all duration-200 active:scale-90 select-none cursor-pointer focus-visible:outline-hidden"
             >
-              <div className="relative">
-                {tab.icon}
-                {tab.badge && !isActive && (
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-[#0E1317] animate-pulse" />
-                )}
-              </div>
-              <span className={`text-[10px] tracking-tight leading-tight mt-0.5 truncate max-w-[56px] ${
-                isActive ? 'font-bold' : 'font-medium'
-              }`}>
-                {tab.label}
-              </span>
+              {isActive ? (
+                /* Active State: Clean high-contrast capsule matching reference */
+                <div className={`px-4 py-1.5 rounded-2xl flex flex-col items-center justify-center shadow-sm transition-all duration-200 ${
+                  isDark 
+                    ? 'bg-[#E4E98E] text-[#0C1510] font-black' 
+                    : 'bg-stone-950 text-white font-black'
+                }`}>
+                  <div className="relative">
+                    {tab.icon}
+                    {tab.badge && (
+                      <span className={`absolute -top-1 -right-1.5 w-2 h-2 rounded-full ${
+                        isDark ? 'bg-red-500 ring-2 ring-[#E4E98E]' : 'bg-amber-400 ring-2 ring-stone-950'
+                      }`} />
+                    )}
+                  </div>
+                  <span className="text-[11px] font-black leading-tight mt-0.5 tracking-normal">
+                    {tab.label}
+                  </span>
+                </div>
+              ) : (
+                /* Inactive State: Clean Icon + Bold Visible Label below */
+                <div className={`py-1 px-2 flex flex-col items-center justify-center transition-colors ${
+                  isDark ? 'text-stone-400 hover:text-stone-100' : 'text-stone-700 hover:text-stone-950'
+                }`}>
+                  <div className="relative">
+                    {tab.icon}
+                    {tab.badge && (
+                      <span className="absolute -top-1 -right-1.5 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-white dark:ring-[#0B0F13]" />
+                    )}
+                  </div>
+                  <span className="text-[11px] font-bold leading-tight mt-0.5 truncate tracking-normal">
+                    {tab.label}
+                  </span>
+                </div>
+              )}
             </button>
           );
         })}

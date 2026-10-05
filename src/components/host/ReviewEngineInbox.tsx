@@ -80,41 +80,41 @@ export const ReviewEngineInbox: React.FC = () => {
         {/* Metric 1: Guest Satisfaction */}
         <div className={`p-5 rounded-[24px] border ${isDark ? 'bg-[#12161A] border-stone-800' : 'bg-white border-stone-200 shadow-sm'}`}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-stone-400">Satisfaction</span>
-            <Heart className="w-4 h-4 text-emerald-400 fill-emerald-400" />
+            <span className={`text-[10px] font-mono uppercase font-bold tracking-wider ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>Satisfaction</span>
+            <Heart className="w-4 h-4 text-emerald-500 fill-emerald-500" />
           </div>
-          <div className="text-2xl sm:text-3xl font-serif font-bold text-emerald-400">{satisfactionRate}%</div>
-          <p className="text-[11px] text-stone-400 mt-1">Based on {total} guest stays</p>
+          <div className="text-2xl sm:text-3xl font-serif font-bold text-emerald-500">{satisfactionRate}%</div>
+          <p className={`text-[11px] mt-1 font-medium ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>Based on {total} guest stays</p>
         </div>
 
         {/* Metric 2: Intercepted Issues */}
         <div className={`p-5 rounded-[24px] border ${isDark ? 'bg-[#12161A] border-stone-800' : 'bg-white border-stone-200 shadow-sm'}`}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-stone-400">Intercepted</span>
-            <ShieldCheck className="w-4 h-4 text-amber-400" />
+            <span className={`text-[10px] font-mono uppercase font-bold tracking-wider ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>Intercepted</span>
+            <ShieldCheck className="w-4 h-4 text-amber-500" />
           </div>
-          <div className="text-2xl sm:text-3xl font-serif font-bold text-amber-400">{issuesIntercepted}</div>
-          <p className="text-[11px] text-stone-400 mt-1">Caught privately before Airbnb</p>
+          <div className="text-2xl sm:text-3xl font-serif font-bold text-amber-500">{issuesIntercepted}</div>
+          <p className={`text-[11px] mt-1 font-medium ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>Caught privately before Airbnb</p>
         </div>
 
         {/* Metric 3: Converted to Public 5-Stars */}
         <div className={`p-5 rounded-[24px] border ${isDark ? 'bg-[#12161A] border-stone-800' : 'bg-white border-stone-200 shadow-sm'}`}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-stone-400">Public Reviews</span>
-            <Star className="w-4 h-4 text-[#E4E98E] fill-[#E4E98E]" />
+            <span className={`text-[10px] font-mono uppercase font-bold tracking-wider ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>Public Reviews</span>
+            <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-serif font-bold text-white">{amazingCount}</div>
-          <p className="text-[11px] text-stone-400 mt-1">Routed to Airbnb / Google</p>
+          <div className={`text-2xl sm:text-3xl font-serif font-bold ${isDark ? 'text-white' : 'text-stone-950'}`}>{amazingCount}</div>
+          <p className={`text-[11px] mt-1 font-medium ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>Routed to Airbnb / Google</p>
         </div>
 
         {/* Metric 4: Resolved Issues */}
         <div className={`p-5 rounded-[24px] border ${isDark ? 'bg-[#12161A] border-stone-800' : 'bg-white border-stone-200 shadow-sm'}`}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-stone-400">Resolved</span>
-            <CheckCircle2 className="w-4 h-4 text-blue-400" />
+            <span className={`text-[10px] font-mono uppercase font-bold tracking-wider ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>Resolved</span>
+            <CheckCircle2 className="w-4 h-4 text-blue-500" />
           </div>
-          <div className="text-2xl sm:text-3xl font-serif font-bold text-blue-400">{resolvedCount}</div>
-          <p className="text-[11px] text-stone-400 mt-1">Operational fixes made</p>
+          <div className="text-2xl sm:text-3xl font-serif font-bold text-blue-500">{resolvedCount}</div>
+          <p className={`text-[11px] mt-1 font-medium ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>Operational fixes made</p>
         </div>
 
       </div>
@@ -164,12 +164,12 @@ export const ReviewEngineInbox: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs text-stone-400">
+        <div className={`flex items-center gap-1.5 text-xs font-semibold ${isDark ? 'text-stone-300' : 'text-stone-600'}`}>
           <Filter className="w-3.5 h-3.5" />
           <span>Status:</span>
           <button
             onClick={() => setFilterStatus(filterStatus === 'all' ? 'new' : filterStatus === 'new' ? 'resolved' : 'all')}
-            className="font-bold underline text-stone-200"
+            className={`font-bold underline ${isDark ? 'text-white' : 'text-stone-950'}`}
           >
             {filterStatus === 'all' ? 'All' : filterStatus === 'new' ? 'Needs Attention' : 'Resolved'}
           </button>
@@ -197,16 +197,16 @@ export const ReviewEngineInbox: React.FC = () => {
                     </span>
                     <div>
                       <div className="flex items-center gap-2">
-                        <strong className="text-sm font-bold text-stone-100">{item.guestName || 'Guest'}</strong>
+                        <strong className={`text-sm font-bold ${isDark ? 'text-stone-100' : 'text-stone-950'}`}>{item.guestName || 'Guest'}</strong>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                           isPositive
                             ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            : 'bg-amber-500/20 text-amber-500 dark:text-amber-300 border border-amber-500/30'
                         }`}>
                           {item.sentiment === 'amazing' ? 'Amazing Stay' : item.sentiment === 'good' ? 'Good' : item.sentiment === 'could_be_better' ? 'Could Be Better' : 'Issue Reported'}
                         </span>
                       </div>
-                      <span className="text-[11px] text-stone-400 font-mono">{item.createdAt}</span>
+                      <span className={`text-[11px] font-mono font-medium ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>{item.createdAt}</span>
                     </div>
                   </div>
 

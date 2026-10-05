@@ -283,23 +283,31 @@ export const PropertyHub: React.FC = () => {
           </div>
 
           {/* Quick Management Shortcuts */}
-          <div className="bg-[#161B1E] rounded-[28px] border border-stone-800/80 p-6 sm:p-8 space-y-5">
-            <h3 className="font-serif text-xl font-bold text-white tracking-tight">
+          <div className={`rounded-[28px] border p-6 sm:p-8 space-y-5 transition-colors ${
+            isDarkMode ? 'bg-[#161B1E] border-stone-800/80 text-white' : 'bg-stone-50 border-stone-200 text-stone-900 shadow-xs'
+          }`}>
+            <h3 className={`font-serif text-xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>
               {hubContent.overview.quickShortcutsTitle}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               <button
                 onClick={() => setPropertySubTab('guide')}
-                className="p-5 rounded-2xl bg-[#0F1417] hover:bg-[#13191D] border border-stone-800 hover:border-stone-700 text-left space-y-2.5 transition-all group"
+                className={`p-5 rounded-2xl border text-left space-y-2.5 transition-all group ${
+                  isDarkMode 
+                    ? 'bg-[#0F1417] hover:bg-[#13191D] border-stone-800 hover:border-stone-700' 
+                    : 'bg-white hover:bg-stone-100 border-stone-200 shadow-2xs'
+                }`}
               >
                 <div className="w-10 h-10 rounded-xl bg-[#859768]/20 text-[#859768] border border-[#859768]/30 flex items-center justify-center group-hover:scale-105 transition-transform">
                   <BookOpen className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="font-bold text-white block text-sm group-hover:text-[#E4E98E] transition-colors">
+                  <span className={`font-bold block text-sm transition-colors ${
+                    isDarkMode ? 'text-white group-hover:text-[#E4E98E]' : 'text-stone-900 group-hover:text-stone-950'
+                  }`}>
                     {hubContent.overview.editGuidebook}
                   </span>
-                  <span className="text-stone-400 mt-1 block">
+                  <span className={`mt-1 block font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>
                     {hubContent.overview.editGuidebookSub}
                   </span>
                 </div>
@@ -307,16 +315,22 @@ export const PropertyHub: React.FC = () => {
 
               <button
                 onClick={() => setPropertySubTab('qr')}
-                className="p-5 rounded-2xl bg-[#0F1417] hover:bg-[#13191D] border border-stone-800 hover:border-stone-700 text-left space-y-2.5 transition-all group"
+                className={`p-5 rounded-2xl border text-left space-y-2.5 transition-all group ${
+                  isDarkMode 
+                    ? 'bg-[#0F1417] hover:bg-[#13191D] border-stone-800 hover:border-stone-700' 
+                    : 'bg-white hover:bg-stone-100 border-stone-200 shadow-2xs'
+                }`}
               >
                 <div className="w-10 h-10 rounded-xl bg-[#94B5D3]/20 text-[#94B5D3] border border-[#94B5D3]/30 flex items-center justify-center group-hover:scale-105 transition-transform">
                   <QrIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="font-bold text-white block text-sm group-hover:text-[#E4E98E] transition-colors">
+                  <span className={`font-bold block text-sm transition-colors ${
+                    isDarkMode ? 'text-white group-hover:text-[#E4E98E]' : 'text-stone-900 group-hover:text-stone-950'
+                  }`}>
                     {hubContent.overview.qrFlyerNfc}
                   </span>
-                  <span className="text-stone-400 mt-1 block">
+                  <span className={`mt-1 block font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>
                     {hubContent.overview.qrFlyerNfcSub}
                   </span>
                 </div>
@@ -324,16 +338,22 @@ export const PropertyHub: React.FC = () => {
 
               <button
                 onClick={() => setPropertySubTab('preview')}
-                className="p-5 rounded-2xl bg-[#0F1417] hover:bg-[#13191D] border border-stone-800 hover:border-stone-700 text-left space-y-2.5 transition-all group"
+                className={`p-5 rounded-2xl border text-left space-y-2.5 transition-all group ${
+                  isDarkMode 
+                    ? 'bg-[#0F1417] hover:bg-[#13191D] border-stone-800 hover:border-stone-700' 
+                    : 'bg-white hover:bg-stone-100 border-stone-200 shadow-2xs'
+                }`}
               >
                 <div className="w-10 h-10 rounded-xl bg-[#E4E98E]/20 text-[#E4E98E] border border-[#E4E98E]/30 flex items-center justify-center group-hover:scale-105 transition-transform">
                   <Smartphone className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="font-bold text-white block text-sm group-hover:text-[#E4E98E] transition-colors">
+                  <span className={`font-bold block text-sm transition-colors ${
+                    isDarkMode ? 'text-white group-hover:text-[#E4E98E]' : 'text-stone-900 group-hover:text-stone-950'
+                  }`}>
                     {hubContent.overview.livePreview}
                   </span>
-                  <span className="text-stone-400 mt-1 block">
+                  <span className={`mt-1 block font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>
                     {hubContent.overview.livePreviewSub}
                   </span>
                 </div>
@@ -348,8 +368,12 @@ export const PropertyHub: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-in fade-in duration-200">
           
           {/* Left Guide Sidebar (10 Sections) */}
-          <div className="md:col-span-4 bg-[#161B1E] rounded-[28px] border border-stone-800/90 p-3 space-y-1">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-stone-400 font-bold block px-3 py-2">
+          <div className={`md:col-span-4 rounded-[28px] border p-3 space-y-1 ${
+            isDarkMode ? 'bg-[#161B1E] border-stone-800/90' : 'bg-stone-50 border-stone-200'
+          }`}>
+            <span className={`text-[10px] font-mono uppercase tracking-widest font-bold block px-3 py-2 ${
+              isDarkMode ? 'text-stone-400' : 'text-stone-600'
+            }`}>
               {hubContent.guide.guideSectionsTitle}
             </span>
             {guideSections.map((sec) => {
@@ -360,47 +384,55 @@ export const PropertyHub: React.FC = () => {
                   onClick={() => setGuideActiveSection(sec.id)}
                   className={`w-full px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-all text-left ${
                     isActive
-                      ? 'bg-[#E4E98E] text-[#0C1510] font-bold shadow-xs'
-                      : 'text-stone-300 hover:text-white hover:bg-stone-800/60'
+                      ? isDarkMode ? 'bg-[#E4E98E] text-[#0C1510] font-bold shadow-xs' : 'bg-stone-900 text-white font-bold shadow-xs'
+                      : isDarkMode
+                      ? 'text-stone-300 hover:text-white hover:bg-stone-800/60'
+                      : 'text-stone-700 hover:text-stone-950 hover:bg-stone-200/70'
                   }`}
                 >
                   <span className="flex items-center gap-2.5">
-                    <Check className={`w-3.5 h-3.5 ${isActive ? 'text-[#0C1510]' : 'text-emerald-400'}`} />
+                    <Check className={`w-3.5 h-3.5 ${isActive ? (isDarkMode ? 'text-[#0C1510]' : 'text-white') : 'text-emerald-500'}`} />
                     <span>{sec.label}</span>
                   </span>
-                  <ChevronRight className={`w-3.5 h-3.5 ${isActive ? 'text-[#0C1510]' : 'text-stone-600'}`} />
+                  <ChevronRight className={`w-3.5 h-3.5 ${isActive ? (isDarkMode ? 'text-[#0C1510]' : 'text-white') : 'text-stone-400'}`} />
                 </button>
               );
             })}
           </div>
 
           {/* Right Editor Panel */}
-          <div className="md:col-span-8 bg-[#181D20] rounded-[28px] border border-stone-800/90 p-6 sm:p-8 space-y-6 text-stone-100">
+          <div className={`md:col-span-8 rounded-[28px] border p-6 sm:p-8 space-y-6 ${
+            isDarkMode ? 'bg-[#181D20] border-stone-800/90 text-stone-100' : 'bg-white border-stone-200 text-stone-900 shadow-xs'
+          }`}>
             
             {/* 1. Welcome Section */}
             {guideActiveSection === 'welcome' && (
               <div className="space-y-5">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.welcomeTitle}</h3>
-                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.welcomeSub}</p>
+                  <h3 className={`font-serif text-2xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{hubContent.guide.welcomeTitle}</h3>
+                  <p className={`text-xs mt-1 font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>{hubContent.guide.welcomeSub}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.headlineGreeting}</label>
+                  <label className={`text-xs font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.headlineGreeting}</label>
                   <input
                     type="text"
                     value={prop.welcomeTitle || ''}
                     onChange={(e) => handleFieldChange('welcomeTitle', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                     placeholder="Welcome!"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.welcomeNote}</label>
+                  <label className={`text-xs font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.welcomeNote}</label>
                   <textarea
                     rows={3}
                     value={prop.welcomeGreeting || ''}
                     onChange={(e) => handleFieldChange('welcomeGreeting', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                   />
                 </div>
               </div>
@@ -410,57 +442,67 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'checkin' && (
               <div className="space-y-5">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.checkinTitle}</h3>
-                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.checkinSub}</p>
+                  <h3 className={`font-serif text-2xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{hubContent.guide.checkinTitle}</h3>
+                  <p className={`text-xs mt-1 font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>{hubContent.guide.checkinSub}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.checkinTime}</label>
+                    <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.checkinTime}</label>
                     <input
                       type="text"
                       value={prop.checkInTime}
                       onChange={(e) => handleFieldChange('checkInTime', e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                      className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                        isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                      }`}
                     />
                   </div>
                   <div>
-                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.doorCode}</label>
+                    <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.doorCode}</label>
                     <input
                       type="text"
                       value={prop.doorKeypadCode}
                       onChange={(e) => handleFieldChange('doorKeypadCode', e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-[#E4E98E] text-xs font-mono font-bold focus:border-[#E4E98E] focus:outline-none"
+                      className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono font-bold focus:outline-none ${
+                        isDarkMode ? 'bg-[#0C1013] border-stone-700 text-[#E4E98E] focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-amber-700 focus:border-stone-800'
+                      }`}
                     />
                   </div>
                 </div>
 
                 <div className="text-xs">
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.lockboxCode}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.lockboxCode}</label>
                   <input
                     type="text"
                     value={prop.lockboxCode}
                     onChange={(e) => handleFieldChange('lockboxCode', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs font-mono focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                   />
                 </div>
 
                 <div className="text-xs">
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.entryDirections}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.entryDirections}</label>
                   <textarea
                     rows={3}
                     value={prop.arrivalDirections}
                     onChange={(e) => handleFieldChange('arrivalDirections', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                   />
                 </div>
 
                 <div className="text-xs">
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.parkingInstructions}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.parkingInstructions}</label>
                   <textarea
                     rows={2}
                     value={prop.parkingInstructions}
                     onChange={(e) => handleFieldChange('parkingInstructions', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                   />
                 </div>
               </div>
@@ -470,26 +512,30 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'wifi' && (
               <div className="space-y-5">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.wifiTitle}</h3>
-                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.wifiSub}</p>
+                  <h3 className={`font-serif text-2xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{hubContent.guide.wifiTitle}</h3>
+                  <p className={`text-xs mt-1 font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>{hubContent.guide.wifiSub}</p>
                 </div>
                 <div className="space-y-4 text-xs">
                   <div>
-                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.ssid}</label>
+                    <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.ssid}</label>
                     <input
                       type="text"
                       value={prop.wifiNetwork}
                       onChange={(e) => handleFieldChange('wifiNetwork', e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs font-mono focus:border-[#E4E98E] focus:outline-none"
+                      className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono focus:outline-none ${
+                        isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                      }`}
                     />
                   </div>
                   <div>
-                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.wifiPass}</label>
+                    <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.wifiPass}</label>
                     <input
                       type="text"
                       value={prop.wifiPassword}
                       onChange={(e) => handleFieldChange('wifiPassword', e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-[#E4E98E] text-xs font-mono font-bold focus:border-[#E4E98E] focus:outline-none"
+                      className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono font-bold focus:outline-none ${
+                        isDarkMode ? 'bg-[#0C1013] border-stone-700 text-[#E4E98E] focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-amber-750 focus:border-stone-800'
+                      }`}
                     />
                   </div>
                 </div>
@@ -500,14 +546,16 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'how-it-works' && (
               <div className="space-y-5">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.appliancesTitle}</h3>
-                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.appliancesSub}</p>
+                  <h3 className={`font-serif text-2xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{hubContent.guide.appliancesTitle}</h3>
+                  <p className={`text-xs mt-1 font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>{hubContent.guide.appliancesSub}</p>
                 </div>
                 <div className="space-y-3">
                   {prop.appliances.map((app, idx) => (
-                    <div key={app.id} className="p-4 rounded-2xl bg-[#0F1417] border border-stone-800 space-y-2 text-xs">
+                    <div key={app.id} className={`p-4 rounded-2xl border space-y-2 text-xs ${
+                      isDarkMode ? 'bg-[#0F1417] border-stone-800' : 'bg-stone-50 border-stone-200'
+                    }`}>
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-white text-sm">{app.title}</span>
+                        <span className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{app.title}</span>
                       </div>
                       <textarea
                         rows={2}
@@ -517,7 +565,9 @@ export const PropertyHub: React.FC = () => {
                           updated[idx] = { ...updated[idx], instructions: e.target.value };
                           handleFieldChange('appliances', updated);
                         }}
-                        className="w-full px-3 py-2 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                        className={`w-full px-3 py-2 rounded-xl border text-xs focus:outline-none ${
+                          isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-white border-stone-300 text-stone-900 focus:border-stone-800'
+                        }`}
                       />
                     </div>
                   ))}
@@ -529,29 +579,33 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'rules' && (
               <div className="space-y-5 text-xs">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.rulesTitle}</h3>
-                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.rulesSub}</p>
+                  <h3 className={`font-serif text-2xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{hubContent.guide.rulesTitle}</h3>
+                  <p className={`text-xs mt-1 font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>{hubContent.guide.rulesSub}</p>
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.quietHours}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.quietHours}</label>
                   <input
                     type="text"
                     value={prop.quietHours}
                     onChange={(e) => handleFieldChange('quietHours', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.trashSchedule}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.trashSchedule}</label>
                   <input
                     type="text"
                     value={prop.trashSchedule}
                     onChange={(e) => handleFieldChange('trashSchedule', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.rulesList}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.rulesList}</label>
                   <div className="space-y-2">
                     {prop.houseRules.map((rule, idx) => (
                       <input
@@ -563,7 +617,9 @@ export const PropertyHub: React.FC = () => {
                           updated[idx] = e.target.value;
                           handleFieldChange('houseRules', updated);
                         }}
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                        className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                          isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                        }`}
                       />
                     ))}
                   </div>
@@ -575,12 +631,14 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'recommendations' && (
               <div className="space-y-5 text-xs">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.recsTitle}</h3>
-                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.recsSub}</p>
+                  <h3 className={`font-serif text-2xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{hubContent.guide.recsTitle}</h3>
+                  <p className={`text-xs mt-1 font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>{hubContent.guide.recsSub}</p>
                 </div>
                 <div className="space-y-3">
                   {prop.recommendations.map((rec, idx) => (
-                    <div key={rec.id} className="p-4 rounded-2xl bg-[#0F1417] border border-stone-800 space-y-2.5">
+                    <div key={rec.id} className={`p-4 rounded-2xl border space-y-2.5 ${
+                      isDarkMode ? 'bg-[#0F1417] border-stone-800' : 'bg-stone-50 border-stone-200'
+                    }`}>
                       <div className="grid grid-cols-2 gap-2.5">
                         <input
                           type="text"
@@ -590,7 +648,9 @@ export const PropertyHub: React.FC = () => {
                             updated[idx] = { ...updated[idx], name: e.target.value };
                             handleFieldChange('recommendations', updated);
                           }}
-                          className="px-3 py-2 rounded-xl bg-[#0C1013] border border-stone-700 text-white font-bold text-xs focus:border-[#E4E98E] focus:outline-none"
+                          className={`px-3 py-2 rounded-xl border font-bold text-xs focus:outline-none ${
+                            isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-white border-stone-300 text-stone-900 focus:border-stone-800'
+                          }`}
                           placeholder={hubContent.guide.placeNamePlaceholder}
                         />
                         <input
@@ -601,7 +661,9 @@ export const PropertyHub: React.FC = () => {
                             updated[idx] = { ...updated[idx], distance: e.target.value };
                             handleFieldChange('recommendations', updated);
                           }}
-                          className="px-3 py-2 rounded-xl bg-[#0C1013] border border-stone-700 text-stone-300 text-xs focus:border-[#E4E98E] focus:outline-none"
+                          className={`px-3 py-2 rounded-xl border text-xs focus:outline-none ${
+                            isDarkMode ? 'bg-[#0C1013] border-stone-700 text-stone-300 focus:border-[#E4E98E]' : 'bg-white border-stone-300 text-stone-700 focus:border-stone-800'
+                          }`}
                           placeholder={hubContent.guide.distancePlaceholder}
                         />
                       </div>
@@ -613,7 +675,9 @@ export const PropertyHub: React.FC = () => {
                           updated[idx] = { ...updated[idx], description: e.target.value };
                           handleFieldChange('recommendations', updated);
                         }}
-                        className="w-full px-3 py-2 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                        className={`w-full px-3 py-2 rounded-xl border text-xs focus:outline-none ${
+                          isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-white border-stone-300 text-stone-900 focus:border-stone-800'
+                        }`}
                       />
                     </div>
                   ))}
@@ -625,34 +689,40 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'transport' && (
               <div className="space-y-5 text-xs">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.transportTitle}</h3>
-                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.transportSub}</p>
+                  <h3 className={`font-serif text-2xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{hubContent.guide.transportTitle}</h3>
+                  <p className={`text-xs mt-1 font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>{hubContent.guide.transportSub}</p>
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.taxiInfo}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.taxiInfo}</label>
                   <textarea
                     rows={2}
                     value={prop.taxiInfo}
                     onChange={(e) => handleFieldChange('taxiInfo', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.publicTransit}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.publicTransit}</label>
                   <textarea
                     rows={2}
                     value={prop.transitInfo}
                     onChange={(e) => handleFieldChange('transitInfo', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.airportTransit}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.airportTransit}</label>
                   <textarea
                     rows={2}
                     value={prop.airportTransit}
                     onChange={(e) => handleFieldChange('airportTransit', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                   />
                 </div>
               </div>
@@ -662,20 +732,22 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'checkout' && (
               <div className="space-y-5 text-xs">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.checkoutTitle}</h3>
-                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.checkoutSub}</p>
+                  <h3 className={`font-serif text-2xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{hubContent.guide.checkoutTitle}</h3>
+                  <p className={`text-xs mt-1 font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>{hubContent.guide.checkoutSub}</p>
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.checkoutTime}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.checkoutTime}</label>
                   <input
                     type="text"
                     value={prop.checkOutTime}
                     onChange={(e) => handleFieldChange('checkOutTime', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.departureChecklist}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.departureChecklist}</label>
                   <div className="space-y-2">
                     {prop.departureChecklist.map((step, idx) => (
                       <input
@@ -687,7 +759,9 @@ export const PropertyHub: React.FC = () => {
                           updated[idx] = e.target.value;
                           handleFieldChange('departureChecklist', updated);
                         }}
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                        className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                          isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                        }`}
                       />
                     ))}
                   </div>
@@ -699,36 +773,42 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'contact' && (
               <div className="space-y-5 text-xs">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.contactTitle}</h3>
-                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.contactSub}</p>
+                  <h3 className={`font-serif text-2xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{hubContent.guide.contactTitle}</h3>
+                  <p className={`text-xs mt-1 font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>{hubContent.guide.contactSub}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.hostName}</label>
+                    <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.hostName}</label>
                     <input
                       type="text"
                       value={prop.hostName}
                       onChange={(e) => handleFieldChange('hostName', e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                      className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                        isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                      }`}
                     />
                   </div>
                   <div>
-                    <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.hostPhone}</label>
+                    <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.hostPhone}</label>
                     <input
                       type="text"
                       value={prop.hostPhone}
                       onChange={(e) => handleFieldChange('hostPhone', e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                      className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                        isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                      }`}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.hostWhatsApp}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.hostWhatsApp}</label>
                   <input
                     type="text"
                     value={prop.hostWhatsApp}
                     onChange={(e) => handleFieldChange('hostWhatsApp', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-[#E4E98E] text-xs font-mono focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-[#E4E98E] focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-amber-700 focus:border-stone-800'
+                    }`}
                   />
                 </div>
               </div>
@@ -738,25 +818,29 @@ export const PropertyHub: React.FC = () => {
             {guideActiveSection === 'emergency' && (
               <div className="space-y-5 text-xs">
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white tracking-tight">{hubContent.guide.emergencyTitle}</h3>
-                  <p className="text-xs text-stone-400 mt-1">{hubContent.guide.emergencySub}</p>
+                  <h3 className={`font-serif text-2xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{hubContent.guide.emergencyTitle}</h3>
+                  <p className={`text-xs mt-1 font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>{hubContent.guide.emergencySub}</p>
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.emergencyServicesNum}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.emergencyServicesNum}</label>
                   <input
                     type="text"
                     value={prop.emergencyServicesNumber || '112'}
                     onChange={(e) => handleFieldChange('emergencyServicesNumber', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs font-mono font-bold focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono font-bold focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.guide.emergencyContact}</label>
+                  <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.guide.emergencyContact}</label>
                   <input
                     type="text"
                     value={prop.emergencyContact}
                     onChange={(e) => handleFieldChange('emergencyContact', e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                      isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                    }`}
                   />
                 </div>
               </div>
@@ -780,10 +864,12 @@ export const PropertyHub: React.FC = () => {
       {/* TAB 3: PREVIEW */}
       {propertySubTab === 'preview' && (
         <div className="space-y-6 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between bg-[#161B1E] p-5 rounded-2xl border border-stone-800">
+          <div className={`flex items-center justify-between p-5 rounded-2xl border transition-colors ${
+            isDarkMode ? 'bg-[#161B1E] border-stone-800' : 'bg-stone-50 border-stone-200 shadow-xs'
+          }`}>
             <div>
-              <span className="text-sm font-bold text-white block">{hubContent.preview.simulatorTitle}</span>
-              <span className="text-xs text-stone-400">{hubContent.preview.simulatorSub}</span>
+              <span className={`text-sm font-bold block ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{hubContent.preview.simulatorTitle}</span>
+              <span className={`text-xs font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>{hubContent.preview.simulatorSub}</span>
             </div>
             <button
               onClick={() => navigateToGuestGuide(prop.slug)}
@@ -805,12 +891,14 @@ export const PropertyHub: React.FC = () => {
 
       {/* TAB 4: QR & NFC (Matches user mockup) */}
       {propertySubTab === 'qr' && (
-        <div className="max-w-2xl mx-auto bg-[#161B1E] rounded-[32px] border border-stone-800/90 p-8 sm:p-10 shadow-xl space-y-6 text-center animate-in fade-in duration-200">
+        <div className={`max-w-2xl mx-auto rounded-[32px] border p-8 sm:p-10 shadow-xl space-y-6 text-center animate-in fade-in duration-200 ${
+          isDarkMode ? 'bg-[#161B1E] border-stone-800/90 text-stone-100' : 'bg-white border-stone-200 text-stone-900 shadow-md'
+        }`}>
           <div>
-            <h2 className="text-3xl font-serif font-bold text-white tracking-tight">
+            <h2 className={`text-3xl font-serif font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>
               {hubContent.qr.connectGuestsTitle}
             </h2>
-            <p className="text-xs text-stone-400 mt-1.5">
+            <p className={`text-xs mt-1.5 font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>
               {hubContent.qr.connectGuestsSub}
             </p>
           </div>
@@ -820,7 +908,7 @@ export const PropertyHub: React.FC = () => {
             {qrDataUrl ? (
               <img src={qrDataUrl} alt="Stumari QR Code" className="w-56 h-56 mx-auto rounded-xl" />
             ) : (
-              <div className="w-56 h-56 bg-stone-100 animate-pulse rounded-xl flex items-center justify-center text-xs text-stone-400">
+              <div className="w-56 h-56 bg-stone-100 animate-pulse rounded-xl flex items-center justify-center text-xs text-stone-400 font-medium">
                 {hubContent.qr.generatingQr}
               </div>
             )}
@@ -837,33 +925,39 @@ export const PropertyHub: React.FC = () => {
           </div>
 
           {/* NFC Status Banner */}
-          <div className="p-4 rounded-2xl bg-stone-900 border border-emerald-500/30 flex items-center justify-between text-left text-xs text-stone-200">
+          <div className={`p-4 rounded-2xl border flex items-center justify-between text-left text-xs ${
+            isDarkMode 
+              ? 'bg-stone-900 border-emerald-500/30 text-stone-200' 
+              : 'bg-emerald-50/70 border-emerald-300 text-stone-900'
+          }`}>
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center shrink-0">
                 <Radio className="w-4 h-4" />
               </div>
               <div>
-                <span className="font-bold text-white block">{hubContent.qr.nfcReadyTitle}</span>
-                <span className="text-[11px] text-stone-400">
+                <span className={`font-bold block ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>{hubContent.qr.nfcReadyTitle}</span>
+                <span className={`text-[11px] font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>
                   {hubContent.qr.nfcReadySub}
                 </span>
               </div>
             </div>
-            <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-bold font-mono text-[10px] shrink-0 border border-emerald-500/30 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold font-mono text-[10px] shrink-0 border border-emerald-500/30 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span>{hubContent.qr.nfcActive}</span>
             </span>
           </div>
 
           {/* Guest URL with Copy */}
           <div className="text-left space-y-1.5 pt-2">
-            <label className="text-xs font-mono uppercase tracking-wider text-stone-300 font-semibold block">{hubContent.qr.guestUrlLabel}</label>
+            <label className={`text-xs font-mono uppercase tracking-wider font-semibold block ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.qr.guestUrlLabel}</label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 readOnly
                 value={`stumari.app/g/${prop.slug}`}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-stone-700 bg-[#0C1013] font-mono text-xs text-white font-medium focus:outline-none"
+                className={`flex-1 px-4 py-2.5 rounded-xl border font-mono text-xs font-bold focus:outline-none ${
+                  isDarkMode ? 'border-stone-700 bg-[#0C1013] text-white' : 'border-stone-300 bg-stone-50 text-stone-900'
+                }`}
               />
               <button
                 onClick={handleCopyLink}
@@ -879,34 +973,40 @@ export const PropertyHub: React.FC = () => {
 
       {/* TAB 5: SETTINGS */}
       {propertySubTab === 'settings' && (
-        <div className="max-w-2xl mx-auto bg-[#161B1E] rounded-[32px] border border-stone-800/90 p-8 sm:p-10 shadow-xl space-y-6 text-xs text-stone-300 animate-in fade-in duration-200">
+        <div className={`max-w-2xl mx-auto rounded-[32px] border p-8 sm:p-10 shadow-xl space-y-6 text-xs transition-colors animate-in fade-in duration-200 ${
+          isDarkMode ? 'bg-[#161B1E] border-stone-800/90 text-stone-200' : 'bg-white border-stone-200 text-stone-900 shadow-md'
+        }`}>
           <div>
-            <h2 className="text-3xl font-serif font-bold text-white tracking-tight">
+            <h2 className={`text-3xl font-serif font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-950'}`}>
               {hubContent.settings.settingsTitle}
             </h2>
-            <p className="text-xs text-stone-400 mt-1.5">
+            <p className={`text-xs mt-1.5 font-medium ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>
               {hubContent.settings.settingsSub}
             </p>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.settings.propName}</label>
+              <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.settings.propName}</label>
               <input
                 type="text"
                 value={prop.title}
                 onChange={(e) => handleFieldChange('title', e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-sm font-semibold focus:border-[#E4E98E] focus:outline-none"
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm font-semibold focus:outline-none ${
+                  isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                }`}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.settings.propType}</label>
+                <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.settings.propType}</label>
                 <select
                   value={prop.type}
                   onChange={(e) => handleFieldChange('type', e.target.value as PropertyType)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                  className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                    isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                  }`}
                 >
                   <option value="apartment">Apartment</option>
                   <option value="guesthouse">Guesthouse</option>
@@ -917,33 +1017,39 @@ export const PropertyHub: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.settings.guestUrlSlug}</label>
+                <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.settings.guestUrlSlug}</label>
                 <input
                   type="text"
                   value={prop.slug}
                   onChange={(e) => handleFieldChange('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white font-mono text-xs focus:border-[#E4E98E] focus:outline-none"
+                  className={`w-full px-4 py-2.5 rounded-xl border font-mono text-xs font-bold focus:outline-none ${
+                    isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                  }`}
                 />
               </div>
             </div>
 
             <div>
-              <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.settings.addressLocation}</label>
+              <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.settings.addressLocation}</label>
               <input
                 type="text"
                 value={prop.address}
                 onChange={(e) => handleFieldChange('address', e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white text-xs focus:border-[#E4E98E] focus:outline-none"
+                className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                  isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                }`}
               />
             </div>
 
             <div>
-              <label className="font-mono uppercase tracking-wider text-stone-300 font-semibold block mb-1.5">{hubContent.settings.coverImageUrl}</label>
+              <label className={`font-mono uppercase tracking-wider font-semibold block mb-1.5 ${isDarkMode ? 'text-stone-300' : 'text-stone-700'}`}>{hubContent.settings.coverImageUrl}</label>
               <input
                 type="text"
                 value={prop.coverImage}
                 onChange={(e) => handleFieldChange('coverImage', e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-[#0C1013] border border-stone-700 text-white font-mono text-xs focus:border-[#E4E98E] focus:outline-none"
+                className={`w-full px-4 py-2.5 rounded-xl border font-mono text-xs focus:outline-none ${
+                  isDarkMode ? 'bg-[#0C1013] border-stone-700 text-white focus:border-[#E4E98E]' : 'bg-stone-50 border-stone-300 text-stone-900 focus:border-stone-800'
+                }`}
               />
             </div>
 

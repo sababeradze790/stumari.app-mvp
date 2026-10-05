@@ -51,10 +51,10 @@ export const AddToHomeScreenModal: React.FC<AddToHomeScreenModalProps> = ({
           <div className="w-14 h-14 rounded-2xl bg-[#E4E98E]/15 text-[#E4E98E] border border-[#E4E98E]/30 flex items-center justify-center mx-auto shadow-inner">
             <Smartphone className="w-7 h-7 text-[#E4E98E]" />
           </div>
-          <h3 className="font-serif font-bold text-xl tracking-tight">
+          <h3 className={`font-serif font-bold text-xl tracking-tight ${isDark ? 'text-stone-100' : 'text-stone-950'}`}>
             {language === 'ka' ? 'დაამატეთ ტელეფონის ეკრანზე' : language === 'ru' ? 'Добавить на главный экран' : 'Install as Phone App'}
           </h3>
-          <p className="text-xs text-stone-400 leading-relaxed px-2">
+          <p className={`text-xs leading-relaxed px-2 font-medium ${isDark ? 'text-stone-300' : 'text-stone-600'}`}>
             {language === 'ka' 
               ? 'გახსენით 1 შეხებით, ინტერნეტის ან როუმინგის გარეშეც კი!'
               : language === 'ru'
@@ -72,7 +72,7 @@ export const AddToHomeScreenModal: React.FC<AddToHomeScreenModalProps> = ({
             className={`flex-1 py-1.5 rounded-lg transition-all ${
               deviceType === 'ios'
                 ? isDark ? 'bg-[#E4E98E] text-stone-950 shadow-sm' : 'bg-stone-900 text-white shadow-sm'
-                : isDark ? 'text-stone-400 hover:text-white' : 'text-stone-600 hover:text-stone-900'
+                : isDark ? 'text-stone-400 hover:text-white' : 'text-stone-700 hover:text-stone-950'
             }`}
           >
             iPhone (iOS Safari)
@@ -82,7 +82,7 @@ export const AddToHomeScreenModal: React.FC<AddToHomeScreenModalProps> = ({
             className={`flex-1 py-1.5 rounded-lg transition-all ${
               deviceType === 'android'
                 ? isDark ? 'bg-[#E4E98E] text-stone-950 shadow-sm' : 'bg-stone-900 text-white shadow-sm'
-                : isDark ? 'text-stone-400 hover:text-white' : 'text-stone-600 hover:text-stone-900'
+                : isDark ? 'text-stone-400 hover:text-white' : 'text-stone-700 hover:text-stone-950'
             }`}
           >
             Android (Chrome)
@@ -92,70 +92,70 @@ export const AddToHomeScreenModal: React.FC<AddToHomeScreenModalProps> = ({
         {/* Step-by-step instructions */}
         {deviceType === 'ios' ? (
           <div className="space-y-3 text-xs">
-            <div className={`p-3 rounded-2xl border flex items-center gap-3 ${
+            <div className={`p-3.5 rounded-2xl border flex items-center gap-3 ${
               isDark ? 'bg-[#14191C] border-stone-800' : 'bg-stone-50 border-stone-200'
             }`}>
-              <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0 font-bold">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center shrink-0 font-bold">
                 1
               </div>
               <div className="min-w-0">
-                <span className="font-bold block">
+                <span className={`font-bold block ${isDark ? 'text-stone-100' : 'text-stone-950'}`}>
                   {language === 'ka' ? 'დააჭირეთ Share ღილაკს' : language === 'ru' ? 'Нажмите «Поделиться»' : 'Tap the Share Button'}
                 </span>
-                <span className="text-[11px] text-stone-400 flex items-center gap-1 mt-0.5">
-                  <Share className="w-3 h-3 text-blue-400" />
-                  <span>Safari-ს ქვედა პანელზე</span>
+                <span className={`text-[11px] flex items-center gap-1 mt-0.5 font-medium ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>
+                  <Share className="w-3 h-3 text-blue-500" />
+                  <span>{language === 'ka' ? 'Safari-ს ქვედა პანელზე' : language === 'ru' ? 'На нижней панели Safari' : 'On the bottom bar of Safari'}</span>
                 </span>
               </div>
             </div>
 
-            <div className={`p-3 rounded-2xl border flex items-center gap-3 ${
+            <div className={`p-3.5 rounded-2xl border flex items-center gap-3 ${
               isDark ? 'bg-[#14191C] border-stone-800' : 'bg-stone-50 border-stone-200'
             }`}>
-              <div className="w-8 h-8 rounded-xl bg-[#E4E98E]/15 text-[#E4E98E] flex items-center justify-center shrink-0 font-bold">
+              <div className="w-8 h-8 rounded-xl bg-[#E4E98E]/20 text-[#E4E98E] dark:text-[#E4E98E] flex items-center justify-center shrink-0 font-bold">
                 2
               </div>
               <div className="min-w-0">
-                <span className="font-bold block">
+                <span className={`font-bold block ${isDark ? 'text-stone-100' : 'text-stone-950'}`}>
                   {language === 'ka' ? 'აირჩიეთ "Add to Home Screen"' : language === 'ru' ? 'Выберите «На экран Домой»' : 'Select "Add to Home Screen"'}
                 </span>
-                <span className="text-[11px] text-stone-400 flex items-center gap-1 mt-0.5">
-                  <PlusSquare className="w-3 h-3 text-[#E4E98E]" />
-                  <span>დააჭირეთ «Add» ზედა მარჯვენა კუთხეში</span>
+                <span className={`text-[11px] flex items-center gap-1 mt-0.5 font-medium ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>
+                  <PlusSquare className="w-3 h-3 text-amber-500" />
+                  <span>{language === 'ka' ? 'დააჭირეთ «Add» ზედა მარჯვენა კუთხეში' : language === 'ru' ? 'Нажмите «Добавить» в правом верхнем углу' : 'Tap "Add" in the top-right corner'}</span>
                 </span>
               </div>
             </div>
           </div>
         ) : (
           <div className="space-y-3 text-xs">
-            <div className={`p-3 rounded-2xl border flex items-center gap-3 ${
+            <div className={`p-3.5 rounded-2xl border flex items-center gap-3 ${
               isDark ? 'bg-[#14191C] border-stone-800' : 'bg-stone-50 border-stone-200'
             }`}>
-              <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0 font-bold">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0 font-bold">
                 1
               </div>
               <div className="min-w-0">
-                <span className="font-bold block">
-                  {language === 'ka' ? 'დააჭირეთ მენიუს ⋮' : language === 'ru' ? 'Нажмите на три точки ⋮' : 'Tap Menu (⋮)'}
+                <span className={`font-bold block ${isDark ? 'text-stone-100' : 'text-stone-950'}`}>
+                  {language === 'ka' ? 'დააჭირეთ მენიუს (⋮)' : language === 'ru' ? 'Нажмите меню (⋮)' : 'Tap Menu (⋮)'}
                 </span>
-                <span className="text-[11px] text-stone-400 mt-0.5 block">
-                  Chrome-ის ზედა მარჯვენა კუთხეში
+                <span className={`text-[11px] mt-0.5 block font-medium ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>
+                  {language === 'ka' ? 'Chrome-ის ზედა მარჯვენა კუთხეში' : language === 'ru' ? 'В верхнем правом углу Chrome' : 'In the top-right corner of Chrome'}
                 </span>
               </div>
             </div>
 
-            <div className={`p-3 rounded-2xl border flex items-center gap-3 ${
+            <div className={`p-3.5 rounded-2xl border flex items-center gap-3 ${
               isDark ? 'bg-[#14191C] border-stone-800' : 'bg-stone-50 border-stone-200'
             }`}>
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0 font-bold">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0 font-bold">
                 2
               </div>
               <div className="min-w-0">
-                <span className="font-bold block">
-                  {language === 'ka' ? 'აირჩიეთ "Install app"' : language === 'ru' ? 'Выберите «Установить приложение»' : 'Select "Install app" / "Add to Home Screen"'}
+                <span className={`font-bold block ${isDark ? 'text-stone-100' : 'text-stone-950'}`}>
+                  {language === 'ka' ? 'აირჩიეთ "Install app"' : language === 'ru' ? 'Выберите «Установить приложение»' : 'Select "Install app"'}
                 </span>
-                <span className="text-[11px] text-stone-400 mt-0.5 block">
-                  გაიხსნება როგორც ნამდვილი აპლიკაცია
+                <span className={`text-[11px] mt-0.5 block font-medium ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>
+                  {language === 'ka' ? 'გაიხსნება როგორც ნამდვილი მობილური აპი' : language === 'ru' ? 'Запустится как настоящее приложение' : 'Opens instantly just like a native mobile app'}
                 </span>
               </div>
             </div>

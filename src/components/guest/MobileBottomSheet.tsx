@@ -81,7 +81,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
                 {title}
               </h3>
               {subtitle && (
-                <p className="text-[11px] text-stone-400 truncate mt-0.5">
+                <p className="text-[11px] text-stone-600 dark:text-stone-400 truncate mt-0.5 font-medium">
                   {subtitle}
                 </p>
               )}
@@ -106,15 +106,12 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
 
         {/* Sticky Bottom Action (if provided) */}
         {stickyBottomAction && (
-          <div className={`p-4 border-t shrink-0 ${
+          <div className={`p-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] border-t shrink-0 ${
             isDark ? 'border-stone-800/80 bg-[#0E1317]' : 'border-stone-100 bg-white'
           }`}>
             {stickyBottomAction}
           </div>
         )}
-
-        {/* iOS Home Indicator Bar Spacer */}
-        <div className="w-32 h-1 bg-stone-500/20 rounded-full mx-auto my-1.5 shrink-0" />
       </div>
     </div>
   );

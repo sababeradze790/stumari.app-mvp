@@ -57,6 +57,19 @@
         "localTip": { "type": "string" }
       },
       "required": ["id", "title", "experience"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated host user profile and metadata",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "lastLogin": { "type": "string" }
+      },
+      "required": ["uid", "email"]
     }
   },
   "firestore": {
@@ -71,6 +84,10 @@
     "/gems/{gemId}": {
       "schema": { "$ref": "#/entities/StumariGem" },
       "description": "Curated Tbilisi local gems library and host secrets"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Authenticated host profile"
     }
   }
 }

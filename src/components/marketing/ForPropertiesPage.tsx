@@ -46,8 +46,8 @@ export const ForPropertiesPage: React.FC = () => {
       border: 'hover:border-[#859768]'
     },
     hotels: {
-      badge: isDark ? 'bg-[#252A17] text-[#E4E98E] border-[#E4E98E]/30' : 'bg-[#F6F9D6] text-[#1D260D] border-[#E9F0B2]',
-      border: 'hover:border-[#B6BD4B]'
+      badge: isDark ? 'bg-amber-950/40 text-amber-300 border-amber-600/30' : 'bg-amber-100 text-amber-900 border-amber-300',
+      border: 'hover:border-amber-500'
     },
     managers: {
       badge: isDark ? 'bg-[#132A23] text-emerald-300 border-emerald-500/30' : 'bg-[#D7EFE7] text-[#0A2D22] border-[#B8E4D5]',
@@ -58,7 +58,7 @@ export const ForPropertiesPage: React.FC = () => {
 
   return (
     <div className={`min-h-screen font-sans transition-colors duration-300 pb-20 ${
-      isDark ? 'bg-[#080B0D] text-stone-100' : 'bg-stone-50 text-stone-900'
+      isDark ? 'bg-[#0D0E12] text-zinc-100' : 'bg-[#FAFAF8] text-zinc-900'
     }`}>
       {/* Top Hero */}
       <section className={`pt-12 sm:pt-16 pb-16 px-4 sm:px-6 lg:px-8 border-b text-center transition-colors ${
@@ -66,7 +66,7 @@ export const ForPropertiesPage: React.FC = () => {
       }`}>
         <div className="max-w-3xl mx-auto space-y-4">
           <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase inline-block ${
-            isDark ? 'bg-[#E4E98E]/15 text-[#E4E98E] border border-[#E4E98E]/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+            isDark ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
           }`}>
             {content.badge}
           </span>
@@ -91,7 +91,7 @@ export const ForPropertiesPage: React.FC = () => {
               className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
                 activeTab === tab.id
                   ? isDark 
-                    ? 'bg-[#E4E98E] text-[#0C1510] font-bold shadow-xs' 
+                    ? 'bg-amber-600 text-white font-bold shadow-xs' 
                     : 'bg-stone-900 text-white font-bold shadow-xs'
                   : isDark 
                     ? 'text-stone-400 hover:text-white hover:bg-stone-800' 
@@ -130,7 +130,7 @@ export const ForPropertiesPage: React.FC = () => {
                   onClick={() => setMobileDetailView('solution')}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     mobileDetailView === 'solution'
-                      ? isDark ? 'bg-[#E4E98E] text-[#0C1510]' : 'bg-stone-900 text-white'
+                      ? isDark ? 'bg-amber-600 text-white' : 'bg-stone-900 text-white'
                       : 'text-stone-500'
                   }`}
                 >
@@ -140,7 +140,7 @@ export const ForPropertiesPage: React.FC = () => {
                   onClick={() => setMobileDetailView('headaches')}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     mobileDetailView === 'headaches'
-                      ? isDark ? 'bg-[#E4E98E] text-[#0C1510]' : 'bg-stone-900 text-white'
+                      ? isDark ? 'bg-amber-600 text-white' : 'bg-stone-900 text-white'
                       : 'text-stone-500'
                   }`}
                 >
@@ -191,7 +191,7 @@ export const ForPropertiesPage: React.FC = () => {
                 onClick={() => setCurrentRoute('/onboarding')}
                 className={`px-5 py-3 rounded-xl font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center gap-1.5 active:scale-95 ${
                   isDark 
-                    ? 'bg-[#E4E98E] text-[#0C1510] hover:bg-[#d8dd80]' 
+                    ? 'bg-amber-600 text-white hover:bg-amber-500' 
                     : 'bg-stone-900 text-white hover:bg-stone-800'
                 }`}
               >

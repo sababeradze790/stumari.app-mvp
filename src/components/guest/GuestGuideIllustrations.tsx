@@ -69,7 +69,7 @@ export const TbilisiTowerSketch: React.FC<SvgProps> = ({ className = "w-28 h-28"
 
 // 3. Georgian Khinkali Sketch (For Best Khinkali Mood)
 export const KhinkaliSketch: React.FC<SvgProps> = ({ className = "w-10 h-10", isDark = false }) => {
-  const strokeColor = isDark ? '#E4E98E' : '#78350F';
+  const strokeColor = isDark ? '#F55A51' : '#78350F';
   return (
     <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
       {/* Top Knob (Kudi) */}

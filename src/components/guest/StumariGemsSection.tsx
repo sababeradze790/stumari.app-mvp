@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sparkles, 
   MapPin, 
@@ -15,7 +16,8 @@ import {
   Check,
   ChevronRight,
   MessageCircle,
-  Share
+  Share,
+  Share2
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StumariGem, GemExperience, GemMood } from '../../types';
@@ -40,11 +42,16 @@ export const StumariGemsSection: React.FC<StumariGemsSectionProps> = ({
     activeMood, 
     setActiveMood, 
     activeExperience, 
-    setActiveExperience 
+    setActiveExperience,
+    isGuestFavorite,
+    toggleGuestFavorite,
+    guestFavoritesCount,
+    showToast
   } = useApp();
   const isDark = theme === 'dark';
 
   const [selectedGem, setSelectedGem] = useState<StumariGem | null>(null);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
 
   const triggerHaptic = () => {
     try {
@@ -54,44 +61,74 @@ export const StumariGemsSection: React.FC<StumariGemsSectionProps> = ({
     } catch {}
   };
 
+  const handleShareGem = async (gem: StumariGem) => {
+    triggerHaptic();
+    const shareTitle = `${gem.title} — Tbilisi Recommendation`;
+    const shareText = language === 'ka'
+      ? `გამარჯობა! ნახე ეს ადგილი თბილისში: ${gem.title} (${gem.subtitle || ''}) - ${gem.mapsUrl}`
+      : language === 'ru'
+      ? `Привет! Посмотри это классное место в Тбилиси: ${gem.title} - ${gem.mapsUrl}`
+      : `Check out ${gem.title} in Tbilisi: ${gem.mapsUrl}`;
+
+    if (typeof navigator !== 'undefined' && typeof (navigator as any).share === 'function') {
+      try {
+        await (navigator as any).share({
+          title: shareTitle,
+          text: shareText,
+          url: gem.mapsUrl || (typeof window !== 'undefined' ? window.location.href : ''),
+        });
+        showToast(language === 'ka' ? 'გაზიარდა!' : 'Shared!');
+        return;
+      } catch (e: any) {
+        if (e?.name === 'AbortError') return;
+      }
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(`${gem.title}: ${gem.mapsUrl}`);
+      showToast(language === 'ka' ? 'ლინკი დაკოპირდა!' : 'Link copied to clipboard!');
+    }
+  };
+
   const allGems = propertyGems && propertyGems.length > 0 ? propertyGems : gems;
 
-  // Filter by Experience and Mood
+  // Filter by Experience, Mood, and Favorites
   const filteredGems = allGems.filter(gem => {
+    if (onlyFavorites && !isGuestFavorite(gem.id)) return false;
     const matchExperience = activeExperience === 'all' || gem.experience === activeExperience;
     const matchMood = activeMood === 'all' || gem.moods.includes(activeMood as GemMood);
     return matchExperience && matchMood;
   });
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
+    <div className="space-y-4 animate-in fade-in duration-300 tracking-tight">
       
       {/* Section Header */}
-      <div className={`p-5 rounded-[28px] border transition-all relative overflow-hidden ${
+      <div className={`p-4 sm:p-5 rounded-xl border transition-all relative overflow-hidden shadow-sm ${
         isDark 
-          ? 'bg-gradient-to-br from-white/[0.07] via-white/[0.03] to-transparent backdrop-blur-md border-white/10 ring-1 ring-white/5' 
-          : 'bg-gradient-to-br from-[#F4F7EB]/80 via-[#EDF3EF]/60 to-white border-stone-200/90 shadow-xs'
+          ? 'bg-zinc-900 border-zinc-800 text-zinc-100' 
+          : 'bg-white border-zinc-200 text-zinc-900 shadow-sm'
       }`}>
         <div className="relative z-10 max-w-xl">
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#E4E98E] animate-pulse" />
-            <span className={`text-[10px] font-mono uppercase tracking-wider font-bold ${
-              isDark ? 'text-[#E4E98E]' : 'text-amber-700'
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className={`text-[10px] font-mono uppercase tracking-wider font-semibold ${
+              isDark ? 'text-zinc-400' : 'text-zinc-500'
             }`}>
               {language === 'ka' ? 'ადგილობრივი რეკომენდაციები' : language === 'ru' ? 'Местные секреты' : "Host's Local Secrets"}
             </span>
           </div>
 
-          <h2 className="font-serif text-xl sm:text-2xl font-bold tracking-tight">
-            {language === 'ka' ? 'Stumari Gems — თბილისის საიდუმლო ადგილები' : language === 'ru' ? 'Stumari Gems — любимые места местных' : 'Stumari Gems — Places We’d Recommend to a Friend'}
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
+            {language === 'ka' ? 'Stumari Gems — თბილისის საიდუმლო ადგილები' : language === 'ru' ? 'Stumari Gems — любимые места местных' : 'Stumari Gems — Curated Neighborhood Spots'}
           </h2>
 
-          <p className={`text-xs mt-1.5 leading-relaxed ${isDark ? 'text-stone-300' : 'text-stone-600'}`}>
+          <p className={`text-xs mt-1.5 leading-relaxed ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
             {language === 'ka'
               ? 'არანაირი ტურისტული კლიშეები. დააჭირეთ ბარათს სრული რჩევების სანახავად.'
               : language === 'ru'
               ? 'Нажмите на карточку, чтобы открыть секреты и советы от хозяина.'
-              : 'Tap any spot to open Saba’s personal tips, what to order, and exact directions.'}
+              : 'Tap any spot to open personal tips, recommendations, and exact directions.'}
           </p>
         </div>
 
@@ -105,15 +142,15 @@ export const StumariGemsSection: React.FC<StumariGemsSectionProps> = ({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-1.5">
-            <Sparkles className={`w-4 h-4 ${isDark ? 'text-[#E4E98E]' : 'text-amber-600'}`} />
-            <span className={`text-xs font-mono uppercase font-black tracking-wider ${isDark ? 'text-stone-200' : 'text-stone-900'}`}>
+            <Sparkles className={`w-3.5 h-3.5 ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`} />
+            <span className={`text-xs font-mono uppercase font-semibold tracking-wider ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
               {language === 'ka' ? 'რისი განწყობა გაქვთ ახლა?' : language === 'ru' ? 'Какое у вас настроение?' : 'What are you in the mood for?'}
             </span>
           </div>
           {activeMood !== 'all' && (
             <button
               onClick={() => setActiveMood('all')}
-              className={`text-xs font-bold hover:underline ${isDark ? 'text-[#E4E98E]' : 'text-stone-950'}`}
+              className={`text-xs font-medium hover:underline ${isDark ? 'text-zinc-300' : 'text-zinc-900'}`}
             >
               Reset ({activeMood})
             </button>
@@ -124,25 +161,26 @@ export const StumariGemsSection: React.FC<StumariGemsSectionProps> = ({
           {MOOD_DEFINITIONS.map((m) => {
             const isSelected = activeMood === m.id;
             return (
-              <button
+              <motion.button
                 key={m.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 25 }}
                 onClick={() => {
                   triggerHaptic();
                   setActiveMood(isSelected ? 'all' : m.id);
                 }}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 border shadow-2xs ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors shrink-0 flex items-center gap-1.5 border shadow-2xs cursor-pointer ${
                   isSelected
-                    ? isDark 
-                      ? 'bg-[#E4E98E] text-[#0C1510] border-[#E4E98E] font-black shadow-sm' 
-                      : 'bg-stone-950 text-white border-stone-950 font-black shadow-sm'
+                    ? 'bg-[#F55A51] text-white border-[#F55A51] font-semibold'
                     : isDark 
-                      ? 'bg-stone-900/90 border-stone-700/80 text-stone-200 hover:border-stone-500' 
-                      : 'bg-white border-stone-300 text-stone-900 hover:bg-stone-100 hover:border-stone-400'
+                      ? 'bg-[#1F1E1C] border-[#2B2926] text-[#ACA79F] hover:border-[#3B3833] hover:text-[#F7F5F0]' 
+                      : 'bg-white border-[#EBE6DF] text-[#5C5853] hover:bg-[#FAF8F5] hover:border-[#DDD8CF] hover:text-[#1C1B1A]'
                 }`}
               >
                 <span>{m.icon}</span>
                 <span>{m.label}</span>
-              </button>
+              </motion.button>
             );
           })}
         </div>
@@ -150,46 +188,83 @@ export const StumariGemsSection: React.FC<StumariGemsSectionProps> = ({
 
       {/* 2. EXPERIENCE CATEGORIES HORIZONTAL PILL RAIL */}
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 -mx-4 px-4">
-        <button
+        
+        {/* Saved Favorites Filter Pill */}
+        {guestFavoritesCount > 0 && (
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+            onClick={() => {
+              triggerHaptic();
+              setOnlyFavorites(!onlyFavorites);
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors shrink-0 flex items-center gap-1.5 border shadow-2xs cursor-pointer ${
+              onlyFavorites
+                ? 'bg-[#F55A51] text-white border-[#F55A51] font-semibold'
+                : isDark
+                ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F55A51] hover:border-[#3B3833]'
+                : 'bg-[#FDF1F0] border-[#F55A51]/30 text-[#C93E36] hover:bg-[#FCE5E3]'
+            }`}
+          >
+            <Heart className={`w-3.5 h-3.5 ${onlyFavorites ? 'fill-white' : 'fill-[#F55A51] text-[#F55A51]'}`} />
+            <span>{language === 'ka' ? 'რჩეულები' : language === 'ru' ? 'Избранное' : 'Favorites'}</span>
+            <span className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md ${
+              onlyFavorites ? 'bg-white/20 text-white' : isDark ? 'bg-[#272522] text-[#F7F5F0]' : 'bg-[#FCE5E3] text-[#C93E36]'
+            }`}>
+              {guestFavoritesCount}
+            </span>
+          </motion.button>
+        )}
+
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.96 }}
+          transition={{ type: 'spring', stiffness: 450, damping: 25 }}
           onClick={() => {
             triggerHaptic();
+            setOnlyFavorites(false);
             setActiveExperience('all');
           }}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-black transition-all shrink-0 border ${
-            activeExperience === 'all'
-              ? isDark ? 'bg-[#E4E98E] text-[#0C1510] border-[#E4E98E] shadow-xs' : 'bg-stone-950 text-white border-stone-950 shadow-xs'
-              : isDark ? 'bg-stone-900/80 border-stone-800 text-stone-300 hover:text-white' : 'bg-white border-stone-300 text-stone-800 hover:text-stone-950 hover:bg-stone-100'
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0 border cursor-pointer shadow-2xs ${
+            !onlyFavorites && activeExperience === 'all'
+              ? 'bg-[#F55A51] text-white border-[#F55A51]'
+              : isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#ACA79F] hover:text-[#F7F5F0]' : 'bg-white border-[#EBE6DF] text-[#5C5853] hover:text-[#1C1B1A]'
           }`}
         >
           {language === 'ka' ? 'ყველა' : language === 'ru' ? 'Все' : 'All'} ({allGems.length})
-        </button>
+        </motion.button>
 
         {EXPERIENCE_CATEGORIES.map((cat) => {
-          const isSelected = activeExperience === cat.id;
+          const isSelected = !onlyFavorites && activeExperience === cat.id;
           const count = allGems.filter(g => g.experience === cat.id).length;
           return (
-            <button
+            <motion.button
               key={cat.id}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 25 }}
               onClick={() => {
                 triggerHaptic();
+                setOnlyFavorites(false);
                 setActiveExperience(isSelected ? 'all' : cat.id as GemExperience);
               }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 border ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors shrink-0 flex items-center gap-1.5 border cursor-pointer shadow-2xs ${
                 isSelected
-                  ? isDark ? 'bg-[#E4E98E] text-[#0C1510] border-[#E4E98E] font-black shadow-xs' : 'bg-stone-950 text-white border-stone-950 font-black shadow-xs'
-                  : isDark ? 'bg-stone-900/80 border-stone-800 text-stone-300 hover:text-white' : 'bg-white border-stone-300 text-stone-800 hover:text-stone-950 hover:bg-stone-100'
+                  ? 'bg-[#F55A51] text-white border-[#F55A51] font-semibold'
+                  : isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#ACA79F] hover:text-[#F7F5F0]' : 'bg-white border-[#EBE6DF] text-[#5C5853] hover:text-[#1C1B1A]'
               }`}
             >
               <span>{cat.icon}</span>
               <span>{cat.label}</span>
-              <span className={`text-[11px] font-mono font-bold px-1.5 py-0.2 rounded-full ${
+              <span className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md ${
                 isSelected 
-                  ? isDark ? 'bg-[#0C1510]/20 text-[#0C1510]' : 'bg-white/20 text-white'
-                  : isDark ? 'bg-stone-800 text-stone-300' : 'bg-stone-200 text-stone-800'
+                  ? 'bg-white/20 text-white'
+                  : isDark ? 'bg-[#272522] text-[#ACA79F]' : 'bg-[#F3EFE9] text-[#5C5853]'
               }`}>
                 {count}
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </div>
@@ -197,112 +272,159 @@ export const StumariGemsSection: React.FC<StumariGemsSectionProps> = ({
       {/* 3. COMPACT GEMS BENTO GRID (FAST, SCANNABLE, TAP FOR DETAILS) */}
       {filteredGems.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          {filteredGems.map((gem) => {
+          {filteredGems.map((gem, index) => {
             const isHostRec = gem.type === 'host' || gem.isHostFavorite;
+            const isFav = isGuestFavorite(gem.id);
 
             return (
-              <div
+              <motion.div
                 key={gem.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.22, delay: Math.min(index * 0.02, 0.2) }}
+                whileHover={{ y: -3, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   triggerHaptic();
                   setSelectedGem(gem);
                 }}
-                className={`rounded-[24px] border overflow-hidden transition-all duration-300 hover:translate-y-[-4px] active:scale-[0.98] cursor-pointer group flex flex-col justify-between ${
+                className={`rounded-2xl border overflow-hidden transition-all duration-300 cursor-pointer group flex flex-col justify-between shadow-warm-sm hover:shadow-warm-md ${
                   isDark 
-                    ? 'bg-gradient-to-b from-white/[0.06] to-white/[0.02] backdrop-blur-md border-white/10 hover:border-[#E4E98E]/50 shadow-md hover:shadow-2xl hover:shadow-black/60 ring-1 ring-white/5 text-stone-100' 
-                    : 'bg-white border-stone-300/80 hover:border-stone-500 text-stone-900 shadow-sm hover:shadow-xl hover:shadow-stone-300/60'
+                    ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#3B3833] text-[#F7F5F0]' 
+                    : 'bg-white border-[#EBE6DF] hover:border-[#DDD8CF] text-[#1C1B1A]'
                 }`}
               >
                 <div>
                   {/* Photo with Overlay Badges */}
-                  <div className="relative h-36 sm:h-40 overflow-hidden">
+                  <div className="relative h-36 sm:h-40 overflow-hidden bg-[#272522]">
                     <img
                       src={gem.image}
                       alt={gem.title}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       loading="lazy"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/20 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
                     {/* Top Badges */}
-                    <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-1.5">
+                    <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-1.5 z-10">
                       <div className="flex items-center gap-1 flex-wrap">
                         {isHostRec ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase bg-[#E4E98E] text-[#0C1510] shadow-sm flex items-center gap-1">
-                            <Heart className="w-2.5 h-2.5 fill-[#0C1510]" />
+                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold tracking-wider uppercase bg-black/60 text-[#F7F5F0] border border-white/20 backdrop-blur-md shadow-2xs flex items-center gap-1">
+                            <Heart className="w-2.5 h-2.5 fill-[#F55A51] text-[#F55A51]" />
                             <span>{hostName}'s Secret</span>
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase bg-black/80 text-stone-100 border border-white/15 backdrop-blur-md flex items-center gap-1 shadow-sm">
-                            <Sparkles className="w-2.5 h-2.5 text-[#E4E98E]" />
+                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold tracking-wider uppercase bg-black/60 text-[#F7F5F0] border border-white/20 backdrop-blur-md flex items-center gap-1 shadow-2xs">
+                            <Sparkles className="w-2.5 h-2.5 text-[#FFC757]" />
                             <span>Stumari Gem</span>
                           </span>
                         )}
                       </div>
 
-                      <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-black bg-black/80 text-amber-300 border border-white/10 backdrop-blur-md">
-                        {gem.priceLevel}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded-lg text-[11px] font-mono font-medium bg-black/60 text-[#F7F5F0] border border-white/20 backdrop-blur-md">
+                          {gem.priceLevel}
+                        </span>
+
+                        {/* Interactive Heart Button on Venue Card */}
+                        <motion.button
+                          type="button"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.85 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            triggerHaptic();
+                            toggleGuestFavorite(gem.id, gem.title);
+                          }}
+                          aria-label={isFav ? "Remove from saved places" : "Save place to favorites"}
+                          title={isFav ? "Saved to favorites" : "Save to favorites"}
+                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-colors shadow-2xs backdrop-blur-md border cursor-pointer ${
+                            isFav 
+                              ? 'bg-[#F55A51] text-white border-[#F55A51]' 
+                              : 'bg-black/60 hover:bg-black/80 text-[#ACA79F] border-white/20 hover:text-white'
+                          }`}
+                        >
+                          <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform ${isFav ? 'fill-white scale-110 text-white' : ''}`} />
+                        </motion.button>
+                      </div>
                     </div>
 
                     {/* Distance Pill Bottom Right */}
-                    <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/85 backdrop-blur-md text-xs text-white font-bold border border-white/15">
-                      <MapPin className="w-3 h-3 text-[#E4E98E]" />
+                    <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-xs text-[#F7F5F0] font-medium border border-white/20 shadow-2xs">
+                      <MapPin className="w-3 h-3 text-[#748C96]" />
                       <span>{gem.distance}</span>
                     </div>
                   </div>
 
                   {/* Compact Card Title & Teaser */}
-                  <div className="p-4 space-y-1.5">
+                  <div className="p-3.5 space-y-1">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className={`font-serif text-base sm:text-lg font-bold leading-tight transition-colors truncate ${
-                        isDark ? 'text-white group-hover:text-[#E4E98E]' : 'text-stone-950 group-hover:text-emerald-700'
+                      <h3 className={`text-base font-serif font-bold leading-tight transition-colors truncate ${
+                        isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
                       }`}>
                         {gem.title}
                       </h3>
-                      <ChevronRight className={`w-4 h-4 transition-all shrink-0 mt-0.5 group-hover:translate-x-1 ${
-                        isDark ? 'text-stone-400 group-hover:text-[#E4E98E]' : 'text-stone-500 group-hover:text-stone-950'
-                      }`} />
+                      
+                      {isFav && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-[#FDF1F0] dark:bg-[#F55A51]/15 text-[#F55A51] border border-[#F55A51]/30 shrink-0 flex items-center gap-0.5">
+                          <Heart className="w-2.5 h-2.5 fill-current" />
+                          <span>Saved</span>
+                        </span>
+                      )}
                     </div>
-                    <p className={`text-xs sm:text-sm line-clamp-2 leading-relaxed font-medium ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                    <p className={`text-xs line-clamp-2 leading-relaxed font-normal ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                       {gem.subtitle}
                     </p>
                   </div>
                 </div>
 
                 {/* Compact Card Footer Affordance */}
-                <div className={`px-4 py-2.5 border-t flex items-center justify-between text-xs ${
-                  isDark ? 'border-white/10 bg-white/[0.03] backdrop-blur-xs' : 'border-stone-200 bg-stone-50/90'
+                <div className={`px-3.5 py-2.5 border-t flex items-center justify-between text-xs ${
+                  isDark ? 'border-[#2B2926] bg-[#141312]/60' : 'border-[#EBE6DF] bg-[#FAF8F5]'
                 }`}>
-                  <span className={`font-bold truncate max-w-[180px] ${isDark ? 'text-stone-300' : 'text-stone-800'}`}>
+                  <span className={`font-medium truncate max-w-[180px] ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                     {gem.bestTime ? `Best: ${gem.bestTime}` : gem.subCategory || 'Local Spot'}
                   </span>
-                  <span className={`font-black flex items-center gap-1 shrink-0 ${isDark ? 'text-[#E4E98E]' : 'text-stone-950'}`}>
-                    <span>{language === 'ka' ? 'დეტალები' : language === 'ru' ? 'Секреты' : 'Details'}</span>
-                    <span className="text-sm font-bold">↗</span>
+                  <span className={`font-semibold flex items-center gap-1 shrink-0 ${isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'}`}>
+                    <span>{language === 'ka' ? 'დეტალები' : language === 'ru' ? 'Подробнее' : 'Details'}</span>
+                    <span className="text-sm font-semibold text-[#F55A51]">↗</span>
                   </span>
                 </div>
 
-              </div>
+              </motion.div>
             );
           })}
         </div>
       ) : (
-        <div className={`p-8 rounded-[28px] border text-center space-y-3 ${
-          isDark ? 'bg-[#0E1317] border-stone-800 text-stone-400' : 'bg-white border-stone-200 text-stone-600'
+        <div className={`p-8 rounded-2xl border text-center space-y-3 shadow-warm-sm ${
+          isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#ACA79F]' : 'bg-white border-[#EBE6DF] text-[#5C5853]'
         }`}>
-          <div className="w-12 h-12 rounded-full bg-stone-800/50 flex items-center justify-center mx-auto text-xl">
-            🔍
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto text-xl border shadow-2xs ${
+            isDark ? 'bg-[#272522] border-[#3B3833] text-[#FFC757]' : 'bg-[#FFF9ED] border-[#FFC757]/30 text-[#FFC757]'
+          }`}>
+            {onlyFavorites ? '❤️' : '🔍'}
           </div>
-          <h4 className="font-serif font-bold text-base text-white">No places match this mood</h4>
-          <p className="text-xs max-w-sm mx-auto">
-            Try switching to another mood filter or reset to browse all {allGems.length} curated local recommendations.
+          <h4 className={`font-serif font-bold text-base tracking-tight ${isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'}`}>
+            {onlyFavorites 
+              ? (language === 'ka' ? 'რჩეულები ჯერ არ გაქვთ' : language === 'ru' ? 'Нет сохраненных мест' : 'No saved favorite places yet')
+              : (language === 'ka' ? 'ადგილები ვერ მოიძებნა' : language === 'ru' ? 'Места не найдены' : 'No places match this mood')}
+          </h4>
+          <p className={`text-xs max-w-sm mx-auto leading-relaxed ${isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'}`}>
+            {onlyFavorites 
+              ? (language === 'ka' 
+                  ? 'დააჭირეთ გულს ნებისმიერ ადგილზე შესანახად და ისინი გამოჩნდება გაზიარებისას!' 
+                  : language === 'ru'
+                  ? 'Нажмите на сердечко у любого места, чтобы сохранить его в избранное!'
+                  : 'Tap the heart on any venue or place to save it to your trip.')
+              : `Try switching to another mood filter or reset to browse all ${allGems.length} curated local recommendations.`}
           </p>
           <button
-            onClick={() => { setActiveMood('all'); setActiveExperience('all'); }}
-            className="px-5 py-2 rounded-full text-xs font-bold bg-[#E4E98E] text-[#0C1510] active:scale-95"
+            onClick={() => { setOnlyFavorites(false); setActiveMood('all'); setActiveExperience('all'); }}
+            className="px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer shadow-xs transition-all active:scale-95 bg-[#F55A51] hover:bg-[#E04840] text-white"
           >
-            Reset All Filters
+            {onlyFavorites 
+              ? (language === 'ka' ? 'ყველა ადგილის ნახვა' : language === 'ru' ? 'Все места' : 'Browse All Places')
+              : 'Reset All Filters'}
           </button>
         </div>
       )}
@@ -316,38 +438,58 @@ export const StumariGemsSection: React.FC<StumariGemsSectionProps> = ({
           onClose={() => setSelectedGem(null)}
           title={selectedGem.title}
           subtitle={`${selectedGem.subCategory || 'Curated Secret'} · ${selectedGem.distance}`}
-          icon={selectedGem.type === 'host' ? <Heart className="w-4 h-4 text-rose-400 fill-rose-400" /> : <Sparkles className="w-4 h-4 text-[#E4E98E]" />}
+          icon={selectedGem.type === 'host' ? <Heart className="w-4 h-4 text-[#F55A51] fill-[#F55A51]" /> : <Sparkles className="w-4 h-4 text-[#FFC757]" />}
           stickyBottomAction={
             <div className="flex items-center gap-2">
               <a
                 href={selectedGem.mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 bg-[#E4E98E] hover:bg-[#d8dd80] text-[#0C1510] shadow-md active:scale-95 transition-all"
+                className="flex-1 py-2.5 px-4 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition-all active:scale-98 cursor-pointer bg-[#F55A51] hover:bg-[#E04840] text-white"
               >
                 <Navigation className="w-4 h-4" />
                 <span>{language === 'ka' ? 'მარშრუტი რუკაზე' : language === 'ru' ? 'Открыть в картах' : 'Get Directions'}</span>
                 <ExternalLink className="w-3.5 h-3.5 opacity-70" />
               </a>
 
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(`Check out ${selectedGem.title} in Tbilisi: ${selectedGem.mapsUrl}`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`py-3 px-3.5 rounded-2xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
-                  isDark ? 'border-stone-800 bg-stone-800 text-stone-200 hover:bg-stone-750' : 'border-stone-200 bg-stone-100 text-stone-800 hover:bg-stone-200'
+              {/* Heart / Favorite Toggle Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  toggleGuestFavorite(selectedGem.id, selectedGem.title);
+                }}
+                className={`py-2.5 px-3.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer ${
+                  isGuestFavorite(selectedGem.id)
+                    ? 'bg-[#F55A51] text-white border-[#F55A51]'
+                    : isDark 
+                    ? 'border-[#2B2926] bg-[#1F1E1C] text-[#ACA79F] hover:text-[#F7F5F0]' 
+                    : 'border-[#EBE6DF] bg-white text-[#5C5853] hover:text-[#1C1B1A]'
                 }`}
-                title="Share recommendation"
+                title={isGuestFavorite(selectedGem.id) ? "Saved to favorites" : "Save to favorites"}
               >
-                <Share className="w-4 h-4" />
-              </a>
+                <Heart className={`w-4 h-4 ${isGuestFavorite(selectedGem.id) ? 'fill-white' : ''}`} />
+                <span className="hidden sm:inline">{isGuestFavorite(selectedGem.id) ? 'Saved' : 'Save'}</span>
+              </button>
+
+              {/* Native Web Share Button for this Venue */}
+              <button
+                type="button"
+                onClick={() => handleShareGem(selectedGem)}
+                className={`py-2.5 px-3.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer ${
+                  isDark ? 'border-[#2B2926] bg-[#1F1E1C] text-[#ACA79F] hover:text-[#F7F5F0]' : 'border-[#EBE6DF] bg-white text-[#5C5853] hover:text-[#1C1B1A]'
+                }`}
+                title="Share place with friends"
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
             </div>
           }
         >
           <div className="space-y-4">
             
             {/* Gem Photo Banner */}
-            <div className="relative h-44 rounded-2xl overflow-hidden shadow-md">
+            <div className="relative h-44 rounded-2xl overflow-hidden shadow-warm-sm border border-black/10 dark:border-white/10">
               <img
                 src={selectedGem.image}
                 alt={selectedGem.title}
@@ -356,59 +498,61 @@ export const StumariGemsSection: React.FC<StumariGemsSectionProps> = ({
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
               <div className="absolute bottom-3 left-3.5 right-3.5 text-white">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E4E98E] text-[#0C1510]">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-black/60 border border-white/20 text-[#F7F5F0] backdrop-blur-md">
                     {selectedGem.priceLevel}
                   </span>
-                  <span className="text-xs font-mono font-bold text-white/95 bg-black/60 px-2 py-0.5 rounded-md backdrop-blur-xs">
+                  <span className="text-xs font-mono font-medium text-[#F7F5F0] bg-black/60 px-2 py-0.5 rounded-md border border-white/20 backdrop-blur-md">
                     📍 {selectedGem.distance} · 🕐 {selectedGem.bestTime}
                   </span>
                 </div>
-                <h2 className="font-serif text-xl sm:text-2xl font-bold text-white">{selectedGem.title}</h2>
-                <p className="text-xs sm:text-sm text-stone-200 font-medium mt-0.5">{selectedGem.subtitle}</p>
+                <h2 className="text-xl sm:text-2xl font-serif font-bold text-white tracking-tight">{selectedGem.title}</h2>
+                <p className="text-xs sm:text-sm text-[#DADADA] font-normal mt-0.5">{selectedGem.subtitle}</p>
               </div>
             </div>
 
             {/* Saba's Host Quote */}
             {selectedGem.hostQuote && (
-              <div className={`p-4 rounded-2xl border text-xs sm:text-sm flex items-start gap-3.5 shadow-xs ${
-                isDark ? 'bg-amber-950/30 border-amber-500/30 text-amber-100' : 'bg-amber-50 border-amber-300 text-stone-950'
+              <div className={`p-4 rounded-2xl border text-xs sm:text-sm flex items-start gap-3.5 shadow-warm-sm ${
+                isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' : 'bg-[#FAF8F5] border-[#EBE6DF] text-[#1C1B1A]'
               }`}>
-                <span className="text-2xl shrink-0 mt-0.5">💬</span>
+                <span className="text-xl shrink-0 mt-0.5">💬</span>
                 <div className="space-y-1 min-w-0">
-                  <span className="text-xs font-mono uppercase font-black tracking-wider block text-amber-600 dark:text-amber-400">
+                  <span className={`text-[11px] font-sans uppercase font-semibold tracking-wider block ${
+                    isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'
+                  }`}>
                     {hostName} says:
                   </span>
-                  <p className="italic text-sm sm:text-base font-semibold leading-relaxed">"{selectedGem.hostQuote}"</p>
+                  <p className="italic text-sm font-medium leading-relaxed font-serif">"{selectedGem.hostQuote}"</p>
                 </div>
               </div>
             )}
 
             {/* Why We Recommend It */}
-            <div className={`p-4 rounded-2xl border space-y-2 shadow-xs ${
-              isDark ? 'bg-[#12161A] border-stone-800' : 'bg-white border-stone-200'
+            <div className={`p-4 rounded-2xl border space-y-1.5 shadow-warm-sm ${
+              isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
             }`}>
-              <span className={`text-xs font-mono uppercase tracking-wider font-black block ${isDark ? 'text-stone-300' : 'text-stone-900'}`}>
+              <span className={`text-[11px] font-sans uppercase tracking-wider font-semibold block ${isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'}`}>
                 {language === 'ka' ? 'რატომ გვიყვარს ეს ადგილი' : language === 'ru' ? 'Почему мы рекомендуем' : 'Why We Recommend It'}
               </span>
-              <p className={`text-xs sm:text-sm leading-relaxed font-medium ${isDark ? 'text-stone-200' : 'text-stone-900'}`}>
+              <p className={`text-xs sm:text-sm leading-relaxed font-normal ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                 {selectedGem.whyWeRecommend}
               </p>
             </div>
 
             {/* What to Try / Highlights */}
             {selectedGem.whatToTry && selectedGem.whatToTry.length > 0 && (
-              <div className={`p-4 rounded-2xl border space-y-2.5 shadow-xs ${
-                isDark ? 'bg-[#12161A] border-stone-800' : 'bg-white border-stone-200'
+              <div className={`p-4 rounded-2xl border space-y-2.5 shadow-warm-sm ${
+                isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
               }`}>
-                <span className={`text-xs font-mono uppercase tracking-wider font-black block ${isDark ? 'text-stone-300' : 'text-stone-900'}`}>
+                <span className={`text-[11px] font-sans uppercase tracking-wider font-semibold block ${isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'}`}>
                   {language === 'ka' ? 'რა უნდა გასინჯოთ / ჰაილაითები:' : language === 'ru' ? 'Что попробовать:' : 'What to Try / Highlights:'}
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {selectedGem.whatToTry.map((item, idx) => (
                     <span
                       key={idx}
-                      className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold border transition-all ${
-                        isDark ? 'bg-stone-800 border-stone-700 text-stone-100' : 'bg-stone-50 border-stone-300 text-stone-950 shadow-2xs'
+                      className={`px-2.5 py-1 rounded-xl text-xs font-medium border transition-all ${
+                        isDark ? 'bg-[#272522] border-[#3B3833] text-[#F7F5F0]' : 'bg-[#FAF8F5] border-[#EBE6DF] text-[#1C1B1A]'
                       }`}
                     >
                       {item}
@@ -420,15 +564,17 @@ export const StumariGemsSection: React.FC<StumariGemsSectionProps> = ({
 
             {/* Local Insider Tip */}
             {selectedGem.localTip && (
-              <div className={`p-4 rounded-2xl border flex items-start gap-3 text-xs sm:text-sm shadow-xs ${
-                isDark ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-100' : 'bg-emerald-50 border-emerald-300 text-stone-950'
+              <div className={`p-4 rounded-2xl border flex items-start gap-3 text-xs sm:text-sm shadow-warm-sm ${
+                isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' : 'bg-[#FAF8F5] border-[#EBE6DF] text-[#1C1B1A]'
               }`}>
-                <Lightbulb className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <Lightbulb className="w-4 h-4 text-[#FFC757] shrink-0 mt-0.5" />
                 <div className="min-w-0">
-                  <strong className="text-emerald-700 dark:text-emerald-400 block text-xs font-black uppercase font-mono tracking-wider">
+                  <strong className={`block text-[11px] font-semibold uppercase font-sans tracking-wider ${
+                    isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'
+                  }`}>
                     {language === 'ka' ? 'ადგილობრივი რჩევა:' : language === 'ru' ? 'Секрет от местных:' : 'Local Tip:'}
                   </strong>
-                  <p className={`mt-1 text-xs sm:text-sm leading-relaxed font-semibold ${isDark ? 'text-emerald-100' : 'text-emerald-950'}`}>
+                  <p className={`mt-0.5 text-xs sm:text-sm leading-relaxed font-normal ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                     {selectedGem.localTip}
                   </p>
                 </div>
@@ -441,8 +587,8 @@ export const StumariGemsSection: React.FC<StumariGemsSectionProps> = ({
                 href={`https://wa.me/?text=${encodeURIComponent(`Hi ${hostName}, I have a question about visiting ${selectedGem.title}.`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 transition-colors ${
-                  isDark ? 'text-stone-300 hover:text-[#E4E98E]' : 'text-stone-800 hover:text-stone-950'
+                className={`text-xs sm:text-sm font-medium inline-flex items-center gap-1.5 transition-colors ${
+                  isDark ? 'text-[#ACA79F] hover:text-[#F7F5F0]' : 'text-[#5C5853] hover:text-[#1C1B1A]'
                 }`}
               >
                 <MessageCircle className="w-4 h-4 text-emerald-500" />

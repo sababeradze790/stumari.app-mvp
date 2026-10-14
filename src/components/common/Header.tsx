@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Building2, 
   Smartphone, 
@@ -16,7 +17,11 @@ import {
   Moon,
   Copy,
   ChevronRight,
-  ArrowUpRight
+  ArrowUpRight,
+  LogOut,
+  TrendingUp,
+  User as UserIcon,
+  MessageSquareHeart
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StumariArchIcon } from './StumariLogo';
@@ -35,7 +40,11 @@ export const Header: React.FC = () => {
     toggleTheme,
     showToast,
     t,
-    language
+    language,
+    firebaseUser,
+    openAuthModal,
+    signOutHost,
+    currentUser
   } = useApp();
   
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -67,24 +76,28 @@ export const Header: React.FC = () => {
   const isDarkHeader = theme === 'dark';
 
   return (
-    <header className={`sticky top-0 z-40 backdrop-blur-md transition-colors duration-300 font-sans ${
-      isDarkHeader ? 'bg-[#0B0F12]/95 border-b border-stone-800 text-stone-100 shadow-md' : 'bg-stone-50/95 border-b border-stone-200/90 text-stone-900 shadow-xs'
+    <header className={`sticky top-0 z-40 backdrop-blur-md transition-colors duration-300 font-sans tracking-tight ${
+      isDarkHeader ? 'bg-[#141312]/95 border-b border-[#2B2926] text-[#F7F5F0] shadow-sm' : 'bg-[#FAF8F5]/95 border-b border-[#EBE6DF] text-[#1C1B1A] shadow-[0_2px_12px_rgba(0,0,0,0.03)]'
     }`}>
       
       {/* Top Demo Bar: 4 Core Stumari Products Navigation + Language Switcher */}
-      <div className="bg-stone-900 text-stone-200 text-xs px-3 sm:px-4 py-1.5 font-medium flex items-center justify-between border-b border-stone-800">
+      <div className={`text-xs px-3 sm:px-4 py-1.5 font-medium flex items-center justify-between border-b ${
+        isDarkHeader ? 'bg-[#1C1B19] text-[#ACA79F] border-[#2B2926]' : 'bg-[#F3EFE9] text-[#5C5853] border-[#EBE6DF]'
+      }`}>
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-          <span className="text-stone-400 uppercase tracking-widest text-[9px] sm:text-[10px] font-semibold shrink-0 mr-1">
+          <span className={`uppercase tracking-wider text-[9px] sm:text-[10px] font-semibold shrink-0 mr-1 ${
+            isDarkHeader ? 'text-[#78736A]' : 'text-[#8A857D]'
+          }`}>
             {t.nav.mvpBadge}:
           </span>
 
           {/* 1. Marketing */}
           <button
             onClick={() => setCurrentRoute('/')}
-            className={`px-2.5 py-0.5 rounded-full transition-colors flex items-center gap-1 shrink-0 ${
+            className={`px-2.5 py-1 rounded-md text-[11px] transition-all flex items-center gap-1 shrink-0 ${
               isMarketing 
-                ? 'bg-[#E4E98E] text-[#0C1510] font-bold' 
-                : 'text-stone-300 hover:text-white hover:bg-stone-800'
+                ? 'bg-[#F55A51] text-white font-semibold shadow-xs' 
+                : isDarkHeader ? 'text-[#ACA79F] hover:text-[#F7F5F0] hover:bg-[#272522]' : 'text-[#5C5853] hover:text-[#1C1B1A] hover:bg-[#EAE4DC]'
             }`}
           >
             <span>{t.nav.marketing}</span>
@@ -93,10 +106,10 @@ export const Header: React.FC = () => {
           {/* 2. Host SaaS */}
           <button
             onClick={() => setCurrentRoute('/app')}
-            className={`px-2.5 py-0.5 rounded-full transition-colors flex items-center gap-1 shrink-0 ${
+            className={`px-2.5 py-1 rounded-md text-[11px] transition-all flex items-center gap-1 shrink-0 ${
               isHost 
-                ? 'bg-[#E4E98E] text-[#0C1510] font-bold' 
-                : 'text-stone-300 hover:text-white hover:bg-stone-800'
+                ? 'bg-[#F55A51] text-white font-semibold shadow-xs' 
+                : isDarkHeader ? 'text-[#ACA79F] hover:text-[#F7F5F0] hover:bg-[#272522]' : 'text-[#5C5853] hover:text-[#1C1B1A] hover:bg-[#EAE4DC]'
             }`}
           >
             <Building2 className="w-3 h-3" />
@@ -106,10 +119,10 @@ export const Header: React.FC = () => {
           {/* 3. Onboarding */}
           <button
             onClick={() => setCurrentRoute('/onboarding')}
-            className={`px-2.5 py-0.5 rounded-full transition-colors flex items-center gap-1 shrink-0 ${
+            className={`px-2.5 py-1 rounded-md text-[11px] transition-all flex items-center gap-1 shrink-0 ${
               isOnboarding 
-                ? 'bg-[#E4E98E] text-[#0C1510] font-bold' 
-                : 'text-stone-300 hover:text-white hover:bg-stone-800'
+                ? 'bg-[#F55A51] text-white font-semibold shadow-xs' 
+                : isDarkHeader ? 'text-[#ACA79F] hover:text-[#F7F5F0] hover:bg-[#272522]' : 'text-[#5C5853] hover:text-[#1C1B1A] hover:bg-[#EAE4DC]'
             }`}
           >
             <Sparkles className="w-3 h-3" />
@@ -119,10 +132,10 @@ export const Header: React.FC = () => {
           {/* 4. Guest Guide */}
           <button
             onClick={() => navigateToGuestGuide(currentProperty.slug)}
-            className={`px-2.5 py-0.5 rounded-full transition-colors flex items-center gap-1 shrink-0 ${
+            className={`px-2.5 py-1 rounded-md text-[11px] transition-all flex items-center gap-1 shrink-0 ${
               isGuest 
-                ? 'bg-[#E4E98E] text-[#0C1510] font-bold' 
-                : 'text-stone-300 hover:text-white hover:bg-stone-800'
+                ? 'bg-[#F55A51] text-white font-semibold shadow-xs' 
+                : isDarkHeader ? 'text-[#ACA79F] hover:text-[#F7F5F0] hover:bg-[#272522]' : 'text-[#5C5853] hover:text-[#1C1B1A] hover:bg-[#EAE4DC]'
             }`}
           >
             <Smartphone className="w-3 h-3" />
@@ -132,10 +145,10 @@ export const Header: React.FC = () => {
           {/* 5. Admin */}
           <button
             onClick={() => setCurrentRoute('/admin')}
-            className={`px-2.5 py-0.5 rounded-full transition-colors flex items-center gap-1 shrink-0 ${
+            className={`px-2.5 py-1 rounded-md text-[11px] transition-all flex items-center gap-1 shrink-0 ${
               isAdmin 
-                ? 'bg-[#E4E98E] text-[#0C1510] font-bold' 
-                : 'text-stone-300 hover:text-white hover:bg-stone-800'
+                ? 'bg-[#F55A51] text-white font-semibold shadow-xs' 
+                : isDarkHeader ? 'text-[#ACA79F] hover:text-[#F7F5F0] hover:bg-[#272522]' : 'text-[#5C5853] hover:text-[#1C1B1A] hover:bg-[#EAE4DC]'
             }`}
           >
             <ShieldCheck className="w-3 h-3" />
@@ -143,9 +156,9 @@ export const Header: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 text-stone-400 shrink-0 text-[11px]">
+        <div className={`flex items-center gap-2 shrink-0 text-[11px] ${isDarkHeader ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
           <div className="hidden lg:flex items-center gap-1.5">
-            <span>{t.nav.activeProp} <strong className={`max-w-[140px] truncate inline-block align-bottom ${isHost ? 'text-[#E4E98E]' : 'text-stone-200'}`}>{currentProperty.title}</strong></span>
+            <span>{t.nav.activeProp} <strong className={`max-w-[140px] truncate inline-block align-bottom font-semibold ${isHost ? (isDarkHeader ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]') : (isDarkHeader ? 'text-[#ACA79F]' : 'text-[#5C5853]')}`}>{currentProperty.title}</strong></span>
           </div>
         </div>
       </div>
@@ -158,24 +171,24 @@ export const Header: React.FC = () => {
           onClick={() => setCurrentRoute('/')}
           className="flex items-center gap-3 cursor-pointer group select-none"
         >
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-2xs transition-colors shrink-0 ${
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-xs transition-colors shrink-0 ${
             isDarkHeader 
-              ? 'bg-stone-900 border border-stone-800 text-[#E4E98E] group-hover:border-stone-700' 
-              : 'bg-[#F5EFEB] border border-[#E7DFD5] text-stone-900 group-hover:bg-[#EFE7DE]'
+              ? 'bg-[#F55A51]/15 border border-[#F55A51]/30 text-[#F55A51] group-hover:border-[#F55A51]' 
+              : 'bg-[#FDF1F0] border border-[#F55A51]/25 text-[#F55A51] group-hover:bg-[#FCE3E1]'
           }`}>
-            <StumariArchIcon size={20} className={isDarkHeader ? 'text-[#E4E98E]' : 'text-stone-900'} />
+            <StumariArchIcon size={18} className="text-[#F55A51]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className={`font-serif tracking-[0.22em] text-lg sm:text-xl font-bold uppercase leading-none transition-colors ${
-                isDarkHeader ? 'text-white' : 'text-stone-900'
+              <span className={`tracking-[0.16em] text-lg font-bold font-serif uppercase leading-none transition-colors ${
+                isDarkHeader ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
               }`}>
                 STUMARI
               </span>
-              <span className={`text-[9px] font-mono uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-md ${
-                isDarkHeader ? 'bg-stone-800 text-[#E4E98E] border border-stone-700' : 'bg-amber-100 text-amber-900'
+              <span className={`text-[10px] font-sans uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-md ${
+                isDarkHeader ? 'bg-[#748C96]/15 text-[#9CB1BB] border border-[#748C96]/30' : 'bg-[#F0F4F6] text-[#607680] border border-[#748C96]/25'
               }`}>
-                MVP
+                Hospitality
               </span>
             </div>
           </div>
@@ -183,7 +196,9 @@ export const Header: React.FC = () => {
 
         {/* Dynamic Nav Links */}
         {isMarketing ? (
-          <nav ref={navRef} className="hidden lg:flex items-center gap-1.5 text-sm font-semibold text-stone-700 relative">
+          <nav ref={navRef} className={`hidden lg:flex items-center gap-1.5 text-sm font-semibold relative ${
+            isDarkHeader ? 'text-stone-200' : 'text-stone-800'
+          }`}>
             {/* 1. Features Dropdown */}
             <div className="relative">
               <button 
@@ -198,19 +213,27 @@ export const Header: React.FC = () => {
                 onMouseEnter={() => setActiveDropdown('features')}
                 className={`transition-all flex items-center gap-1 px-3 py-1.5 rounded-xl ${
                   activeDropdown === 'features' || currentRoute === '/features'
-                    ? 'bg-[#2DD4BF] text-[#0B151E] font-bold shadow-2xs' 
-                    : 'text-stone-700 hover:text-stone-950 hover:bg-stone-100/90'
+                    ? isDarkHeader 
+                      ? 'bg-zinc-850 text-zinc-100 font-semibold shadow-xs border border-zinc-750' 
+                      : 'bg-zinc-900 text-zinc-100 font-semibold shadow-xs'
+                    : isDarkHeader 
+                      ? 'text-zinc-300 hover:text-white hover:bg-zinc-800/80' 
+                      : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100'
                 }`}
               >
                 <span>{t.nav.features}</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown === 'features' ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Features Dark Dropdown (Screenshot #1 Style) */}
+              {/* Features Dark Dropdown */}
               {activeDropdown === 'features' && (
                 <div 
                   onMouseLeave={() => setActiveDropdown(null)}
-                  className="absolute top-full left-0 mt-2 w-72 bg-[#0B151E] text-stone-100 rounded-2xl shadow-2xl p-2.5 border border-stone-800 animate-in fade-in zoom-in-95 z-50"
+                  className={`absolute top-full left-0 mt-2 w-72 rounded-xl shadow-xl p-2 border animate-in fade-in zoom-in-95 z-50 ${
+                    isDarkHeader 
+                      ? 'bg-zinc-900 text-zinc-100 border-zinc-800' 
+                      : 'bg-white text-zinc-900 border-zinc-200'
+                  }`}
                 >
                   <div className="space-y-0.5">
                     {[
@@ -231,10 +254,14 @@ export const Header: React.FC = () => {
                           setCurrentRoute('/features');
                           setActiveDropdown(null);
                         }}
-                        className="w-full px-3 py-1.5 rounded-xl text-left hover:bg-stone-800/80 transition-colors flex items-center gap-2.5 group"
+                        className={`w-full px-3 py-1.5 rounded-lg text-left transition-colors flex items-center gap-2.5 group cursor-pointer ${
+                          isDarkHeader 
+                            ? 'hover:bg-zinc-800 text-zinc-300 hover:text-white' 
+                            : 'hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900'
+                        }`}
                       >
-                        <span className="text-[#2DD4BF] text-[10px] group-hover:translate-x-0.5 transition-transform">▶</span>
-                        <span className="text-xs font-semibold text-stone-200 group-hover:text-white">{item.label}</span>
+                        <span className="text-zinc-400 text-[10px] group-hover:translate-x-0.5 transition-transform">▶</span>
+                        <span className="text-xs font-medium">{item.label}</span>
                       </button>
                     ))}
                   </div>
@@ -256,8 +283,12 @@ export const Header: React.FC = () => {
                 onMouseEnter={() => setActiveDropdown('properties')}
                 className={`transition-all flex items-center gap-1 px-3 py-1.5 rounded-xl ${
                   activeDropdown === 'properties' || currentRoute === '/for-properties'
-                    ? 'bg-[#2DD4BF] text-[#0B151E] font-bold shadow-2xs' 
-                    : 'text-stone-700 hover:text-stone-950 hover:bg-stone-100/90'
+                    ? isDarkHeader 
+                      ? 'bg-zinc-850 text-zinc-100 font-semibold shadow-xs border border-zinc-750' 
+                      : 'bg-zinc-900 text-zinc-100 font-semibold shadow-xs'
+                    : isDarkHeader 
+                      ? 'text-zinc-300 hover:text-white hover:bg-zinc-800/80' 
+                      : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100'
                 }`}
               >
                 <span>{t.nav.forProperties}</span>
@@ -268,7 +299,11 @@ export const Header: React.FC = () => {
               {activeDropdown === 'properties' && (
                 <div 
                   onMouseLeave={() => setActiveDropdown(null)}
-                  className="absolute top-full left-0 mt-2 w-64 bg-[#0B151E] text-stone-100 rounded-2xl shadow-2xl p-2.5 border border-stone-800 animate-in fade-in zoom-in-95 z-50"
+                  className={`absolute top-full left-0 mt-2 w-64 rounded-xl shadow-xl p-2 border animate-in fade-in zoom-in-95 z-50 ${
+                    isDarkHeader 
+                      ? 'bg-zinc-900 text-zinc-100 border-zinc-800' 
+                      : 'bg-white text-zinc-900 border-zinc-200'
+                  }`}
                 >
                   <div className="space-y-0.5">
                     {[
@@ -283,10 +318,14 @@ export const Header: React.FC = () => {
                           setCurrentRoute('/for-properties');
                           setActiveDropdown(null);
                         }}
-                        className="w-full px-3 py-2 rounded-xl text-left hover:bg-stone-800/80 transition-colors flex items-center gap-2.5 group"
+                        className={`w-full px-3 py-2 rounded-lg text-left transition-colors flex items-center gap-2.5 group cursor-pointer ${
+                          isDarkHeader 
+                            ? 'hover:bg-zinc-800 text-zinc-300 hover:text-white' 
+                            : 'hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900'
+                        }`}
                       >
-                        <span className="text-[#2DD4BF] text-[10px] group-hover:translate-x-0.5 transition-transform">▶</span>
-                        <span className="text-xs font-semibold text-stone-200 group-hover:text-white">{item.label}</span>
+                        <span className="text-zinc-400 text-[10px] group-hover:translate-x-0.5 transition-transform">▶</span>
+                        <span className="text-xs font-medium">{item.label}</span>
                       </button>
                     ))}
                   </div>
@@ -301,10 +340,14 @@ export const Header: React.FC = () => {
                 setActiveDropdown(null);
               }}
               onMouseEnter={() => setActiveDropdown(null)}
-              className={`transition-all px-3.5 py-1.5 rounded-xl ${
+              className={`transition-all px-3.5 py-1.5 rounded-xl cursor-pointer ${
                 currentRoute === '/pricing' 
-                  ? 'bg-stone-200 text-stone-950 font-bold' 
-                  : 'text-stone-700 hover:text-stone-950 hover:bg-stone-100/90'
+                  ? isDarkHeader 
+                    ? 'bg-zinc-850 text-zinc-100 font-semibold shadow-xs border border-zinc-750' 
+                    : 'bg-zinc-900 text-zinc-100 font-semibold shadow-xs'
+                  : isDarkHeader 
+                    ? 'text-zinc-300 hover:text-white hover:bg-zinc-800/80' 
+                    : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100'
               }`}
             >
               <span>{t.nav.pricing}</span>
@@ -322,10 +365,14 @@ export const Header: React.FC = () => {
                   }
                 }}
                 onMouseEnter={() => setActiveDropdown('demo')}
-                className={`transition-all flex items-center gap-1 px-3 py-1.5 rounded-xl ${
+                className={`transition-all flex items-center gap-1 px-3 py-1.5 rounded-xl cursor-pointer ${
                   activeDropdown === 'demo' || currentRoute === '/demo'
-                    ? 'bg-[#2DD4BF] text-[#0B151E] font-bold shadow-2xs' 
-                    : 'text-stone-700 hover:text-stone-950 hover:bg-stone-100/90'
+                    ? isDarkHeader 
+                      ? 'bg-zinc-850 text-zinc-100 font-semibold shadow-xs border border-zinc-750' 
+                      : 'bg-zinc-900 text-zinc-100 font-semibold shadow-xs'
+                    : isDarkHeader 
+                      ? 'text-zinc-300 hover:text-white hover:bg-zinc-800/80' 
+                      : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100'
                 }`}
               >
                 <span>{t.nav.demo}</span>
@@ -336,7 +383,7 @@ export const Header: React.FC = () => {
               {activeDropdown === 'demo' && (
                 <div 
                   onMouseLeave={() => setActiveDropdown(null)}
-                  className="absolute top-full left-0 mt-2 w-72 bg-[#0B151E] text-stone-100 rounded-2xl shadow-2xl p-2.5 border border-stone-800 animate-in fade-in zoom-in-95 z-50"
+                  className="absolute top-full left-0 mt-2 w-72 bg-zinc-900 text-zinc-100 rounded-xl shadow-xl p-2 border border-zinc-800 animate-in fade-in zoom-in-95 z-50"
                 >
                   <div className="space-y-0.5">
                     {properties.map((p) => (
@@ -346,22 +393,22 @@ export const Header: React.FC = () => {
                           navigateToGuestGuide(p.slug);
                           setActiveDropdown(null);
                         }}
-                        className="w-full px-3 py-2 rounded-xl text-left hover:bg-stone-800/80 transition-colors flex items-center gap-2.5 group"
+                        className="w-full px-3 py-2 rounded-lg text-left hover:bg-zinc-800 transition-colors flex items-center gap-2.5 group cursor-pointer"
                       >
-                        <span className="text-[#2DD4BF] text-[10px] group-hover:translate-x-0.5 transition-transform">▶</span>
+                        <span className="text-zinc-400 text-[10px] group-hover:translate-x-0.5 transition-transform">▶</span>
                         <div>
-                          <span className="text-xs font-semibold text-stone-200 group-hover:text-white block">{p.title}</span>
-                          <span className="text-[10px] text-stone-400">{p.city}, {p.country}</span>
+                          <span className="text-xs font-semibold text-zinc-200 group-hover:text-white block">{p.title}</span>
+                          <span className="text-[10px] text-zinc-400">{p.city}, {p.country}</span>
                         </div>
                       </button>
                     ))}
-                    <div className="pt-1.5 mt-1 border-t border-stone-800">
+                    <div className="pt-1.5 mt-1 border-t border-zinc-800">
                       <button
                         onClick={() => {
                           setCurrentRoute('/demo');
                           setActiveDropdown(null);
                         }}
-                        className="w-full px-3 py-1.5 rounded-lg text-left text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center justify-between"
+                        className="w-full px-3 py-1.5 rounded-lg text-left text-[11px] font-semibold text-zinc-200 hover:text-white flex items-center justify-between cursor-pointer"
                       >
                         <span>{t.common.preview}</span>
                         <ArrowRight className="w-3 h-3" />
@@ -373,44 +420,66 @@ export const Header: React.FC = () => {
             </div>
           </nav>
         ) : isHost ? (
-          <nav className={`hidden lg:flex items-center gap-1.5 text-xs font-semibold ${isDarkHeader ? 'text-stone-400' : 'text-stone-600'}`}>
+          <nav className={`hidden lg:flex items-center gap-1.5 text-xs font-medium ${isDarkHeader ? 'text-zinc-400' : 'text-zinc-600'}`}>
             <button 
               onClick={() => setCurrentRoute('/app')}
-              className={`px-3.5 py-1.5 rounded-full transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
                 currentRoute === '/app' 
-                  ? isDarkHeader ? 'bg-[#E4E98E] text-[#0C1510] font-bold shadow-xs' : 'bg-stone-900 text-white font-bold shadow-xs' 
-                  : isDarkHeader ? 'hover:text-white hover:bg-stone-800/60' : 'hover:text-stone-950 hover:bg-stone-200/80'
+                  ? isDarkHeader ? 'bg-zinc-850 text-white font-semibold shadow-xs border border-zinc-750' : 'bg-zinc-900 text-white font-semibold shadow-xs' 
+                  : isDarkHeader ? 'hover:text-white hover:bg-zinc-800/60' : 'hover:text-zinc-950 hover:bg-zinc-100'
               }`}
             >
               {t.nav.dashboard}
             </button>
             <button 
+              onClick={() => setCurrentRoute('/app/analytics')}
+              className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                currentRoute === '/app/analytics' 
+                  ? isDarkHeader ? 'bg-zinc-850 text-white font-semibold shadow-xs border border-zinc-750' : 'bg-zinc-900 text-white font-semibold shadow-xs' 
+                  : isDarkHeader ? 'hover:text-white hover:bg-zinc-800/60' : 'hover:text-zinc-950 hover:bg-zinc-100'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>{language === 'ka' ? 'ანალიტიკა' : language === 'ru' ? 'Аналитика' : 'Analytics'}</span>
+            </button>
+            <button 
               onClick={() => setCurrentRoute('/app/properties')}
-              className={`px-3.5 py-1.5 rounded-full transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
                 currentRoute === '/app/properties' 
-                  ? isDarkHeader ? 'bg-[#E4E98E] text-[#0C1510] font-bold shadow-xs' : 'bg-stone-900 text-white font-bold shadow-xs' 
-                  : isDarkHeader ? 'hover:text-white hover:bg-stone-800/60' : 'hover:text-stone-950 hover:bg-stone-200/80'
+                  ? isDarkHeader ? 'bg-zinc-850 text-white font-semibold shadow-xs border border-zinc-750' : 'bg-zinc-900 text-white font-semibold shadow-xs' 
+                  : isDarkHeader ? 'hover:text-white hover:bg-zinc-800/60' : 'hover:text-zinc-950 hover:bg-zinc-100'
               }`}
             >
               {t.nav.myProperties}
             </button>
             <button 
+              onClick={() => setCurrentRoute('/app/reviews')}
+              className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                currentRoute === '/app/reviews' 
+                  ? isDarkHeader ? 'bg-zinc-850 text-white font-semibold shadow-xs border border-zinc-750' : 'bg-zinc-900 text-white font-semibold shadow-xs' 
+                  : isDarkHeader ? 'hover:text-white hover:bg-zinc-800/60' : 'hover:text-zinc-950 hover:bg-zinc-100'
+              }`}
+            >
+              <MessageSquareHeart className="w-3.5 h-3.5" />
+              <span>{language === 'ka' ? 'შეფასებები' : language === 'ru' ? 'Отзывы' : 'Reviews'}</span>
+            </button>
+            <button 
               onClick={() => navigateToPropertyHub(currentProperty.id, 'overview')}
-              className={`px-3.5 py-1.5 rounded-full transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
                 currentRoute === '/app/properties/:id' 
-                  ? isDarkHeader ? 'bg-[#E4E98E] text-[#0C1510] font-bold shadow-xs' : 'bg-stone-900 text-white font-bold shadow-xs' 
-                  : isDarkHeader ? 'hover:text-white hover:bg-stone-800/60' : 'hover:text-stone-950 hover:bg-stone-200/80'
+                  ? isDarkHeader ? 'bg-zinc-850 text-white font-semibold shadow-xs border border-zinc-750' : 'bg-zinc-900 text-white font-semibold shadow-xs' 
+                  : isDarkHeader ? 'hover:text-white hover:bg-zinc-800/60' : 'hover:text-zinc-950 hover:bg-zinc-100'
               }`}
             >
               {t.nav.propertyHub}
             </button>
             <button 
               onClick={() => navigateToGuestGuide(currentProperty.slug)}
-              className={`px-3.5 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
-                isDarkHeader ? 'hover:text-white hover:bg-stone-800/60 text-stone-300' : 'hover:text-stone-950 hover:bg-stone-200/80 text-stone-700'
+              className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                isDarkHeader ? 'hover:text-white hover:bg-zinc-800/60 text-zinc-300' : 'hover:text-zinc-950 hover:bg-zinc-100 text-zinc-700'
               }`}
             >
-              <Smartphone className={`w-3.5 h-3.5 ${isDarkHeader ? 'text-[#E4E98E]' : 'text-amber-600'}`} />
+              <Smartphone className="w-3.5 h-3.5 text-zinc-400" />
               <span>{t.nav.guestView}</span>
             </button>
           </nav>
@@ -425,27 +494,52 @@ export const Header: React.FC = () => {
           {/* Action CTAs (Marketing / Host) */}
           {isMarketing ? (
             <div className="hidden sm:flex items-center gap-2">
-              <button
-                onClick={() => setCurrentRoute('/app')}
-                className={`hidden xl:inline-flex text-xs font-semibold px-3 py-2 rounded-xl transition-colors ${
-                  isDarkHeader ? 'text-stone-300 hover:text-white hover:bg-stone-800' : 'text-stone-700 hover:text-stone-950 hover:bg-stone-100'
-                }`}
-              >
-                {t.nav.hostLogin}
-              </button>
+              {firebaseUser ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setCurrentRoute('/app')}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-2 cursor-pointer ${
+                      isDarkHeader ? 'bg-zinc-900 border border-zinc-800 text-zinc-100 hover:border-zinc-700' : 'bg-zinc-100 border border-zinc-200 text-zinc-900 hover:bg-zinc-200'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="max-w-[110px] truncate">{currentUser.name}</span>
+                  </button>
+                  <button
+                    onClick={signOutHost}
+                    title="Sign Out"
+                    className="p-2 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => openAuthModal('login')}
+                  className={`hidden xl:inline-flex text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer ${
+                    isDarkHeader ? 'text-zinc-300 hover:text-white hover:bg-zinc-850' : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100'
+                  }`}
+                >
+                  {t.nav.hostLogin}
+                </button>
+              )}
               <button
                 onClick={() => setCurrentRoute('/demo')}
-                className={`hidden md:inline-flex px-3.5 py-2 text-xs font-bold rounded-xl border transition-colors ${
-                  isDarkHeader ? 'text-stone-200 bg-stone-900 hover:bg-stone-800 border-stone-750' : 'text-stone-800 bg-white hover:bg-stone-100 border-stone-300'
+                className={`hidden md:inline-flex px-3.5 py-2 text-xs font-semibold rounded-xl border transition-colors cursor-pointer shadow-xs ${
+                  isDarkHeader ? 'text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border-zinc-800' : 'text-zinc-800 bg-white hover:bg-zinc-50 border-zinc-200'
                 }`}
               >
                 {t.nav.bookDemo}
               </button>
               <button
-                onClick={() => setCurrentRoute('/onboarding')}
-                className={`px-3.5 sm:px-4 py-2 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 ${
-                  isDarkHeader ? 'text-[#0C1510] bg-[#E4E98E] hover:bg-[#d8dd80]' : 'text-white bg-stone-900 hover:bg-stone-800'
-                }`}
+                onClick={() => {
+                  if (!firebaseUser) {
+                    openAuthModal('signup');
+                  } else {
+                    setCurrentRoute('/onboarding');
+                  }
+                }}
+                className="px-4 py-2 text-xs font-bold rounded-full shadow-md shadow-[#F55A51]/20 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer bg-[#F55A51] hover:bg-[#e04a41] text-white active:scale-95"
               >
                 <span>{t.nav.createStumari}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -455,34 +549,39 @@ export const Header: React.FC = () => {
             <div className="hidden sm:flex items-center gap-2">
               <button
                 onClick={() => navigateToGuestGuide(currentProperty.slug)}
-                className={`px-3.5 py-1.5 text-xs font-semibold rounded-full border transition-colors flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs ${
                   isDarkHeader 
-                    ? 'text-stone-300 bg-stone-900 border-stone-800 hover:bg-stone-850' 
-                    : 'text-stone-700 bg-white border-stone-300 hover:bg-stone-100'
+                    ? 'text-zinc-200 bg-zinc-900 border-zinc-800 hover:bg-zinc-850' 
+                    : 'text-zinc-700 bg-white border-zinc-200 hover:bg-zinc-50'
                 }`}
               >
-                <QrCode className={`w-3.5 h-3.5 ${isDarkHeader ? 'text-[#E4E98E]' : 'text-amber-600'}`} />
+                <QrCode className="w-3.5 h-3.5 text-zinc-400" />
                 <span>{t.nav.guestUrl}</span>
               </button>
               <button
                 onClick={() => setCurrentRoute('/onboarding')}
-                className={`px-4 py-1.5 text-xs font-bold rounded-full shadow-xs transition-all flex items-center gap-1 active:scale-95 ${
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg shadow-sm transition-all flex items-center gap-1 active:scale-95 cursor-pointer ${
                   isDarkHeader 
-                    ? 'text-[#0C1510] bg-[#E4E98E] hover:bg-[#d8dd80]' 
-                    : 'text-white bg-stone-900 hover:bg-stone-800'
+                    ? 'text-zinc-950 bg-zinc-100 hover:bg-white' 
+                    : 'text-zinc-100 bg-zinc-900 hover:bg-zinc-800'
                 }`}
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>{t.nav.addProperty}</span>
+              </button>
+              <button
+                onClick={signOutHost}
+                title="Sign Out of Host Account"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors ml-1 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           ) : (
             <div className="hidden sm:flex items-center">
               <button
                 onClick={() => setCurrentRoute('/app')}
-                className={`px-3.5 py-1.5 text-xs font-bold rounded-lg shadow-xs transition-colors ${
-                  isDarkHeader ? 'text-[#0C1510] bg-[#E4E98E] hover:bg-[#d8dd80]' : 'text-white bg-stone-900 hover:bg-stone-800'
-                }`}
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer bg-[#F55A51] hover:bg-[#E04840] text-white"
               >
                 {t.nav.hostSaas}
               </button>
@@ -505,90 +604,27 @@ export const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* MOBILE & TABLET HOST SAAS TOP BAR MENU (Prominent, Touch-Optimized Page Switcher for Phone/Tablet) */}
-      {isHost && (
-        <div className={`lg:hidden px-3 py-2 border-t flex items-center justify-between gap-1 overflow-x-auto no-scrollbar transition-colors ${
-          isDarkHeader 
-            ? 'bg-[#0B0F12] border-stone-800 text-stone-200' 
-            : 'bg-stone-100/95 border-stone-200 text-stone-800'
-        }`}>
-          <div className="flex items-center gap-1.5 min-w-max">
-            <span className="text-[9px] font-mono uppercase font-bold tracking-wider text-stone-500 mr-0.5">
-              Host:
-            </span>
-            <button
-              onClick={() => setCurrentRoute('/app')}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-xs ${
-                currentRoute === '/app' 
-                  ? isDarkHeader ? 'bg-[#E4E98E] text-[#0C1510]' : 'bg-stone-900 text-white'
-                  : isDarkHeader ? 'bg-stone-900/90 text-stone-300 border border-stone-800' : 'bg-white text-stone-700 border border-stone-200'
-              }`}
-            >
-              <Building2 className="w-3.5 h-3.5" />
-              <span>{t.nav.dashboard}</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentRoute('/app/properties')}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-xs ${
-                currentRoute === '/app/properties' 
-                  ? isDarkHeader ? 'bg-[#E4E98E] text-[#0C1510]' : 'bg-stone-900 text-white'
-                  : isDarkHeader ? 'bg-stone-900/90 text-stone-300 border border-stone-800' : 'bg-white text-stone-700 border border-stone-200'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>{t.nav.myProperties} ({properties.length})</span>
-            </button>
-
-            <button
-              onClick={() => navigateToPropertyHub(currentProperty.id, 'overview')}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-xs ${
-                currentRoute === '/app/properties/:id' 
-                  ? isDarkHeader ? 'bg-[#E4E98E] text-[#0C1510]' : 'bg-stone-900 text-white'
-                  : isDarkHeader ? 'bg-stone-900/90 text-stone-300 border border-stone-800' : 'bg-white text-stone-700 border border-stone-200'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{t.nav.propertyHub}</span>
-            </button>
-
-            <button
-              onClick={() => navigateToGuestGuide(currentProperty.slug)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-xs ${
-                isDarkHeader 
-                  ? 'bg-stone-900/90 text-[#E4E98E] border border-stone-800' 
-                  : 'bg-amber-50 text-amber-900 border border-amber-200'
-              }`}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>{t.nav.guestView}</span>
-            </button>
-          </div>
-
-          <button
-            onClick={() => setCurrentRoute('/onboarding')}
-            className="px-3 py-1.5 rounded-full text-xs font-bold bg-[#E4E98E] text-[#0C1510] hover:bg-[#d8dd80] shrink-0 flex items-center gap-1 shadow-sm active:scale-95 ml-2"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>{language === 'ka' ? 'დამატება' : language === 'ru' ? 'Добавить' : 'Add'}</span>
-          </button>
-        </div>
-      )}
-
       {/* Mobile & Tablet Drawer (Theme-Adaptive & Context-Aware Command Overlay) */}
-      {mobileMenuOpen && (
-        <div className={`lg:hidden absolute top-full left-0 right-0 z-50 border-b px-4 pt-3.5 pb-6 space-y-4 animate-in slide-in-from-top-2 duration-200 transition-colors shadow-2xl max-h-[82vh] overflow-y-auto ${
-          isDarkHeader 
-            ? 'bg-[#0B0F12]/98 border-stone-800 text-stone-100' 
-            : 'bg-white/98 border-stone-200 text-stone-900'
-        }`}>
-          {/* Unified Theme & Language Controls Pair */}
-          <div className="flex items-center justify-between pb-3 border-b border-stone-200/80 dark:border-stone-800/80">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-stone-400">
-              {language === 'ka' ? 'თემა და ენა' : language === 'ru' ? 'Тема и язык' : 'Theme & Language'}:
-            </span>
-            <ThemeAndLanguageControls />
-          </div>
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -14 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            className={`lg:hidden absolute top-full left-0 right-0 z-50 border-b px-4 pt-3.5 pb-6 space-y-4 transition-colors shadow-2xl max-h-[82vh] overflow-y-auto ${
+              isDarkHeader 
+                ? 'bg-[#0B0F12]/98 border-stone-800 text-stone-100' 
+                : 'bg-white/98 border-stone-200 text-stone-900'
+            }`}
+          >
+            {/* Unified Theme & Language Controls Pair */}
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200/80 dark:border-stone-800/80">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-stone-400">
+                {language === 'ka' ? 'თემა და ენა' : language === 'ru' ? 'Тема и язык' : 'Theme & Language'}:
+              </span>
+              <ThemeAndLanguageControls />
+            </div>
 
           {isHost ? (
             /* Host Specific Mobile Navigation & Command Center */
@@ -616,7 +652,7 @@ export const Header: React.FC = () => {
               }`}>
                 <div className="flex items-start justify-between gap-2 mb-2.5">
                   <div className="min-w-0">
-                    <span className={`text-[10px] uppercase font-mono font-bold tracking-wider block ${isDarkHeader ? 'text-[#E4E98E]' : 'text-amber-800'}`}>
+                    <span className={`text-[10px] uppercase font-mono font-bold tracking-wider block ${isDarkHeader ? 'text-amber-400' : 'text-amber-700'}`}>
                       {t.nav.activeProp} ({properties.length})
                     </span>
                     <span className="font-serif font-bold text-base text-stone-900 dark:text-stone-100 truncate block">
@@ -634,7 +670,7 @@ export const Header: React.FC = () => {
                     }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 shadow-2xs shrink-0 active:scale-95 ${
                       isDarkHeader 
-                        ? 'bg-stone-900 border-stone-700 text-[#E4E98E] hover:bg-stone-850' 
+                        ? 'bg-stone-900 border-stone-700 text-amber-400 hover:bg-stone-850' 
                         : 'bg-white border-stone-300 text-stone-800 hover:bg-stone-100'
                     }`}
                   >
@@ -660,9 +696,7 @@ export const Header: React.FC = () => {
                           }}
                           className={`px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0 transition-all border ${
                             isSelected
-                              ? isDarkHeader 
-                                ? 'bg-[#E4E98E] text-[#0C1510] border-[#E4E98E] font-bold shadow-xs' 
-                                : 'bg-stone-900 text-white border-stone-900 font-bold shadow-xs'
+                              ? 'bg-amber-600 text-white border-amber-600 font-bold shadow-xs' 
                               : isDarkHeader
                                 ? 'bg-stone-900/80 text-stone-300 border-stone-800 hover:bg-stone-800'
                                 : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
@@ -690,7 +724,7 @@ export const Header: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <Smartphone className="w-4 h-4 text-[#E4E98E]" />
+                    <Smartphone className="w-4 h-4 text-amber-500" />
                     <ArrowUpRight className="w-3.5 h-3.5 text-stone-400" />
                   </div>
                   <div className="font-bold text-xs">{t.nav.guestView}</div>
@@ -709,7 +743,7 @@ export const Header: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <QrCode className="w-4 h-4 text-[#2DD4BF]" />
+                    <QrCode className="w-4 h-4 text-amber-500" />
                     <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
                   </div>
                   <div className="font-bold text-xs">{t.propertyHub.tabs.qr}</div>
@@ -717,65 +751,65 @@ export const Header: React.FC = () => {
                 </button>
               </div>
 
-              {/* Host Navigation Buttons (Structured Grid) */}
-              <div className="space-y-1.5 pt-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 px-0.5 block">
-                  {t.nav.hostSaas}
-                </span>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    onClick={() => {
-                      setCurrentRoute('/app');
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`p-2.5 rounded-xl border text-left flex items-center justify-between text-xs font-bold transition-all ${
-                      currentRoute === '/app' 
-                        ? isDarkHeader ? 'bg-[#E4E98E] text-[#0C1510] border-[#E4E98E]' : 'bg-stone-900 text-white border-stone-900'
-                        : isDarkHeader ? 'bg-stone-900/60 border-stone-800 text-stone-300 hover:bg-stone-850' : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100'
-                    }`}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5" />
-                      <span>{t.nav.dashboard}</span>
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5 opacity-60" />
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setCurrentRoute('/app/properties');
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`p-2.5 rounded-xl border text-left flex items-center justify-between text-xs font-bold transition-all ${
-                      currentRoute === '/app/properties' 
-                        ? isDarkHeader ? 'bg-[#E4E98E] text-[#0C1510] border-[#E4E98E]' : 'bg-stone-900 text-white border-stone-900'
-                        : isDarkHeader ? 'bg-stone-900/60 border-stone-800 text-stone-300 hover:bg-stone-850' : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100'
-                    }`}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5" />
-                      <span>{t.nav.myProperties} ({properties.length})</span>
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5 opacity-60" />
-                  </button>
-                </div>
+              {/* Direct Host Shortcuts & Global Hub */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  onClick={() => {
+                    navigateToGuestGuide(currentProperty.slug);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`p-3 rounded-2xl border text-left transition-all active:scale-[0.98] ${
+                    isDarkHeader 
+                      ? 'bg-stone-900/90 border-stone-800 text-stone-200 hover:border-stone-700' 
+                      : 'bg-white border-stone-200 text-stone-900 hover:bg-stone-100 shadow-2xs'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <Smartphone className="w-4 h-4 text-amber-500" />
+                    <ArrowUpRight className="w-3.5 h-3.5 text-stone-400" />
+                  </div>
+                  <div className="font-bold text-xs">{t.nav.guestView}</div>
+                  <div className="text-[10px] text-stone-500">{t.common.preview}</div>
+                </button>
 
                 <button
                   onClick={() => {
                     navigateToPropertyHub(currentProperty.id, 'overview');
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between text-xs font-bold transition-all ${
-                    currentRoute === '/app/properties/:id' 
-                      ? isDarkHeader ? 'bg-[#E4E98E] text-[#0C1510] border-[#E4E98E]' : 'bg-stone-900 text-white border-stone-900'
-                      : isDarkHeader ? 'bg-stone-900/60 border-stone-800 text-stone-300 hover:bg-stone-850' : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100'
+                  className={`p-3 rounded-2xl border text-left transition-all active:scale-[0.98] ${
+                    isDarkHeader 
+                      ? 'bg-stone-900/90 border-stone-800 text-stone-200 hover:border-stone-700' 
+                      : 'bg-white border-stone-200 text-stone-900 hover:bg-stone-100 shadow-2xs'
                   }`}
                 >
-                  <span className="flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5 text-[#E4E98E]" />
-                    <span>{t.nav.propertyHub}</span>
-                  </span>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                  <div className="flex items-center justify-between mb-1">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <ArrowRight className="w-3.5 h-3.5 text-stone-400" />
+                  </div>
+                  <div className="font-bold text-xs">{t.nav.propertyHub}</div>
+                  <div className="text-[10px] text-stone-500">Edit Guide</div>
+                </button>
+              </div>
+
+              {/* On-Page Navigation Context Notice */}
+              <div className={`p-2.5 rounded-xl text-xs border flex items-center justify-between gap-2 ${
+                isDarkHeader ? 'bg-stone-900/50 border-stone-800 text-stone-400' : 'bg-stone-100/80 border-stone-200 text-stone-600'
+              }`}>
+                <span className="text-[11px] font-medium">
+                  {language === 'ka' 
+                    ? '💡 ჩანართები (მიმოხილვა, ანალიტიკა, საკუთრებები) გვერდზეა' 
+                    : language === 'ru' 
+                    ? '💡 Вкладки (Обзор, Аналитика, Объекты) доступны на странице' 
+                    : '💡 Dashboard tabs (Overview, Analytics, Properties) are on the page'}
+                </span>
+                <button 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`font-bold text-[10px] uppercase px-2 py-0.5 rounded-md shrink-0 transition-colors ${
+                    isDarkHeader ? 'bg-stone-800 text-amber-400' : 'bg-stone-200 text-stone-900 hover:bg-stone-300'
+                  }`}
+                >
+                  OK
                 </button>
               </div>
 
@@ -786,7 +820,7 @@ export const Header: React.FC = () => {
                     setCurrentRoute('/onboarding');
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full py-2.5 rounded-xl bg-[#E4E98E] text-[#0C1510] font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-transform"
+                  className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-transform"
                 >
                   <Plus className="w-4 h-4" />
                   <span>{t.nav.addProperty}</span>
@@ -880,39 +914,76 @@ export const Header: React.FC = () => {
               </button>
 
               <div className={`pt-3 border-t flex flex-col gap-2 ${isDarkHeader ? 'border-stone-800' : 'border-stone-200'}`}>
+                {firebaseUser ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setCurrentRoute('/app');
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`flex-1 text-center py-2.5 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2 ${
+                        isDarkHeader ? 'bg-stone-800 hover:bg-stone-750 text-white' : 'bg-stone-900 hover:bg-stone-850 text-white'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>{t.nav.dashboard} ({currentUser.name})</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        signOutHost();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="p-2.5 rounded-xl border border-rose-500/30 text-rose-500 hover:bg-rose-500/10 transition-colors"
+                      title="Sign Out"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      openAuthModal('login');
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-center py-2.5 rounded-xl font-bold text-xs transition-colors border ${
+                      isDarkHeader ? 'border-stone-700 bg-stone-850 hover:bg-stone-800 text-stone-200' : 'border-stone-300 bg-stone-100 hover:bg-stone-200 text-stone-800'
+                    }`}
+                  >
+                    {t.nav.hostLogin}
+                  </button>
+                )}
+
                 <button
                   onClick={() => {
-                    setCurrentRoute('/app');
+                    if (!firebaseUser) {
+                      openAuthModal('signup');
+                    } else {
+                      setCurrentRoute('/onboarding');
+                    }
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full text-center py-2.5 rounded-xl font-bold text-xs transition-colors ${
-                    isDarkHeader ? 'bg-stone-800 hover:bg-stone-750 text-white' : 'bg-stone-900 hover:bg-stone-850 text-white'
-                  }`}
-                >
-                  {t.nav.dashboard}
-                </button>
-                <button
-                  onClick={() => {
-                    setCurrentRoute('/onboarding');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full text-center py-2.5 rounded-xl bg-[#E4E98E] text-[#0C1510] font-bold text-xs hover:bg-[#d8dd80] transition-colors"
+                  className="w-full text-center py-2.5 rounded-xl bg-amber-600 text-white font-bold text-xs hover:bg-amber-700 shadow-sm transition-colors"
                 >
                   {t.nav.createStumari}
                 </button>
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* Dimmed Backdrop Click-Away Dismissal */}
       {mobileMenuOpen && (
-        <div 
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
           onClick={() => setMobileMenuOpen(false)}
-          className="fixed inset-0 top-[110px] bg-black/40 backdrop-blur-xs z-40 md:hidden animate-in fade-in duration-150"
+          className="fixed inset-0 top-[110px] bg-black/40 backdrop-blur-xs z-40 lg:hidden cursor-pointer"
         />
       )}
+      </AnimatePresence>
     </header>
   );
 };

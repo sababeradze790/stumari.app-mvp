@@ -47,8 +47,8 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   // 1. Segmented 3-Way Toggle Bar (Prominent for Guest Guide)
   if (variant === 'segmented') {
     return (
-      <div className={`w-full flex items-center p-1 rounded-2xl border transition-all ${
-        isDark ? 'bg-[#121619] border-stone-800' : 'bg-stone-100 border-stone-200'
+      <div className={`w-full flex items-center p-1 rounded-xl border transition-all ${
+        isDark ? 'bg-[#1F1E1C] border-[#2B2926]' : 'bg-[#FAF8F5] border-[#EBE6DF]'
       } ${className}`}>
         {SUPPORTED_LANGUAGES.map((item) => {
           const isActive = item.code === language;
@@ -56,14 +56,12 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
             <button
               key={item.code}
               onClick={() => handleSelect(item.code)}
-              className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer ${
                 isActive
-                  ? isDark 
-                    ? 'bg-[#E4E98E] text-[#0C1510] shadow-sm' 
-                    : 'bg-white text-stone-900 shadow-sm border border-stone-200/60'
+                  ? 'bg-[#F55A51] text-white shadow-xs font-bold' 
                   : isDark 
-                    ? 'text-stone-400 hover:text-stone-200' 
-                    : 'text-stone-600 hover:text-stone-900'
+                    ? 'text-[#ACA79F] hover:text-[#F7F5F0]' 
+                    : 'text-[#5C5853] hover:text-[#1C1B1A]'
               }`}
             >
               <span className="text-sm">{item.flag}</span>
@@ -80,8 +78,8 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     return (
       <div className={`inline-flex items-center p-0.5 rounded-full border transition-colors ${
         isDark 
-          ? 'bg-stone-900 border-stone-800' 
-          : 'bg-stone-100 border-stone-200'
+          ? 'bg-[#1F1E1C] border-[#2B2926]' 
+          : 'bg-[#F3EFE9] border-[#EBE6DF]'
       } ${className}`}>
         {SUPPORTED_LANGUAGES.map((item) => {
           const isActive = item.code === language;
@@ -89,14 +87,12 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
             <button
               key={item.code}
               onClick={() => handleSelect(item.code)}
-              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? isDark 
-                    ? 'bg-[#E4E98E] text-[#0C1510] shadow-xs' 
-                    : 'bg-stone-900 text-white shadow-xs'
+                  ? 'bg-[#F55A51] text-white shadow-xs font-bold'
                   : isDark 
-                    ? 'text-stone-400 hover:text-stone-200' 
-                    : 'text-stone-600 hover:text-stone-900'
+                    ? 'text-[#ACA79F] hover:text-[#F7F5F0]' 
+                    : 'text-[#5C5853] hover:text-[#1C1B1A]'
               }`}
               title={item.nativeLabel}
             >
@@ -115,36 +111,37 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
       <div className={`relative ${className}`} ref={dropdownRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className={`h-8 px-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 active:scale-95 ${
+          className={`h-8 px-2.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer shadow-2xs ${
             isDark
-              ? 'bg-stone-900/90 hover:bg-stone-850 text-stone-200 border-stone-800'
-              : 'bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs'
+              ? 'bg-[#1F1E1C] hover:bg-[#272522] text-[#F7F5F0] border-[#2B2926]'
+              : 'bg-white hover:bg-[#FAF8F5] text-[#1C1B1A] border-[#EBE6DF]'
           }`}
           title="Change language / ენის შეცვლა / Сменить язык"
         >
           <span className="text-sm">{currentLang.flag}</span>
-          <span className="font-mono">{currentLang.short}</span>
-          <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <span className="font-mono uppercase font-semibold text-[11px]">{currentLang.short}</span>
+          <ChevronDown className={`w-3 h-3 text-[#ACA79F] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
         </button>
 
         {isOpen && (
-          <div className={`absolute right-0 top-full mt-1.5 w-44 rounded-2xl border p-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 ${
-            isDark ? 'bg-[#0E1317] border-stone-800 text-stone-100' : 'bg-white border-stone-200 text-stone-900'
+          <div className={`absolute right-0 top-full mt-1.5 w-44 rounded-xl border p-1.5 shadow-warm-lg z-50 animate-in fade-in zoom-in-95 duration-150 ${
+            isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
           }`}>
+            <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-[#ACA79F]">
+              Language / ენა
+            </div>
             {SUPPORTED_LANGUAGES.map((item) => {
               const isSelected = item.code === language;
               return (
                 <button
                   key={item.code}
                   onClick={() => handleSelect(item.code)}
-                  className={`w-full px-3 py-2 rounded-xl text-left text-xs font-semibold flex items-center justify-between transition-colors ${
+                  className={`w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                     isSelected
-                      ? isDark 
-                        ? 'bg-[#E4E98E] text-[#0C1510] font-bold' 
-                        : 'bg-stone-900 text-white font-bold'
+                      ? 'bg-[#F55A51] text-white font-bold' 
                       : isDark 
-                        ? 'hover:bg-stone-800/80 text-stone-200' 
-                        : 'hover:bg-stone-100 text-stone-800'
+                        ? 'hover:bg-[#272522] text-[#F7F5F0]' 
+                        : 'hover:bg-[#FAF8F5] text-[#1C1B1A]'
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -166,26 +163,26 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-2 active:scale-95 ${
+        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-2 active:scale-95 cursor-pointer shadow-2xs ${
           isDark
-            ? 'bg-stone-900/90 hover:bg-stone-800 border-stone-800 text-stone-200'
-            : 'bg-white hover:bg-stone-50 border-stone-200 text-stone-800 shadow-2xs'
+            ? 'bg-[#1F1E1C] hover:bg-[#272522] border-[#2B2926] text-[#F7F5F0]'
+            : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] text-[#1C1B1A]'
         }`}
         aria-label="Select Language"
       >
         <span className="text-sm">{currentLang.flag}</span>
         <span className="hidden sm:inline font-sans">{currentLang.nativeLabel}</span>
-        <span className="sm:hidden font-mono">{currentLang.short}</span>
-        <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="sm:hidden font-mono uppercase text-[11px] font-semibold">{currentLang.short}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-[#ACA79F] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className={`absolute right-0 top-full mt-2 w-48 rounded-2xl border p-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 ${
+        <div className={`absolute right-0 top-full mt-2 w-48 rounded-xl border p-1.5 shadow-warm-lg z-50 animate-in fade-in zoom-in-95 duration-150 ${
           isDark 
-            ? 'bg-[#0E1317] border-stone-800 text-stone-100 shadow-stone-950/80' 
-            : 'bg-white border-stone-200 text-stone-900 shadow-xl'
+            ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
+            : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
         }`}>
-          <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-stone-400">
+          <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-[#ACA79F]">
             Language / ენა / Язык
           </div>
           <div className="space-y-0.5 mt-0.5">
@@ -195,21 +192,19 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                 <button
                   key={item.code}
                   onClick={() => handleSelect(item.code)}
-                  className={`w-full px-3 py-2 rounded-xl text-left text-xs font-semibold flex items-center justify-between transition-colors ${
+                  className={`w-full px-3 py-2 rounded-lg text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
                     isSelected
-                      ? isDark 
-                        ? 'bg-[#E4E98E] text-[#0C1510] font-bold' 
-                        : 'bg-stone-900 text-white font-bold'
+                      ? 'bg-[#F55A51] text-white font-bold' 
                       : isDark 
-                        ? 'hover:bg-stone-800/80 text-stone-200' 
-                        : 'hover:bg-stone-100 text-stone-800'
+                        ? 'hover:bg-[#272522] text-[#F7F5F0]' 
+                        : 'hover:bg-[#FAF8F5] text-[#1C1B1A]'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <span className="text-base">{item.flag}</span>
                     <div className="leading-tight">
                       <span className="block font-medium">{item.nativeLabel}</span>
-                      <span className={`text-[10px] ${isSelected ? (isDark ? 'text-stone-700' : 'text-stone-300') : 'text-stone-400'}`}>
+                      <span className={`text-[10px] ${isSelected ? 'text-white/80' : 'text-[#ACA79F]'}`}>
                         {item.label}
                       </span>
                     </div>
@@ -248,17 +243,17 @@ export const ThemeAndLanguageControls: React.FC<ThemeAndLanguageControlsProps> =
       <button
         onClick={toggleTheme}
         aria-label="Toggle dark/light mode"
-        className={`h-8 w-8 rounded-xl border flex items-center justify-center transition-all active:scale-95 shrink-0 ${
+        className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all active:scale-95 shrink-0 cursor-pointer shadow-2xs ${
           isDark
-            ? 'bg-stone-900/90 hover:bg-stone-850 text-stone-200 hover:text-white border-stone-800 shadow-sm'
-            : 'bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs'
+            ? 'bg-[#1F1E1C] hover:bg-[#272522] text-[#FFC757] border-[#2B2926]'
+            : 'bg-white hover:bg-[#FAF8F5] text-[#5C5853] hover:text-[#1C1B1A] border-[#EBE6DF]'
         } ${themeButtonClassName}`}
         title={isDark ? (language === 'ka' ? 'ნათელი რეჟიმი' : language === 'ru' ? 'Светлая тема' : 'Switch to Light mode') : (language === 'ka' ? 'მუქი რეჟიმი' : language === 'ru' ? 'Темная тема' : 'Switch to Dark mode')}
       >
         {isDark ? (
-          <Sun className="w-4 h-4 text-[#E4E98E]" />
+          <Sun className="w-4 h-4 text-[#FFC757]" />
         ) : (
-          <Moon className="w-4 h-4 text-stone-700" />
+          <Moon className="w-4 h-4 text-[#5C5853]" />
         )}
       </button>
 

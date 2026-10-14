@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   KeyRound, 
   Wifi, 
@@ -34,7 +35,14 @@ import {
   Moon,
   CreditCard,
   Navigation,
-  ShoppingBag
+  ShoppingBag,
+  Share2,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Video,
+  Eye
 } from 'lucide-react';
 import { Property, ApplianceGuide, GemMood } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -47,6 +55,8 @@ import { ArrivalBoardingPass } from './ArrivalBoardingPass';
 import { MoodsCarousel } from './MoodsCarousel';
 import { MobileBottomSheet } from './MobileBottomSheet';
 import { AddToHomeScreenModal } from './AddToHomeScreenModal';
+import { ShareGuideModal } from './ShareGuideModal';
+import { GuestRequestModal } from './GuestRequestModal';
 import { 
   CheckinArtSketch, 
   AppliancesArtSketch, 
@@ -80,7 +90,21 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
   propertyOverride, 
   isEmbed = false 
 }) => {
-  const { currentProperty, showToast, setCurrentRoute, theme, toggleTheme, t, language, getLocalizedProperty, setActiveMood } = useApp();
+  const { 
+    currentProperty, 
+    showToast, 
+    setCurrentRoute, 
+    theme, 
+    toggleTheme, 
+    t, 
+    language, 
+    getLocalizedProperty, 
+    setActiveMood,
+    gems,
+    guestFavorites,
+    toggleGuestFavorite,
+    isGuestFavorite
+  } = useApp();
   const rawProperty = propertyOverride || currentProperty;
   const property = getLocalizedProperty(rawProperty);
   const isDark = theme === 'dark';
@@ -89,11 +113,20 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
   const [activeTab, setActiveTab] = useState<GuestTab>('stay');
   const [activeDrawer, setActiveDrawer] = useState<DrawerType>(null);
   const [selectedAppliance, setSelectedAppliance] = useState<ApplianceGuide | null>(null);
+  const [isPlayingAppVideo, setIsPlayingAppVideo] = useState(true);
+  const [isMutedAppVideo, setIsMutedAppVideo] = useState(true);
+  const appVideoRef = useRef<HTMLVideoElement>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [exploreViewMode, setExploreViewMode] = useState<'map' | 'list'>('map');
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
-  const [gemFavorites, setGemFavorites] = useState<Record<string, boolean>>({});
+
+  // Saved favorite places from AppContext
+  const favoriteGemsList = React.useMemo(() => {
+    return gems.filter(g => isGuestFavorite(g.id));
+  }, [gems, guestFavorites, isGuestFavorite]);
 
   // Quick copy states
   const [wifiCopied, setWifiCopied] = useState(false);
@@ -126,10 +159,10 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
     setCheckedItems(prev => ({ ...prev, [idx]: !prev[idx] }));
   };
 
-  const toggleFavorite = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const toggleFavorite = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     triggerHaptic();
-    setGemFavorites(prev => ({ ...prev, [id]: !prev[id] }));
+    toggleGuestFavorite(id);
   };
 
   const getApplianceIcon = (iconName: string) => {
@@ -171,25 +204,63 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
     }
   ];
 
+  if (!property) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center p-6 text-center ${
+        isDark ? 'bg-[#080B0D] text-stone-100' : 'bg-[#FBFBF9] text-stone-900'
+      }`}>
+        <div className="max-w-md w-full p-8 rounded-[32px] border space-y-4 bg-stone-500/5 border-stone-500/20 shadow-xl">
+          <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center bg-amber-600 text-white font-black text-2xl font-serif shadow-sm">
+            S
+          </div>
+          <h2 className="font-serif text-2xl font-bold">
+            {language === 'ka' ? 'მეგზური ვერ მოიძებნა' : language === 'ru' ? 'Гид не найден' : 'Guide Not Found'}
+          </h2>
+          <p className="text-xs text-stone-400 leading-relaxed">
+            {language === 'ka' 
+              ? 'მოცემული აპარტამენტის მეგზური არ არსებობს ან ჯერ არ არის გამოქვეყნებული.' 
+              : language === 'ru'
+              ? 'Запрошенный цифровой гид не найден или ещё не был опубликован хозяином.'
+              : 'The requested digital guest guide could not be found or has not been published yet.'}
+          </p>
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={() => setCurrentRoute('/')}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-full text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition-colors cursor-pointer shadow-sm"
+            >
+              {language === 'ka' ? 'მთავარზე დაბრუნება' : language === 'ru' ? 'На главную' : 'Return Home'}
+            </button>
+            <button
+              onClick={() => setCurrentRoute('/demo')}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-full text-xs font-bold border border-stone-500/30 text-inherit hover:bg-stone-500/10 transition-colors cursor-pointer"
+            >
+              {language === 'ka' ? 'დემო მეგზური' : language === 'ru' ? 'Смотреть демо' : 'View Demo Guide'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`min-h-screen w-full ${isDark ? 'bg-[#080B0E] text-stone-100' : 'bg-stone-100/70 text-stone-900'} flex flex-col items-center justify-start font-sans transition-colors duration-200`}>
+    <div className={`min-h-screen w-full ${isDark ? 'bg-[#141312] text-[#F7F5F0]' : 'bg-[#FAF8F5] text-[#1C1B1A]'} flex flex-col items-center justify-start font-sans tracking-tight transition-colors duration-200`}>
       
       {/* PRESENTATION CONTAINER: Clean modern web app canvas (full width on mobile, max-w-xl on desktop) */}
-      <div className={`w-full max-w-xl min-h-screen flex flex-col relative transition-all duration-300 sm:border-x sm:shadow-2xl ${
-        isDark ? 'bg-[#0B0F13] sm:border-stone-800 text-stone-100' : 'bg-[#FAF8F5] sm:border-stone-200 text-stone-900'
+      <div className={`w-full max-w-xl min-h-screen flex flex-col relative transition-all duration-300 sm:border-x sm:shadow-xs ${
+        isDark ? 'bg-[#141312] sm:border-[#2B2926] text-[#F7F5F0]' : 'bg-[#FAF8F5] sm:border-[#EBE6DF] text-[#1C1B1A]'
       }`}>
         
         {/* NATIVE APP TOP HEADER BAR */}
         <header className={`px-4 py-3 flex items-center justify-between border-b backdrop-blur-xl sticky top-0 z-30 transition-colors ${
-          isDark ? 'bg-[#0B0F13]/92 border-stone-800/80 text-white' : 'bg-[#FAF8F5]/92 border-stone-200/80 text-stone-900'
+          isDark ? 'bg-[#141312]/92 border-[#2B2926] text-[#F7F5F0]' : 'bg-[#FAF8F5]/92 border-[#EBE6DF] text-[#1C1B1A] shadow-2xs'
         }`}>
           {/* Property Identity & Superhost badge */}
           <div className="flex items-center gap-2.5 min-w-0">
             {!isEmbed && (
               <button
                 onClick={() => setCurrentRoute('/app')}
-                className={`p-1.5 -ml-1.5 rounded-full transition-colors shrink-0 flex items-center justify-center ${
-                  isDark ? 'text-stone-400 hover:text-white hover:bg-white/10' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/60'
+                className={`p-1.5 -ml-1.5 rounded-lg transition-colors shrink-0 flex items-center justify-center ${
+                  isDark ? 'text-[#ACA79F] hover:text-[#F7F5F0] hover:bg-[#272522]' : 'text-[#5C5853] hover:text-[#1C1B1A] hover:bg-[#EAE4DC]'
                 }`}
                 title={t.guestGuide.backToHost}
                 aria-label={t.guestGuide.backToHost}
@@ -200,34 +271,49 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
             <img
               src={property.hostAvatar}
               alt={property.hostName}
-              className="w-9 h-9 rounded-full object-cover border border-stone-300 dark:border-stone-700 shrink-0 shadow-2xs"
+              className="w-9 h-9 rounded-full object-cover border border-[#EBE6DF] dark:border-[#2B2926] shrink-0 shadow-xs"
             />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 leading-none">
-                <span className="text-sm font-bold truncate">
+                <span className={`text-sm font-serif font-bold truncate tracking-tight ${isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'}`}>
                   {property.title}
                 </span>
               </div>
-              <span className={`text-[11px] font-medium block truncate mt-0.5 ${
-                isDark ? 'text-stone-400' : 'text-stone-500'
+              <span className={`text-[11px] font-sans font-medium block truncate mt-0.5 tracking-tight ${
+                isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
               }`}>
                 {property.city} · {property.hostName} (Host)
               </span>
             </div>
           </div>
 
-          {/* Top Actions: Theme Toggle & Compact Language Dropdown */}
+          {/* Top Actions: Theme Toggle, Quick Share & Compact Language Dropdown */}
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                triggerHaptic();
+                setIsShareModalOpen(true);
+              }}
+              aria-label="Share guide"
+              title="Share guide with travelers"
+              className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-2xs ${
+                isDark 
+                  ? 'bg-[#1F1E1C] border-[#2B2926] text-[#ACA79F] hover:text-[#F7F5F0] hover:bg-[#272522]' 
+                  : 'bg-white border-[#EBE6DF] text-[#5C5853] hover:text-[#1C1B1A] hover:bg-[#FAF8F5]'
+              }`}
+            >
+              <Share2 className="w-3.5 h-3.5" />
+            </button>
             <button
               onClick={toggleTheme}
               aria-label="Toggle dark/light mode"
-              className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all active:scale-95 ${
+              className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-2xs ${
                 isDark 
-                  ? 'bg-stone-900 border-stone-700 text-stone-200 hover:text-white' 
-                  : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50 shadow-2xs'
+                  ? 'bg-[#1F1E1C] border-[#2B2926] text-[#FFC757] hover:bg-[#272522]' 
+                  : 'bg-white border-[#EBE6DF] text-[#5C5853] hover:text-[#1C1B1A] hover:bg-[#FAF8F5]'
               }`}
             >
-              {isDark ? <Sun className="w-4 h-4 text-[#E4E98E]" /> : <Moon className="w-4 h-4 text-stone-700" />}
+              {isDark ? <Sun className="w-4 h-4 text-[#FFC757]" /> : <Moon className="w-4 h-4 text-[#5C5853]" />}
             </button>
             <LanguageSelector variant="compact" />
           </div>
@@ -235,46 +321,57 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
 
         {/* SCROLLABLE MOBILE CONTENT AREA */}
         <div className="flex-1 w-full pb-28">
-
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* TAB 1: STAY (Apartment Manual, Fast Pass, Appliances, Rules)  */}
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'stay' && (
-            <div className="p-4 space-y-4 animate-in fade-in duration-200">
+          <AnimatePresence mode="wait">
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {/* TAB 1: STAY (Apartment Manual, Fast Pass, Appliances, Rules)  */}
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {activeTab === 'stay' && (
+              <motion.div
+                key="tab-stay"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                className="p-4 space-y-4"
+              >
               
               {/* 1. HERO VISUAL COVER WITH WELCOME QUOTE & WEATHER */}
-              <div className="relative h-52 sm:h-56 rounded-[30px] overflow-hidden shadow-md border border-stone-200/80 dark:border-white/10 group">
+              <motion.div 
+                whileHover={{ scale: 1.004 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                className="relative h-52 sm:h-56 rounded-2xl overflow-hidden shadow-warm-md border border-[#EBE6DF] dark:border-[#2B2926] group"
+              >
                 <img
                   src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80"
                   alt={property.title}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#141312]/92 via-[#141312]/40 to-transparent" />
                 
                 {/* Weather Pill (Top Right) */}
-                <div className="absolute top-3.5 right-3.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white text-xs font-medium flex items-center gap-1.5 shadow-sm">
+                <div className="absolute top-3.5 right-3.5 px-2.5 py-1 rounded-xl bg-black/50 backdrop-blur-md border border-white/15 text-[#F7F5F0] text-xs font-medium flex items-center gap-1.5 shadow-2xs">
                   <span>🌤️</span>
-                  <span className="font-semibold text-[11px]">22°C</span>
+                  <span className="font-semibold text-[11px] tracking-tight">22°C</span>
                 </div>
 
                 {/* Cover Text Details */}
                 <div className="absolute bottom-4 left-4 right-4 text-white">
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 w-fit mb-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[9px] font-mono uppercase tracking-wider text-emerald-300 font-bold">
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-md border border-white/15 w-fit mb-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#F55A51] animate-pulse" />
+                    <span className="text-[9px] font-mono uppercase tracking-wider text-[#F7F5F0] font-semibold">
                       {language === 'ka' ? 'დადასტურებული ბინა' : language === 'ru' ? 'Проверенное жильё' : 'STUMARI VERIFIED'}
                     </span>
                   </div>
-                  <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-tight leading-tight">
+                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#F7F5F0] tracking-tight leading-tight">
                     {language === 'ka' ? 'კეთილი იყოს თქვენი მობრძანება!' : 'Welcome to Old Tbilisi!'}
                   </h1>
-                  <p className="text-xs text-stone-200 line-clamp-2 mt-1 font-normal leading-relaxed max-w-sm">
+                  <p className="text-xs text-[#ACA79F] line-clamp-2 mt-1 font-normal leading-relaxed max-w-sm tracking-tight">
                     {language === 'ka' 
                       ? 'თავი ისე იგრძენით, როგორც საკუთარ სახლში. ყველაფერი მზადაა კომფორტული დასვენებისთვის.' 
                       : 'Make yourself at home. Everything you need for a comfortable and memorable stay.'}
                   </p>
                 </div>
-              </div>
+              </motion.div>
 
               {/* 2. FAST PASS: ACCESS CODES BENTO & ADDRESS */}
               <ArrivalBoardingPass 
@@ -300,8 +397,8 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
               {/* 4. "YOUR STAY GUIDE" (2x2 Illustrated Bento Cards) */}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between px-0.5">
-                  <span className={`text-[11px] font-mono uppercase font-black tracking-wider ${
-                    isDark ? 'text-stone-300' : 'text-stone-900'
+                  <span className={`text-[11px] font-sans font-semibold uppercase tracking-wider ${
+                    isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'
                   }`}>
                     {language === 'ka' ? 'თქვენი გზამკვლევი' : language === 'ru' ? 'Ваш гид' : 'YOUR STAY GUIDE'}
                   </span>
@@ -309,327 +406,355 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
 
                 <div className="grid grid-cols-2 gap-3">
                   {/* Check-in Instructions */}
-                  <button
+                  <motion.button
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                     onClick={() => {
                       triggerHaptic();
                       setActiveDrawer('checkin');
                     }}
-                    className={`p-3.5 rounded-2xl border text-left flex justify-between relative overflow-hidden transition-all duration-300 hover:translate-y-[-4px] active:scale-[0.97] h-[132px] group shadow-xs hover:shadow-xl ${
+                    className={`p-4 rounded-2xl border text-left flex justify-between relative overflow-hidden transition-all h-[140px] group shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
                       isDark 
-                        ? 'bg-[#0D1812] border-emerald-500/25 hover:border-emerald-500/50 text-stone-100 shadow-md hover:shadow-emerald-500/20' 
-                        : 'bg-[#EBF7EF] border-[#B9E6C6] hover:border-[#8FD4A3] text-stone-950 hover:shadow-emerald-500/10'
+                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#F55A51]/60 hover:bg-[#272522] text-[#F7F5F0]' 
+                        : 'bg-white hover:bg-[#FDF1F0]/40 border-[#EBE6DF] hover:border-[#F55A51]/50 text-[#1C1B1A]'
                     }`}
                   >
                     <div className="flex flex-col justify-between h-full z-10 min-w-0 pr-1 flex-1">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                        isDark ? 'bg-emerald-950/50 text-emerald-400' : 'bg-emerald-200/90 text-emerald-900'
+                      <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-2xs ${
+                        isDark ? 'bg-[#F55A51]/15 border-[#F55A51]/30 text-[#F55A51]' : 'bg-[#FDF1F0] border-[#F55A51]/25 text-[#F55A51]'
                       }`}>
                         <KeyRound className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className={`text-xs sm:text-sm font-bold block truncate leading-snug ${
-                          isDark ? 'text-stone-100' : 'text-stone-950'
+                        <span className={`text-xs sm:text-sm font-serif font-bold block truncate leading-snug tracking-tight ${
+                          isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
                         }`}>
                           {t.guestGuide.cards.checkinTitle}
                         </span>
-                        <span className={`text-[11px] block line-clamp-2 mt-0.5 font-bold leading-tight ${
-                          isDark ? 'text-stone-300' : 'text-stone-800'
+                        <span className={`text-[11px] block line-clamp-2 mt-0.5 font-medium leading-tight tracking-tight ${
+                          isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
                         }`}>
-                          Step-by-step guide for a smooth arrival
+                          Step-by-step arrival
                         </span>
                       </div>
                     </div>
                     {/* Illustration */}
-                    <div className="shrink-0 -mr-2 -mt-1 opacity-90 group-hover:scale-105 transition-transform duration-300">
+                    <div className="shrink-0 -mr-2 -mt-1 opacity-75 group-hover:scale-105 transition-transform duration-300">
                       <CheckinArtSketch className="w-20 h-20" isDark={isDark} />
                     </div>
-                    <ChevronRight className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                  </button>
+                    <ChevronRight className="absolute bottom-3 right-3 w-3.5 h-3.5 text-[#ACA79F] group-hover:text-[#F55A51] group-hover:translate-x-0.5 transition-all" />
+                  </motion.button>
 
                   {/* Appliances & How Things Work */}
-                  <button
+                  <motion.button
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                     onClick={() => {
                       triggerHaptic();
                       setActiveDrawer('appliances');
                     }}
-                    className={`p-3.5 rounded-2xl border text-left flex justify-between relative overflow-hidden transition-all duration-300 hover:translate-y-[-4px] active:scale-[0.97] h-[132px] group shadow-xs hover:shadow-xl ${
+                    className={`p-4 rounded-2xl border text-left flex justify-between relative overflow-hidden transition-all h-[140px] group shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
                       isDark 
-                        ? 'bg-[#0E1724] border-sky-500/25 hover:border-sky-500/50 text-stone-100 shadow-md hover:shadow-sky-500/20' 
-                        : 'bg-[#EDF5FF] border-[#BFDCFC] hover:border-[#96C7FB] text-stone-950 hover:shadow-sky-500/10'
+                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#748C96]/60 hover:bg-[#272522] text-[#F7F5F0]' 
+                        : 'bg-white hover:bg-[#F0F4F6]/50 border-[#EBE6DF] hover:border-[#748C96]/50 text-[#1C1B1A]'
                     }`}
                   >
                     <div className="flex flex-col justify-between h-full z-10 min-w-0 pr-1 flex-1">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                        isDark ? 'bg-sky-950/50 text-sky-400' : 'bg-sky-200/90 text-sky-900'
+                      <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-2xs ${
+                        isDark ? 'bg-[#748C96]/15 border-[#748C96]/30 text-[#9CB1BB]' : 'bg-[#F0F4F6] border-[#748C96]/25 text-[#4D6169]'
                       }`}>
                         <Zap className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className={`text-xs sm:text-sm font-bold block truncate leading-snug ${
-                          isDark ? 'text-stone-100' : 'text-stone-950'
+                        <span className={`text-xs sm:text-sm font-serif font-bold block truncate leading-snug tracking-tight ${
+                          isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
                         }`}>
                           {t.guestGuide.cards.howThingsWork}
                         </span>
-                        <span className={`text-[11px] block line-clamp-2 mt-0.5 font-bold leading-tight ${
-                          isDark ? 'text-stone-300' : 'text-stone-800'
+                        <span className={`text-[11px] block line-clamp-2 mt-0.5 font-medium leading-tight tracking-tight ${
+                          isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
                         }`}>
                           {property.appliances.length} appliances guided
                         </span>
                       </div>
                     </div>
                     {/* Illustration */}
-                    <div className="shrink-0 -mr-2 -mt-1 opacity-90 group-hover:scale-105 transition-transform duration-300">
+                    <div className="shrink-0 -mr-2 -mt-1 opacity-75 group-hover:scale-105 transition-transform duration-300">
                       <AppliancesArtSketch className="w-20 h-20" isDark={isDark} />
                     </div>
-                    <ChevronRight className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 text-sky-700 dark:text-sky-400 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                  </button>
+                    <ChevronRight className="absolute bottom-3 right-3 w-3.5 h-3.5 text-[#ACA79F] group-hover:text-[#748C96] group-hover:translate-x-0.5 transition-all" />
+                  </motion.button>
 
                   {/* House Rules & Quiet Hours */}
-                  <button
+                  <motion.button
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                     onClick={() => {
                       triggerHaptic();
                       setActiveDrawer('rules');
                     }}
-                    className={`p-3.5 rounded-2xl border text-left flex justify-between relative overflow-hidden transition-all duration-300 hover:translate-y-[-4px] active:scale-[0.97] h-[132px] group shadow-xs hover:shadow-xl ${
+                    className={`p-4 rounded-2xl border text-left flex justify-between relative overflow-hidden transition-all h-[140px] group shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
                       isDark 
-                        ? 'bg-[#18140E] border-amber-500/25 hover:border-amber-500/50 text-stone-100 shadow-md hover:shadow-amber-500/20' 
-                        : 'bg-[#FDF6E7] border-[#F2DBAC] hover:border-[#E8C883] text-stone-950 hover:shadow-amber-500/10'
+                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#FFC757]/60 hover:bg-[#272522] text-[#F7F5F0]' 
+                        : 'bg-white hover:bg-[#FFF9ED]/50 border-[#EBE6DF] hover:border-[#FFC757]/50 text-[#1C1B1A]'
                     }`}
                   >
                     <div className="flex flex-col justify-between h-full z-10 min-w-0 pr-1 flex-1">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                        isDark ? 'bg-amber-950/50 text-amber-400' : 'bg-amber-200/90 text-amber-900'
+                      <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-2xs ${
+                        isDark ? 'bg-[#FFC757]/15 border-[#FFC757]/30 text-[#FFC757]' : 'bg-[#FFF9ED] border-[#FFC757]/30 text-[#996F00]'
                       }`}>
                         <BookOpen className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className={`text-xs sm:text-sm font-bold block truncate leading-snug ${
-                          isDark ? 'text-stone-100' : 'text-stone-950'
+                        <span className={`text-xs sm:text-sm font-serif font-bold block truncate leading-snug tracking-tight ${
+                          isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
                         }`}>
                           {t.guestGuide.cards.houseRules}
                         </span>
-                        <span className={`text-[11px] block line-clamp-2 mt-0.5 font-bold leading-tight ${
-                          isDark ? 'text-stone-300' : 'text-stone-800'
+                        <span className={`text-[11px] block line-clamp-2 mt-0.5 font-medium leading-tight tracking-tight ${
+                          isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
                         }`}>
                           {property.quietHours}
                         </span>
                       </div>
                     </div>
                     {/* Illustration */}
-                    <div className="shrink-0 -mr-2 -mt-1 opacity-90 group-hover:scale-105 transition-transform duration-300">
+                    <div className="shrink-0 -mr-2 -mt-1 opacity-75 group-hover:scale-105 transition-transform duration-300">
                       <HouseRulesArtSketch className="w-20 h-20" isDark={isDark} />
                     </div>
-                    <ChevronRight className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 text-amber-700 dark:text-amber-400 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                  </button>
+                    <ChevronRight className="absolute bottom-3 right-3 w-3.5 h-3.5 text-[#ACA79F] group-hover:text-[#FFC757] group-hover:translate-x-0.5 transition-all" />
+                  </motion.button>
 
                   {/* Departure Checklist */}
-                  <button
+                  <motion.button
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                     onClick={() => {
                       triggerHaptic();
                       setActiveDrawer('checkout');
                     }}
-                    className={`p-3.5 rounded-2xl border text-left flex justify-between relative overflow-hidden transition-all duration-300 hover:translate-y-[-4px] active:scale-[0.97] h-[132px] group shadow-xs hover:shadow-xl ${
+                    className={`p-4 rounded-2xl border text-left flex justify-between relative overflow-hidden transition-all h-[140px] group shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
                       isDark 
-                        ? 'bg-[#191124] border-purple-500/25 hover:border-purple-500/50 text-stone-100 shadow-md hover:shadow-purple-500/20' 
-                        : 'bg-[#F6EDFD] border-[#DFC5FA] hover:border-[#CA9FF6] text-stone-950 hover:shadow-purple-500/10'
+                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#F55A51]/60 hover:bg-[#272522] text-[#F7F5F0]' 
+                        : 'bg-white hover:bg-[#FDF1F0]/40 border-[#EBE6DF] hover:border-[#F55A51]/50 text-[#1C1B1A]'
                     }`}
                   >
                     <div className="flex flex-col justify-between h-full z-10 min-w-0 pr-1 flex-1">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                        isDark ? 'bg-purple-950/50 text-purple-400' : 'bg-purple-200/90 text-purple-900'
+                      <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-2xs ${
+                        isDark ? 'bg-[#F55A51]/15 border-[#F55A51]/30 text-[#F55A51]' : 'bg-[#FDF1F0] border-[#F55A51]/25 text-[#F55A51]'
                       }`}>
                         <CheckSquare className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className={`text-xs sm:text-sm font-bold block truncate leading-snug ${
-                          isDark ? 'text-stone-100' : 'text-stone-950'
+                        <span className={`text-xs sm:text-sm font-serif font-bold block truncate leading-snug tracking-tight ${
+                          isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
                         }`}>
                           {t.guestGuide.cards.checkoutChecklist}
                         </span>
-                        <span className={`text-[11px] block line-clamp-2 mt-0.5 font-bold leading-tight ${
-                          isDark ? 'text-stone-300' : 'text-stone-800'
+                        <span className={`text-[11px] block line-clamp-2 mt-0.5 font-medium leading-tight tracking-tight ${
+                          isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
                         }`}>
                           {property.checkOutTime}
                         </span>
                       </div>
                     </div>
                     {/* Illustration */}
-                    <div className="shrink-0 -mr-2 -mt-1 opacity-90 group-hover:scale-105 transition-transform duration-300">
+                    <div className="shrink-0 -mr-2 -mt-1 opacity-75 group-hover:scale-105 transition-transform duration-300">
                       <DepartureArtSketch className="w-20 h-20" isDark={isDark} />
                     </div>
-                    <ChevronRight className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 text-purple-700 dark:text-purple-400 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                  </button>
+                    <ChevronRight className="absolute bottom-3 right-3 w-3.5 h-3.5 text-[#ACA79F] group-hover:text-[#F55A51] group-hover:translate-x-0.5 transition-all" />
+                  </motion.button>
                 </div>
               </div>
 
               {/* 5. "USEFUL STICKERS" (Emergency, Taxi, Trash) */}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between px-0.5">
-                  <span className={`text-[11px] font-mono uppercase font-black tracking-wider ${
-                    isDark ? 'text-stone-300' : 'text-stone-900'
+                  <span className={`text-[11px] font-sans font-semibold uppercase tracking-wider ${
+                    isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'
                   }`}>
-                    {language === 'ka' ? 'სასარგებლო ბარათები' : 'USEFUL STICKERS'}
+                    {language === 'ka' ? 'სასარგებლო ბარათები' : language === 'ru' ? 'Полезные стикеры' : 'USEFUL STICKERS'}
                   </span>
                   <button
                     onClick={() => {
                       triggerHaptic();
                       setActiveDrawer('stickers');
                     }}
-                    className={`text-xs font-black hover:underline flex items-center gap-0.5 ${
-                      isDark ? 'text-[#E4E98E]' : 'text-stone-950'
+                    className={`text-xs font-medium hover:underline flex items-center gap-0.5 transition-colors cursor-pointer ${
+                      isDark ? 'text-[#F7F5F0] hover:text-white' : 'text-[#1C1B1A] hover:text-[#F55A51]'
                     }`}
                   >
-                    <span>View all</span>
-                    <ChevronRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>{language === 'ka' ? 'ყველა' : language === 'ru' ? 'Все' : 'View all'}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-                  {/* Sticker 1: 24/7 Groceries & Local Market (Replaced panic Emergency card) */}
-                  <button
-                    onClick={() => {
-                      triggerHaptic();
-                      const query = encodeURIComponent(`supermarket 24/7 near ${property.address}, ${property.city}`);
-                      window.open(`https://maps.google.com/?q=${query}`, '_blank');
-                    }}
-                    className={`p-2 sm:p-2.5 rounded-2xl border text-center flex flex-col items-center justify-between transition-all duration-300 hover:translate-y-[-2px] active:scale-95 group shadow-xs h-[88px] ${
+                <div className="grid grid-cols-3 gap-2.5">
+                  {/* Sticker 1: 24/7 Groceries & Local Market */}
+                  <motion.a
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
+                    href={`https://maps.google.com/?q=${encodeURIComponent(`supermarket 24/7 near ${property.address}, ${property.city}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => triggerHaptic()}
+                    className={`p-3 rounded-2xl border text-center flex flex-col items-center justify-between transition-all group shadow-warm-sm hover:shadow-warm-md h-[92px] cursor-pointer ${
                       isDark 
-                        ? 'bg-[#1C180E] border-amber-500/30 text-amber-200' 
-                        : 'bg-[#FFF9EB] border-[#FCE2A6] text-[#92400E]'
+                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#FFC757]/40 text-[#F7F5F0] hover:bg-[#272522]' 
+                        : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] hover:border-[#FFC757]/50 text-[#1C1B1A]'
                     }`}
                   >
-                    <div className="w-5 h-5 rounded-full bg-amber-500 text-stone-950 flex items-center justify-center shrink-0 shadow-2xs">
-                      <ShoppingBag className="w-3 h-3 stroke-[2.4]" />
+                    <div className="w-6 h-6 rounded-lg bg-[#FFF9ED] dark:bg-[#FFC757]/15 border border-[#FFC757]/30 text-[#996F00] dark:text-[#FFC757] flex items-center justify-center shrink-0 shadow-2xs">
+                      <ShoppingBag className="w-3 h-3" />
                     </div>
-                    <span className="text-[10px] sm:text-[11px] font-black leading-tight truncate w-full px-0.5">
+                    <span className="text-[10px] sm:text-[11px] font-semibold leading-tight truncate w-full px-0.5 tracking-tight">
                       {language === 'ka' ? 'მარკეტი 24/7' : language === 'ru' ? 'Маркет 24/7' : '24/7 Market'}
                     </span>
-                    <div className="opacity-90 group-hover:scale-105 transition-transform">
+                    <div className="opacity-75 group-hover:scale-105 transition-transform">
                       <GroceryMarketSketch className="w-11 h-7" isDark={isDark} />
                     </div>
-                  </button>
+                  </motion.a>
 
                   {/* Sticker 2: Taxi & Transfers */}
-                  <button
+                  <motion.button
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                     onClick={() => {
                       triggerHaptic();
                       setExploreViewMode('list');
                       setActiveTab('explore');
                     }}
-                    className={`p-2 sm:p-2.5 rounded-2xl border text-center flex flex-col items-center justify-between transition-all duration-300 hover:translate-y-[-2px] active:scale-95 group shadow-xs h-[88px] ${
+                    className={`p-3 rounded-2xl border text-center flex flex-col items-center justify-between transition-all group shadow-warm-sm hover:shadow-warm-md h-[92px] cursor-pointer ${
                       isDark 
-                        ? 'bg-[#0E2016] border-emerald-500/30 text-emerald-200' 
-                        : 'bg-[#ECF8F1] border-[#BEE9CB] text-[#064E3B]'
+                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#748C96]/40 text-[#F7F5F0] hover:bg-[#272522]' 
+                        : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] hover:border-[#748C96]/50 text-[#1C1B1A]'
                     }`}
                   >
-                    <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <div className="w-6 h-6 rounded-lg bg-[#F0F4F6] dark:bg-[#748C96]/15 border border-[#748C96]/25 text-[#4D6169] dark:text-[#9CB1BB] flex items-center justify-center shrink-0 shadow-2xs">
                       <Car className="w-3 h-3" />
                     </div>
-                    <span className="text-[10px] sm:text-[11px] font-black leading-tight truncate w-full px-0.5">
+                    <span className="text-[10px] sm:text-[11px] font-semibold leading-tight truncate w-full px-0.5 tracking-tight">
                       {language === 'ka' ? 'ტაქსი' : language === 'ru' ? 'Такси' : 'Taxi & Bolt'}
                     </span>
-                    <div className="opacity-90 group-hover:scale-105 transition-transform">
+                    <div className="opacity-75 group-hover:scale-105 transition-transform">
                       <TaxiSedanSketch className="w-12 h-7" isDark={isDark} />
                     </div>
-                  </button>
+                  </motion.button>
 
                   {/* Sticker 3: Trash & Recycling */}
-                  <button
+                  <motion.button
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                     onClick={() => {
                       triggerHaptic();
                       setActiveDrawer('rules');
                     }}
-                    className={`p-2 sm:p-2.5 rounded-2xl border text-center flex flex-col items-center justify-between transition-all duration-300 hover:translate-y-[-2px] active:scale-95 group shadow-xs h-[88px] ${
+                    className={`p-3 rounded-2xl border text-center flex flex-col items-center justify-between transition-all group shadow-warm-sm hover:shadow-warm-md h-[92px] cursor-pointer ${
                       isDark 
-                        ? 'bg-[#1B1226] border-purple-500/30 text-purple-200' 
-                        : 'bg-[#F3EAFD] border-[#DCC3F9] text-[#4C1D95]'
+                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#3B3833] text-[#F7F5F0] hover:bg-[#272522]' 
+                        : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] hover:border-[#DDD8CF] text-[#1C1B1A]'
                     }`}
                   >
-                    <div className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <div className="w-6 h-6 rounded-lg bg-[#F3EFE9] dark:bg-[#272522] border border-[#DDD8CF] dark:border-[#3B3833] text-[#5C5853] dark:text-[#ACA79F] flex items-center justify-center shrink-0 shadow-2xs">
                       <Trash2 className="w-3 h-3" />
                     </div>
-                    <span className="text-[10px] sm:text-[11px] font-black leading-tight truncate w-full px-0.5">
+                    <span className="text-[10px] sm:text-[11px] font-semibold leading-tight truncate w-full px-0.5 tracking-tight">
                       {language === 'ka' ? 'ნაგავი' : language === 'ru' ? 'Мусор' : 'Trash & Bins'}
                     </span>
-                    <div className="opacity-90 group-hover:scale-105 transition-transform">
+                    <div className="opacity-75 group-hover:scale-105 transition-transform">
                       <RecyclingBinsSketch className="w-12 h-7" isDark={isDark} />
                     </div>
-                  </button>
+                  </motion.button>
                 </div>
               </div>
 
               {/* 7. "HOW IS YOUR STAY GOING?" REVIEW BANNER */}
-              <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all duration-300 shadow-xs ${
+              <motion.div 
+                whileHover={{ scale: 1.006, y: -2 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                className={`p-4 rounded-2xl border flex items-center justify-between transition-all shadow-warm-sm hover:shadow-warm-md ${
                 isDark 
-                  ? 'bg-gradient-to-r from-[#1E1911] via-[#16120D] to-[#1E1911] border-amber-500/30 text-stone-100 shadow-md' 
-                  : 'bg-gradient-to-r from-[#FFFBEB] via-[#FEF9C3]/50 to-[#FFFBEB] border-amber-300 text-stone-900 shadow-xs'
+                  ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
+                  : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
               }`}>
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-full bg-amber-400/20 text-amber-500 flex items-center justify-center shrink-0">
-                    <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
+                  <div className="w-9 h-9 rounded-xl bg-[#FFF9ED] dark:bg-[#FFC757]/15 border border-[#FFC757]/30 text-[#FFC757] flex items-center justify-center shrink-0 shadow-2xs">
+                    <Star className="w-4 h-4 fill-[#FFC757] text-[#FFC757]" />
                   </div>
                   <div className="min-w-0">
-                    <span className={`text-xs font-black block truncate ${
-                      isDark ? 'text-stone-100' : 'text-stone-950'
+                    <span className={`text-xs font-serif font-bold block truncate tracking-tight ${
+                      isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
                     }`}>
-                      How is your stay going?
+                      {language === 'ka' ? 'როგორ მიმდინარეობს დასვენება?' : language === 'ru' ? 'Как проходит ваш отдых?' : 'How is your stay going?'}
                     </span>
-                    <span className={`text-[11px] block truncate font-semibold ${
-                      isDark ? 'text-stone-300' : 'text-stone-700'
+                    <span className={`text-[11px] block truncate font-medium tracking-tight ${
+                      isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
                     }`}>
-                      Leave private feedback for your host
+                      {language === 'ka' ? 'დაუტოვეთ პირადი შეფასება მასპინძელს' : language === 'ru' ? 'Оставьте отзыв для хозяина' : 'Leave private feedback for your host'}
                     </span>
                   </div>
                 </div>
 
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={() => {
                     triggerHaptic();
                     setIsReviewModalOpen(true);
                   }}
-                  className="px-4 py-2 rounded-xl bg-[#E5EDA8] hover:bg-[#d8e293] text-stone-950 font-black text-xs shrink-0 shadow-xs active:scale-95 transition-all border border-stone-900/10"
+                  className="px-3.5 py-1.5 rounded-xl font-semibold text-xs shrink-0 shadow-xs cursor-pointer transition-all bg-[#F55A51] hover:bg-[#E04840] text-white"
                 >
-                  Review
-                </button>
-              </div>
+                  {language === 'ka' ? 'შეფასება' : language === 'ru' ? 'Отзыв' : 'Review'}
+                </motion.button>
+              </motion.div>
 
               {/* 8. "NEARBY GEMS" CAROUSEL */}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between px-0.5">
-                  <span className={`text-[11px] font-mono uppercase font-black tracking-wider ${
-                    isDark ? 'text-stone-300' : 'text-stone-900'
+                  <span className={`text-[11px] font-sans font-semibold uppercase tracking-wider ${
+                    isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'
                   }`}>
-                    NEARBY GEMS
+                    {language === 'ka' ? 'ახლომდებარე ადგილები' : language === 'ru' ? 'Места поблизости' : 'NEARBY GEMS'}
                   </span>
                   <button
                     onClick={() => {
                       triggerHaptic();
                       setActiveTab('gems');
                     }}
-                    className={`text-xs font-black hover:underline flex items-center gap-0.5 ${
-                      isDark ? 'text-[#E4E98E]' : 'text-stone-950'
+                    className={`text-xs font-medium hover:underline flex items-center gap-0.5 transition-colors cursor-pointer ${
+                      isDark ? 'text-[#F7F5F0] hover:text-white' : 'text-[#1C1B1A] hover:text-[#F55A51]'
                     }`}
                   >
-                    <span>View all</span>
-                    <ChevronRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>{language === 'ka' ? 'ყველა' : language === 'ru' ? 'Все' : 'View all'}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                <div className="flex items-center gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 py-1">
+                <div className="flex items-center gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 py-1.5">
                   {nearbyGems.map(gem => (
-                    <div
+                    <motion.div
                       key={gem.id}
+                      whileHover={{ y: -3, scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                       onClick={() => {
                         triggerHaptic();
                         setActiveTab('gems');
                       }}
-                      className={`rounded-2xl border overflow-hidden shrink-0 w-44 transition-all duration-300 hover:translate-y-[-3px] cursor-pointer group shadow-xs ${
+                      className={`rounded-2xl border overflow-hidden shrink-0 w-44 transition-all duration-300 cursor-pointer group shadow-warm-sm hover:shadow-warm-md ${
                         isDark 
-                          ? 'bg-[#10171D] border-stone-800 text-stone-100 shadow-md' 
-                          : 'bg-white border-stone-300 text-stone-950 shadow-sm hover:border-stone-400'
+                          ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0] hover:border-[#3B3833]' 
+                          : 'bg-white border-[#EBE6DF] text-[#1C1B1A] hover:border-[#DDD8CF]'
                       }`}
                     >
-                      <div className="relative h-28 w-full overflow-hidden bg-stone-200 dark:bg-stone-800">
+                      <div className="relative h-28 w-full overflow-hidden bg-[#272522]">
                         <img 
                           src={gem.image} 
                           alt={gem.title} 
@@ -640,27 +765,36 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
 
                       <div className="p-3">
                         <div className="flex items-center justify-between">
-                          <span className={`text-xs font-bold truncate pr-1 ${
-                            isDark ? 'text-stone-100' : 'text-stone-950'
+                          <span className={`text-xs font-semibold truncate pr-1 tracking-tight ${
+                            isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
                           }`}>
                             {gem.title}
                           </span>
                           <button
-                            onClick={(e) => toggleFavorite(gem.id, e)}
-                            className="text-stone-400 hover:text-red-500 transition-colors p-0.5"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              triggerHaptic();
+                              toggleGuestFavorite(gem.id, gem.title);
+                            }}
+                            className={`p-1.5 rounded-lg transition-all active:scale-75 cursor-pointer ${
+                              isGuestFavorite(gem.id)
+                                ? 'text-[#F55A51]'
+                                : 'text-[#ACA79F] hover:text-[#F55A51]'
+                            }`}
                             aria-label="Save to favorites"
+                            title={isGuestFavorite(gem.id) ? "Saved to favorites" : "Save to favorites"}
                           >
-                            <Heart className={`w-3.5 h-3.5 ${gemFavorites[gem.id] ? 'fill-red-500 text-red-500' : ''}`} />
+                            <Heart className={`w-3.5 h-3.5 ${isGuestFavorite(gem.id) ? 'fill-[#F55A51] text-[#F55A51]' : ''}`} />
                           </button>
                         </div>
-                        <span className={`text-[11px] font-bold flex items-center gap-1 mt-1 ${
-                          isDark ? 'text-stone-300' : 'text-stone-700'
+                        <span className={`text-[11px] font-medium flex items-center gap-1 mt-1 tracking-tight ${
+                          isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
                         }`}>
-                          <MapPin className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                          <MapPin className="w-3 h-3 text-[#748C96]" />
                           <span>{gem.time}</span>
                         </span>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               </div>
@@ -668,158 +802,207 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
               {/* 9. "NEED HELP?" (3 Action Cards) */}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between px-0.5">
-                  <span className={`text-[11px] font-mono uppercase font-black tracking-wider ${
-                    isDark ? 'text-stone-300' : 'text-stone-900'
+                  <span className={`text-[11px] font-sans font-semibold uppercase tracking-wider ${
+                    isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'
                   }`}>
-                    NEED HELP?
+                    {language === 'ka' ? 'დახმარება' : language === 'ru' ? 'Помощь' : 'NEED HELP?'}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2.5">
-                  <a
+                  <motion.a
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                     href={`https://wa.me/${property.hostWhatsApp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${property.hostName}, I am staying at ${property.title}.`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`py-3 px-2 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all duration-200 active:scale-95 shadow-xs ${
+                    className={`py-3 px-2 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
                       isDark 
-                        ? 'bg-[#0E1F16] border-emerald-500/25 text-emerald-200' 
-                        : 'bg-[#EAF6EE] border-[#BEE9CB] text-[#064E3B]'
+                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#3B3833] text-[#F7F5F0] hover:bg-[#272522]' 
+                        : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] hover:border-[#DDD8CF] text-[#1C1B1A]'
                     }`}
                   >
-                    <div className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-2xs">
+                    <div className="w-7 h-7 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 dark:text-emerald-400 flex items-center justify-center shadow-2xs">
                       <MessageCircle className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-black">Chat with Host &gt;</span>
-                  </a>
+                    <span className="text-[11px] font-medium tracking-tight">
+                      {language === 'ka' ? 'ჩატი' : language === 'ru' ? 'Чат' : 'Chat'}
+                    </span>
+                  </motion.a>
 
-                  <a
+                  <motion.a
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                     href={`tel:${property.hostPhone}`}
-                    className={`py-3 px-2 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all duration-200 active:scale-95 shadow-xs ${
+                    className={`py-3 px-2 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
                       isDark 
-                        ? 'bg-[#0F1A2A] border-sky-500/25 text-sky-200' 
-                        : 'bg-[#EBF3FE] border-[#B8D7FC] text-[#0369A1]'
+                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#3B3833] text-[#F7F5F0] hover:bg-[#272522]' 
+                        : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] hover:border-[#DDD8CF] text-[#1C1B1A]'
                     }`}
                   >
-                    <div className="w-7 h-7 rounded-full bg-sky-600 text-white flex items-center justify-center shadow-2xs">
+                    <div className="w-7 h-7 rounded-xl bg-[#748C96]/15 border border-[#748C96]/30 text-[#748C96] dark:text-[#98B1BC] flex items-center justify-center shadow-2xs">
                       <Phone className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-black">Call Host &gt;</span>
-                  </a>
+                    <span className="text-[11px] font-medium tracking-tight">
+                      {language === 'ka' ? 'ზარი' : language === 'ru' ? 'Звонок' : 'Call'}
+                    </span>
+                  </motion.a>
 
-                  <a
+                  <motion.a
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                     href={`tel:${property.emergencyServicesNumber || '112'}`}
-                    className={`py-3 px-2 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all duration-200 active:scale-95 shadow-xs ${
+                    className={`py-3 px-2 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
                       isDark 
-                        ? 'bg-[#251010] border-red-500/25 text-red-200' 
-                        : 'bg-[#FDECEC] border-[#FBC4C4] text-[#7F1D1D]'
+                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#3B3833] text-[#F7F5F0] hover:bg-[#272522]' 
+                        : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] hover:border-[#DDD8CF] text-[#1C1B1A]'
                     }`}
                   >
-                    <div className="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] font-black shadow-2xs">
+                    <div className="w-7 h-7 rounded-xl bg-red-500/15 border border-red-500/30 text-red-500 dark:text-red-400 flex items-center justify-center text-[10px] font-bold shadow-2xs">
                       SOS
                     </div>
-                    <span className="text-[11px] font-black">Emergency &gt;</span>
-                  </a>
+                    <span className="text-[11px] font-medium tracking-tight">112 SOS</span>
+                  </motion.a>
                 </div>
               </div>
 
-              {/* 10. "EXPLORE TBILISI LIKE A LOCAL" ILLUSTRATED BANNER */}
-              <div className={`p-5 rounded-[26px] border relative overflow-hidden flex flex-col justify-between transition-all duration-300 shadow-md ${
+              {/* 10. "EXPLORE TBILISI LIKE A LOCAL" BANNER */}
+              <motion.div 
+                whileHover={{ y: -2 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                className={`p-5 rounded-2xl border relative overflow-hidden flex flex-col justify-between transition-all shadow-warm-md ${
                 isDark 
-                  ? 'bg-gradient-to-br from-[#1C1610] via-[#14100C] to-[#0D0B08] border-amber-500/30 text-stone-100' 
-                  : 'bg-gradient-to-br from-[#FAF5EC] via-[#F4EDE0] to-[#EFE4D2] border-[#E2D4BF] text-stone-900'
+                  ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
+                  : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
               }`}>
-                {/* Background Panoramic Engraving of Tbilisi */}
-                <div className="absolute inset-0 pointer-events-none opacity-40">
+                {/* Background Panoramic Sketch */}
+                <div className="absolute inset-0 pointer-events-none opacity-15">
                   <TbilisiPanoramaSketch isDark={isDark} />
                 </div>
 
                 <div className="relative z-10 space-y-1 mb-4">
-                  <div className="flex items-center gap-1.5 text-[#B45309] dark:text-[#E4E98E] font-bold text-xs">
+                  <div className="flex items-center gap-1.5 text-[#ACA79F] font-medium text-xs">
                     <span>✨</span>
                     <span className="text-[10px] font-mono uppercase tracking-wider">Curated by Stumari</span>
                   </div>
-                  <h3 className="font-serif text-xl sm:text-2xl font-bold tracking-tight">
-                    Explore Tbilisi Like a Local
+                  <h3 className="text-xl sm:text-2xl font-serif font-bold tracking-tight">
+                    {language === 'ka' ? 'აღმოაჩინეთ თბილისი როგორც ადგილობრივმა' : language === 'ru' ? 'Исследуйте Тбилиси как местный житель' : 'Explore Tbilisi Like a Local'}
                   </h3>
                 </div>
 
                 <div className="relative z-10 flex justify-end">
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.96 }}
                     onClick={() => {
                       triggerHaptic();
                       setActiveTab('gems');
                     }}
-                    className="px-4 py-2 rounded-xl bg-[#E5EDA8] hover:bg-[#d8e293] text-stone-950 font-bold text-xs flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
+                    className="px-4 py-2 rounded-xl bg-[#F55A51] hover:bg-[#E04840] text-white font-medium text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-all"
                   >
-                    <span>Discover Gems &gt;</span>
-                  </button>
+                    <span>{language === 'ka' ? 'ადგილების ნახვა' : language === 'ru' ? 'Смотреть места' : 'Discover Gems'}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </motion.button>
                 </div>
-              </div>
+              </motion.div>
 
-            </div>
+            </motion.div>
           )}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
           {/* TAB 2: GEMS (Curated Local Secrets & Tbilisi Library)           */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {activeTab === 'gems' && (
-            <div className="p-4 pb-4 animate-in fade-in duration-200">
+            <motion.div 
+              key="tab-gems"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="p-4 pb-4"
+            >
               <StumariGemsSection 
                 hostName={property.hostName} 
                 hostAvatar={property.hostAvatar} 
               />
-            </div>
+            </motion.div>
           )}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
           {/* TAB 3: EXPLORE (Interactive Offline Map & Getting Around)        */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {activeTab === 'explore' && (
-            <div className="flex flex-col h-[740px] animate-in fade-in duration-200">
+            <motion.div 
+              key="tab-explore"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="flex flex-col h-[740px]"
+            >
               {/* Segmented Switcher: Map vs Transit info */}
               <div className={`px-4 py-3 border-b flex items-center justify-between shrink-0 transition-colors ${
-                isDark ? 'border-stone-800 bg-[#0B0F13]' : 'border-stone-200 bg-white'
+                isDark ? 'border-[#2B2926] bg-[#141312]' : 'border-[#EBE6DF] bg-[#FAF8F5]'
               }`}>
                 <div>
-                  <span className="text-xs sm:text-sm font-bold font-serif block text-stone-950 dark:text-stone-100">
+                  <span className="text-xs sm:text-sm font-semibold block tracking-tight">
                     {exploreViewMode === 'map' 
                       ? (language === 'ka' ? 'თბილისის ინტერაქტიული რუკა' : language === 'ru' ? 'Интерактивная карта' : 'Interactive Tbilisi Map')
                       : (language === 'ka' ? 'ტრანსპორტი და გადაადგილება' : language === 'ru' ? 'Транспорт и такси' : 'Transit, Taxis & Etiquette')}
                   </span>
-                  <span className={`text-[11px] font-semibold ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>
+                  <span className={`text-[11px] font-medium tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'}`}>
                     {exploreViewMode === 'map' ? 'Offline-ready · Walk times' : 'Local transport guides & tips'}
                   </span>
                 </div>
 
-                <div className={`p-1 rounded-2xl border flex items-center text-xs font-bold ${
-                  isDark ? 'bg-stone-900 border-stone-800' : 'bg-stone-100 border-stone-300'
+                <div className={`p-1 rounded-xl border flex items-center text-xs font-medium relative shadow-2xs ${
+                  isDark ? 'bg-[#1F1E1C] border-[#2B2926]' : 'bg-[#F3EFE9] border-[#EBE6DF]'
                 }`}>
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => {
                       triggerHaptic();
                       setExploreViewMode('map');
                     }}
-                    className={`px-3 py-1.5 rounded-xl transition-all font-bold ${
+                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold relative z-10 cursor-pointer ${
                       exploreViewMode === 'map'
-                        ? isDark ? 'bg-[#E4E98E] text-[#0C1510] shadow-xs' : 'bg-stone-950 text-white shadow-xs'
-                        : isDark ? 'text-stone-300 hover:text-white' : 'text-stone-700 hover:text-stone-950'
+                        ? 'text-white'
+                        : isDark ? 'text-[#ACA79F] hover:text-[#F7F5F0]' : 'text-[#5C5853] hover:text-[#1C1B1A]'
                     }`}
                   >
-                    {language === 'ka' ? '🗺️ რუკა' : language === 'ru' ? '🗺️ Карта' : '🗺️ Map'}
-                  </button>
-                  <button
+                    {exploreViewMode === 'map' && (
+                      <motion.div
+                        layoutId="activeExploreSegment"
+                        transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+                        className="absolute inset-0 rounded-lg shadow-xs bg-[#F55A51]"
+                      />
+                    )}
+                    <span className="relative z-10">{language === 'ka' ? '🗺️ რუკა' : language === 'ru' ? '🗺️ Карта' : '🗺️ Map'}</span>
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => {
                       triggerHaptic();
                       setExploreViewMode('list');
                     }}
-                    className={`px-3 py-1.5 rounded-xl transition-all font-bold ${
+                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold relative z-10 cursor-pointer ${
                       exploreViewMode === 'list'
-                        ? isDark ? 'bg-[#E4E98E] text-[#0C1510] shadow-xs' : 'bg-stone-950 text-white shadow-xs'
-                        : isDark ? 'text-stone-300 hover:text-white' : 'text-stone-700 hover:text-stone-950'
+                        ? 'text-white'
+                        : isDark ? 'text-[#ACA79F] hover:text-[#F7F5F0]' : 'text-[#5C5853] hover:text-[#1C1B1A]'
                     }`}
                   >
-                    {language === 'ka' ? '🚕 ტრანსპორტი' : language === 'ru' ? '🚕 Транспорт' : '🚕 Transit'}
-                  </button>
+                    {exploreViewMode === 'list' && (
+                      <motion.div
+                        layoutId="activeExploreSegment"
+                        transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+                        className="absolute inset-0 rounded-lg shadow-xs bg-[#F55A51]"
+                      />
+                    )}
+                    <span className="relative z-10">{language === 'ka' ? '🚕 ტრანსპორტი' : language === 'ru' ? '🚕 Транспорт' : '🚕 Transit'}</span>
+                  </motion.button>
                 </div>
               </div>
 
@@ -831,31 +1014,33 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
                   />
                 </div>
               ) : (
-                <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+                <div className="p-4 space-y-3.5 flex-1 overflow-y-auto">
                   
                   {/* Taxi / Bolt */}
-                  <div className={`p-4 rounded-2xl border space-y-2.5 transition-all duration-300 hover:translate-y-[-3px] ${
+                  <div className={`p-4 rounded-2xl border space-y-2.5 transition-all shadow-warm-sm hover:shadow-warm-md ${
                     isDark 
-                      ? 'bg-emerald-950/25 backdrop-blur-md border-emerald-500/30 text-stone-100 ring-1 ring-emerald-500/10 shadow-md' 
-                      : 'bg-[#F0FDF4] border-emerald-300 text-stone-900 shadow-sm'
+                      ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
+                      : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
                   }`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                          isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-200 text-emerald-800'
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-2xs ${
+                          isDark ? 'bg-[#748C96]/15 border-[#748C96]/30 text-[#98B1BC]' : 'bg-[#F0F4F6] border-[#748C96]/25 text-[#47606B]'
                         }`}>
-                          <Car className="w-5 h-5 stroke-[2.2]" />
+                          <Car className="w-4 h-4" />
                         </div>
                         <div>
-                          <span className="text-sm sm:text-base font-bold block text-stone-950 dark:text-stone-100">{t.propertyHub.forms.taxiBolt}</span>
-                          <span className={`text-xs font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>Bolt App · Recommended Taxi</span>
+                          <span className="text-sm font-semibold block tracking-tight">{t.propertyHub.forms.taxiBolt}</span>
+                          <span className={`text-xs font-medium tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>Bolt App · Recommended Taxi</span>
                         </div>
                       </div>
-                      <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-800 dark:text-emerald-300">
+                      <span className={`text-xs font-mono font-medium px-2 py-0.5 rounded-lg border ${
+                        isDark ? 'bg-[#272522] text-[#F7F5F0] border-[#3B3833]' : 'bg-[#F3EFE9] text-[#1C1B1A] border-[#EBE6DF]'
+                      }`}>
                         ~5-7 GEL
                       </span>
                     </div>
-                    <p className={`text-xs sm:text-sm leading-relaxed font-medium ${isDark ? 'text-stone-200' : 'text-stone-800'}`}>
+                    <p className={`text-xs sm:text-sm leading-relaxed font-normal tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                       {property.taxiInfo}
                     </p>
                     <div className="pt-1 flex items-center justify-between">
@@ -863,121 +1048,125 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
                         href="https://bolt.eu"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition-all active:scale-95 bg-[#F55A51] hover:bg-[#E04840] text-white cursor-pointer"
                       >
                         <span>{language === 'ka' ? 'Bolt ტაქსის გამოძახება' : language === 'ru' ? 'Вызвать Bolt' : 'Open Bolt App'}</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
+                        <ExternalLink className="w-3 h-3" />
                       </a>
-                      <span className={`text-[11px] font-semibold ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>
+                      <span className={`text-[11px] font-normal tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'}`}>
                         Destination pre-sets
                       </span>
                     </div>
                   </div>
 
                   {/* Public Transit / Metro */}
-                  <div className={`p-4 rounded-2xl border space-y-2.5 transition-all duration-300 hover:translate-y-[-3px] ${
+                  <div className={`p-4 rounded-2xl border space-y-2.5 transition-all shadow-warm-sm hover:shadow-warm-md ${
                     isDark 
-                      ? 'bg-sky-950/25 backdrop-blur-md border-sky-500/30 text-stone-100 ring-1 ring-sky-500/10 shadow-md' 
-                      : 'bg-[#F0F9FF] border-sky-300 text-stone-900 shadow-sm'
+                      ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
+                      : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
                   }`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                          isDark ? 'bg-sky-500/20 text-sky-400' : 'bg-sky-200 text-sky-800'
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-2xs ${
+                          isDark ? 'bg-[#748C96]/15 border-[#748C96]/30 text-[#98B1BC]' : 'bg-[#F0F4F6] border-[#748C96]/25 text-[#47606B]'
                         }`}>
-                          <Bus className="w-5 h-5 stroke-[2.2]" />
+                          <Bus className="w-4 h-4" />
                         </div>
                         <div>
-                          <span className="text-sm sm:text-base font-bold block text-stone-950 dark:text-stone-100">{t.propertyHub.forms.transitMetro}</span>
-                          <span className={`text-xs font-semibold ${isDark ? 'text-sky-400' : 'text-sky-800'}`}>{t.guestGuide.cards.transport}</span>
+                          <span className="text-sm font-semibold block tracking-tight">{t.propertyHub.forms.transitMetro}</span>
+                          <span className={`text-xs font-medium tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>{t.guestGuide.cards.transport}</span>
                         </div>
                       </div>
-                      <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-sky-500/20 text-sky-800 dark:text-sky-300">
+                      <span className={`text-xs font-mono font-medium px-2 py-0.5 rounded-lg border ${
+                        isDark ? 'bg-[#272522] text-[#F7F5F0] border-[#3B3833]' : 'bg-[#F3EFE9] text-[#1C1B1A] border-[#EBE6DF]'
+                      }`}>
                         1.00 GEL
                       </span>
                     </div>
-                    <p className={`text-xs sm:text-sm leading-relaxed font-medium ${isDark ? 'text-stone-200' : 'text-stone-800'}`}>
+                    <p className={`text-xs sm:text-sm leading-relaxed font-normal tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                       {property.transitInfo}
                     </p>
                     <div className={`p-2.5 rounded-xl border text-xs font-medium flex items-center gap-2 ${
-                      isDark ? 'bg-sky-950/40 border-sky-800/40 text-sky-200' : 'bg-white border-sky-200 text-sky-950'
+                      isDark ? 'bg-[#272522] border-[#3B3833] text-[#F7F5F0]' : 'bg-[#F3EFE9] border-[#EBE6DF] text-[#1C1B1A]'
                     }`}>
-                      <CreditCard className="w-4 h-4 text-sky-500 shrink-0" />
+                      <CreditCard className="w-4 h-4 text-[#748C96] shrink-0" />
                       <span><strong>Tip:</strong> Tap your physical Visa / Mastercard directly at turnstiles (1.00 GEL / 90 min free transfer).</span>
                     </div>
                   </div>
 
                   {/* Airport Transit */}
-                  <div className={`p-4 rounded-2xl border space-y-2.5 transition-all duration-300 hover:translate-y-[-3px] ${
+                  <div className={`p-4 rounded-2xl border space-y-2.5 transition-all shadow-warm-sm hover:shadow-warm-md ${
                     isDark 
-                      ? 'bg-amber-950/25 backdrop-blur-md border-amber-500/30 text-stone-100 ring-1 ring-amber-500/10 shadow-md' 
-                      : 'bg-[#FFFBEB] border-amber-300 text-stone-900 shadow-sm'
+                      ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
+                      : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
                   }`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                          isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-200 text-amber-800'
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-2xs ${
+                          isDark ? 'bg-[#FFC757]/15 border-[#FFC757]/30 text-[#FFC757]' : 'bg-[#FFF9ED] border-[#FFC757]/30 text-[#996F00]'
                         }`}>
-                          <Compass className="w-5 h-5 stroke-[2.2]" />
+                          <Compass className="w-4 h-4" />
                         </div>
                         <div>
-                          <span className="text-sm sm:text-base font-bold block text-stone-950 dark:text-stone-100">{t.propertyHub.forms.airportTransit}</span>
-                          <span className={`text-xs font-semibold ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>TBS Shota Rustaveli Airport (~17 km)</span>
+                          <span className="text-sm font-semibold block tracking-tight">{t.propertyHub.forms.airportTransit}</span>
+                          <span className={`text-xs font-medium tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>TBS Shota Rustaveli Airport (~17 km)</span>
                         </div>
                       </div>
-                      <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-800 dark:text-amber-300">
+                      <span className={`text-xs font-mono font-medium px-2 py-0.5 rounded-lg border ${
+                        isDark ? 'bg-[#272522] text-[#F7F5F0] border-[#3B3833]' : 'bg-[#F3EFE9] text-[#1C1B1A] border-[#EBE6DF]'
+                      }`}>
                         ~25-30 GEL
                       </span>
                     </div>
-                    <p className={`text-xs sm:text-sm leading-relaxed font-medium ${isDark ? 'text-stone-200' : 'text-stone-800'}`}>
+                    <p className={`text-xs sm:text-sm leading-relaxed font-normal tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                       {property.airportTransit}
                     </p>
                   </div>
 
-                  {/* Local City Etiquette & Culture Quick Cheat Sheet */}
-                  <div className={`p-4 rounded-2xl border space-y-3 ${
-                    isDark ? 'bg-[#14191C] border-stone-800 text-stone-100' : 'bg-white border-stone-300 text-stone-900 shadow-sm'
+                  {/* Local City Etiquette */}
+                  <div className={`p-4 rounded-2xl border space-y-3 shadow-warm-sm ${
+                    isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
                   }`}>
                     <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-[#E4E98E]" />
-                      <h4 className="font-serif font-bold text-sm sm:text-base">
+                      <Sparkles className="w-4 h-4 text-[#FFC757]" />
+                      <h4 className="font-serif font-bold text-sm sm:text-base tracking-tight">
                         {language === 'ka' ? 'თბილისური რჩევები და ეტიკეტი' : language === 'ru' ? 'Советы и этикет в Тбилиси' : 'Tbilisi Etiquette & Local Notes'}
                       </h4>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      <div className={`p-2.5 rounded-xl border ${
-                        isDark ? 'bg-stone-900/60 border-stone-800' : 'bg-stone-50 border-stone-200'
+                      <div className={`p-3 rounded-xl border ${
+                        isDark ? 'bg-[#272522] border-[#3B3833]' : 'bg-[#FAF8F5] border-[#EBE6DF]'
                       }`}>
-                        <span className="font-bold block text-stone-950 dark:text-white mb-0.5">💧 Tap Water</span>
-                        <p className={`leading-relaxed ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                        <span className="font-semibold block mb-0.5 tracking-tight">💧 Tap Water</span>
+                        <p className={`leading-relaxed ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                           Tbilisi tap water comes from mountain reservoirs and is 100% clean and delicious to drink.
                         </p>
                       </div>
 
-                      <div className={`p-2.5 rounded-xl border ${
-                        isDark ? 'bg-stone-900/60 border-stone-800' : 'bg-stone-50 border-stone-200'
+                      <div className={`p-3 rounded-xl border ${
+                        isDark ? 'bg-[#272522] border-[#3B3833]' : 'bg-[#FAF8F5] border-[#EBE6DF]'
                       }`}>
-                        <span className="font-bold block text-stone-950 dark:text-white mb-0.5">💳 Cards Everywhere</span>
-                        <p className={`leading-relaxed ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                        <span className="font-semibold block mb-0.5 tracking-tight">💳 Cards Everywhere</span>
+                        <p className={`leading-relaxed ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                           Apple Pay and contactless cards work almost everywhere. Cash is only needed for small church stalls or flea markets.
                         </p>
                       </div>
 
-                      <div className={`p-2.5 rounded-xl border ${
-                        isDark ? 'bg-stone-900/60 border-stone-800' : 'bg-stone-50 border-stone-200'
+                      <div className={`p-3 rounded-xl border ${
+                        isDark ? 'bg-[#272522] border-[#3B3833]' : 'bg-[#FAF8F5] border-[#EBE6DF]'
                       }`}>
-                        <span className="font-bold block text-stone-950 dark:text-white mb-0.5">🗣️ Georgian Words</span>
-                        <p className={`leading-relaxed ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                        <span className="font-semibold block mb-0.5 tracking-tight">🗣️ Georgian Words</span>
+                        <p className={`leading-relaxed ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                           <strong>Gamarjoba</strong> (Hello) · <strong>Madloba</strong> (Thank you) · <strong>Gaumarjos</strong> (Cheers!)
                         </p>
                       </div>
 
-                      <div className={`p-2.5 rounded-xl border ${
-                        isDark ? 'bg-stone-900/60 border-stone-800' : 'bg-stone-50 border-stone-200'
+                      <div className={`p-3 rounded-xl border ${
+                        isDark ? 'bg-[#272522] border-[#3B3833]' : 'bg-[#FAF8F5] border-[#EBE6DF]'
                       }`}>
-                        <span className="font-bold block text-stone-950 dark:text-white mb-0.5">🥟 Khinkali Rule</span>
-                        <p className={`leading-relaxed ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                        <span className="font-semibold block mb-0.5 tracking-tight">🥟 Khinkali Rule</span>
+                        <p className={`leading-relaxed ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                           Never use a fork! Grab the crown by hand, bite the side, sip the broth first, then eat. Leave the tail on the plate.
                         </p>
                       </div>
@@ -986,29 +1175,36 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
 
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
           {/* TAB 4: REVIEW (Direct Feedback Engine)                          */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {activeTab === 'feedback' && (
-            <div className="p-4 space-y-4 animate-in fade-in duration-200">
+            <motion.div
+              key="tab-feedback"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="p-4 space-y-4"
+            >
               
-              <div className={`p-6 rounded-[28px] border text-center space-y-4 ${
+              <div className={`p-6 rounded-2xl border text-center space-y-4 shadow-warm-md ${
                 isDark 
-                  ? 'bg-gradient-to-b from-amber-950/25 via-[#12161A] to-[#0A0E11] border-amber-500/30 ring-1 ring-amber-500/10 shadow-xl' 
-                  : 'bg-gradient-to-b from-[#FFFBEB] via-[#FEF3C7]/40 to-white border-amber-300 shadow-md'
+                  ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
+                  : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
               }`}>
-                <div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center mx-auto shadow-inner ring-1 ring-amber-500/30">
-                  <Star className="w-8 h-8 fill-amber-400 text-amber-400 animate-bounce" />
+                <div className="w-14 h-14 rounded-2xl bg-[#FFF9ED] dark:bg-[#FFC757]/15 border border-[#FFC757]/30 text-[#FFC757] flex items-center justify-center mx-auto shadow-2xs">
+                  <Star className="w-7 h-7 fill-[#FFC757] text-[#FFC757]" />
                 </div>
                 
                 <div>
-                  <h2 className="font-serif text-2xl font-bold tracking-tight text-stone-950 dark:text-white">
+                  <h2 className="text-2xl font-serif font-bold tracking-tight">
                     {language === 'ka' ? 'როგორ ჩაიარა თქვენმა დასვენებამ?' : language === 'ru' ? 'Как прошло ваше пребывание?' : 'How was your stay?'}
                   </h2>
-                  <p className={`text-xs sm:text-sm mt-1.5 max-w-sm mx-auto font-medium leading-relaxed ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                  <p className={`text-xs sm:text-sm mt-1.5 max-w-sm mx-auto font-normal leading-relaxed tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                     {language === 'ka' 
                       ? 'თქვენი შეფასება გვეხმარება გავხდეთ უკეთესი, ხოლო საუკეთესო შთაბეჭდილებები გაუზიაროთ მსოფლიოს.'
                       : language === 'ru'
@@ -1026,10 +1222,10 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
                         triggerHaptic();
                         setIsReviewModalOpen(true);
                       }}
-                      className="p-2 rounded-2xl bg-amber-500/15 hover:bg-amber-500/30 text-amber-400 hover:scale-115 active:scale-95 transition-all shadow-2xs group"
+                      className="p-2 rounded-xl bg-[#FFF9ED] dark:bg-[#FFC757]/10 border border-[#FFC757]/30 text-[#FFC757] hover:scale-110 active:scale-95 transition-all shadow-2xs cursor-pointer"
                       title={`Rate ${star} Stars`}
                     >
-                      <Star className="w-7 h-7 fill-amber-400 text-amber-400 group-hover:drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
+                      <Star className="w-6 h-6 fill-[#FFC757] text-[#FFC757]" />
                     </button>
                   ))}
                 </div>
@@ -1040,25 +1236,25 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
                     triggerHaptic();
                     setIsReviewModalOpen(true);
                   }}
-                  className="w-full py-4 rounded-2xl bg-[#E4E98E] hover:bg-[#d8dd80] text-stone-950 font-black text-xs sm:text-sm shadow-lg transition-all active:scale-95"
+                  className="w-full py-3.5 rounded-xl bg-[#F55A51] hover:bg-[#E04840] text-white font-semibold text-xs sm:text-sm shadow-md transition-all active:scale-98 cursor-pointer"
                 >
                   {language === 'ka' ? 'შეფასების დატოვება ⭐⭐⭐⭐⭐' : language === 'ru' ? 'Оставить отзыв ⭐⭐⭐⭐⭐' : 'Start Stay Feedback ⭐⭐⭐⭐⭐'}
                 </button>
               </div>
 
               {/* Host Promise Note & Direct Fast WhatsApp */}
-              <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 shadow-xs ${
-                isDark ? 'bg-[#14191C] border-stone-800 ring-1 ring-white/5' : 'bg-white border-stone-300'
+              <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 shadow-warm-sm ${
+                isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
               }`}>
                 <div className="flex items-center gap-3">
                   <img 
                     src={property.hostAvatar} 
                     alt={property.hostName} 
-                    className="w-12 h-12 rounded-full object-cover border-2 border-emerald-500 shrink-0 shadow-xs" 
+                    className="w-11 h-11 rounded-full object-cover border border-[#EBE6DF] dark:border-[#2B2926] shrink-0 shadow-xs" 
                   />
                   <div className="text-xs">
-                    <span className="font-bold text-sm block text-stone-950 dark:text-stone-100">{property.hostName}'s Promise</span>
-                    <span className={`block text-xs mt-0.5 font-medium ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                    <span className="font-semibold text-sm block tracking-tight">{property.hostName}'s Promise</span>
+                    <span className={`block text-xs mt-0.5 font-normal tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                       "Any issue during your stay? Text me on WhatsApp so I can solve it within minutes!"
                     </span>
                   </div>
@@ -1068,49 +1264,56 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
                   href={`https://wa.me/${property.hostWhatsApp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${property.hostName}, I am currently staying at ${property.title}.`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white shrink-0 active:scale-95 transition-all shadow-xs"
+                  className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shrink-0 active:scale-95 transition-all shadow-xs"
                   title="Direct WhatsApp"
                 >
-                  <MessageCircle className="w-5 h-5 stroke-[2.2]" />
+                  <MessageCircle className="w-5 h-5" />
                 </a>
               </div>
 
-            </div>
+            </motion.div>
           )}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
           {/* TAB 5: HOST & HELP (Saba Superhost, WhatsApp, Emergency 112)   */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           {activeTab === 'host' && (
-            <div className="p-4 space-y-4 animate-in fade-in duration-200">
+            <motion.div
+              key="tab-host"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="p-4 space-y-4"
+            >
               
               {/* Host Card */}
-              <div className={`p-6 rounded-[28px] border text-center space-y-3.5 shadow-md ${
+              <div className={`p-6 rounded-2xl border text-center space-y-4 shadow-warm-md ${
                 isDark 
-                  ? 'bg-gradient-to-b from-white/[0.08] via-white/[0.04] to-white/[0.01] backdrop-blur-md border-white/10 ring-1 ring-white/5' 
-                  : 'bg-gradient-to-b from-[#F4F7EB] via-[#EDF3EF]/60 to-white border-stone-300'
+                  ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
+                  : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
               }`}>
                 <div className="relative inline-block mx-auto">
                   <img
                     src={property.hostAvatar}
                     alt={property.hostName}
-                    className="w-22 h-22 rounded-full object-cover border-3 border-[#E4E98E] shadow-lg"
+                    className="w-20 h-20 rounded-full object-cover border-2 border-[#EBE6DF] dark:border-[#2B2926] shadow-warm-sm"
                   />
-                  <span className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-black shadow-md ring-2 ring-white dark:ring-stone-900">
+                  <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold shadow-2xs ring-2 ring-white dark:ring-[#141312]">
                     ✓
                   </span>
                 </div>
 
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-stone-950 dark:text-white">
+                  <h3 className="text-2xl font-serif font-bold tracking-tight">
                     {property.hostName}
                   </h3>
                   <div className="flex items-center justify-center gap-2 mt-1">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-400/20 text-amber-800 dark:text-amber-300 border border-amber-400/30">
+                    <span className="px-2.5 py-0.5 rounded-lg text-xs font-semibold uppercase tracking-wider bg-[#FFF9ED] dark:bg-[#FFC757]/15 text-[#996F00] dark:text-[#FFC757] border border-[#FFC757]/30">
                       ★ {property.hostRole || 'Superhost'} · 5.0 (120+ stays)
                     </span>
                   </div>
-                  <p className={`text-xs sm:text-sm mt-2 max-w-sm mx-auto font-medium leading-relaxed ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                  <p className={`text-xs sm:text-sm mt-2 max-w-sm mx-auto font-normal leading-relaxed tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
                     {property.welcomeGreeting || 'Always happy to help make your Tbilisi stay unforgettable. I usually reply within 5 minutes.'}
                   </p>
                 </div>
@@ -1121,85 +1324,101 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
                     href={`https://wa.me/${property.hostWhatsApp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${property.hostName}, I am staying at ${property.title}.`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="py-3.5 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all"
+                    className="py-3 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-98 transition-all cursor-pointer"
                   >
-                    <MessageCircle className="w-4 h-4 stroke-[2.2]" />
+                    <MessageCircle className="w-4 h-4" />
                     <span>WhatsApp</span>
                   </a>
 
                   <a
                     href={`tel:${property.hostPhone}`}
-                    className={`py-3.5 px-3 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all ${
-                      isDark ? 'bg-stone-800 hover:bg-stone-700 text-white border border-stone-700' : 'bg-stone-950 hover:bg-stone-850 text-white'
+                    className={`py-3 px-3 rounded-xl font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-98 transition-all border cursor-pointer ${
+                      isDark ? 'bg-[#272522] hover:bg-[#322F2B] text-[#F7F5F0] border-[#3B3833]' : 'bg-[#FAF8F5] hover:bg-[#EAE4DC] text-[#1C1B1A] border-[#EBE6DF]'
                     }`}
                   >
-                    <Phone className="w-4 h-4 stroke-[2.2]" />
+                    <Phone className="w-4 h-4" />
                     <span>{language === 'ka' ? 'დარეკვა' : language === 'ru' ? 'Позвонить' : 'Call Host'}</span>
                   </a>
                 </div>
+
+                {/* Direct Request to Host Team */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic();
+                    setIsRequestModalOpen(true);
+                  }}
+                  className="w-full mt-2 py-3 px-4 rounded-xl bg-[#F55A51] hover:bg-[#E04840] text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm active:scale-98 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-[#FFC757]" />
+                  <span>{language === 'ka' ? 'მოთხოვნის გაგზავნა (პირსახოცები, დახმარება)' : 'Send Request to Host (Linens, Luggage, Help)'}</span>
+                </button>
               </div>
 
               {/* Property Address & Map Shortcut Card */}
-              <div className={`p-4 rounded-2xl border space-y-2.5 ${
-                isDark ? 'bg-[#14191C] border-stone-800 text-stone-100' : 'bg-white border-stone-300 text-stone-900 shadow-xs'
+              <div className={`p-4 rounded-2xl border space-y-2.5 shadow-warm-sm ${
+                isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-emerald-500" />
-                    <span className="text-xs font-mono uppercase font-black tracking-wider text-stone-950 dark:text-stone-100">
+                    <MapPin className="w-4 h-4 text-[#F55A51]" />
+                    <span className="text-xs font-mono uppercase font-semibold tracking-wider text-[#ACA79F]">
                       Apartment Address
                     </span>
                   </div>
                   <button
                     onClick={() => handleCopy(`${property.address}, ${property.city}`, 'door')}
-                    className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                    className="text-xs font-medium text-[#748C96] hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <Copy className="w-3.5 h-3.5" />
-                    <span>Copy</span>
+                    <span>{language === 'ka' ? 'კოპირება' : 'Copy'}</span>
                   </button>
                 </div>
-                <p className={`text-xs sm:text-sm font-semibold ${isDark ? 'text-stone-200' : 'text-stone-900'}`}>
+                <p className="text-xs sm:text-sm font-semibold tracking-tight">
                   {property.address}, {property.city}
                 </p>
                 <a
                   href={`https://maps.google.com/?q=${encodeURIComponent(property.address + ', ' + property.city)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+                  className={`w-full py-2.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-2 shadow-2xs transition-colors cursor-pointer ${
+                    isDark ? 'bg-[#272522] border-[#3B3833] text-[#F7F5F0] hover:bg-[#322F2B]' : 'bg-[#FAF8F5] border-[#EBE6DF] text-[#1C1B1A] hover:bg-[#EAE4DC]'
+                  }`}
                 >
-                  <Navigation className="w-3.5 h-3.5 text-emerald-500" />
+                  <Navigation className="w-3.5 h-3.5 text-[#748C96]" />
                   <span>Open in Google Maps for Taxi / Couriers</span>
                 </a>
               </div>
 
               {/* Emergency Services 112 Card */}
-              <div className={`p-4 rounded-2xl border space-y-2.5 ${
-                isDark ? 'bg-red-950/30 backdrop-blur-md border-red-500/30 text-red-100 ring-1 ring-red-500/10' : 'bg-red-50 border-red-300 text-stone-950'
+              <div className={`p-4 rounded-2xl border space-y-2.5 shadow-warm-sm ${
+                isDark ? 'bg-[#281518] border-red-900/40 text-red-100' : 'bg-red-50/70 border-red-200 text-stone-900'
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <ShieldAlert className="w-5 h-5 text-red-600" />
-                    <span className="font-bold text-xs uppercase tracking-wider text-red-700 dark:text-red-400">
+                    <ShieldAlert className="w-5 h-5 text-red-500" />
+                    <span className="font-bold text-xs uppercase tracking-wider text-red-600 dark:text-red-400">
                       {t.guestGuide.cards.emergency112}
                     </span>
                   </div>
                   <span className="font-mono font-black text-base text-red-600 dark:text-red-400">112</span>
                 </div>
-                <p className={`text-xs sm:text-sm leading-relaxed font-medium ${isDark ? 'text-red-200' : 'text-red-950'}`}>
+                <p className={`text-xs sm:text-sm leading-relaxed font-medium ${isDark ? 'text-red-200/90' : 'text-stone-700'}`}>
                   Police, Ambulance, and Fire Rescue in Georgia (English & Russian operators available 24/7).
                 </p>
                 <a
                   href={`tel:${property.emergencyServicesNumber || '112'}`}
-                  className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95"
+                  className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95"
                 >
                   <Phone className="w-4 h-4 stroke-[2.2]" />
                   <span>{t.guestGuide.cards.emergencyCall}</span>
                 </a>
               </div>
 
-            </div>
+            </motion.div>
           )}
 
+          </AnimatePresence>
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════ */}
@@ -1232,27 +1451,29 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
             href={`https://maps.google.com/?q=${encodeURIComponent(property.address + ', ' + property.city)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+            className="w-full py-3 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98 cursor-pointer"
           >
             <MapPin className="w-4 h-4" />
             <span>{t.guestGuide.cards.viewOnMaps}</span>
           </a>
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-4 tracking-tight">
           {/* Code Banner */}
-          <div className={`p-5 rounded-2xl border text-center space-y-2 shadow-xs ${
-            isDark ? 'bg-[#14191C] border-stone-800 ring-1 ring-emerald-500/20' : 'bg-emerald-50/70 border-emerald-300'
+          <div className={`p-5 rounded-xl border text-center space-y-2 shadow-sm ${
+            isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
           }`}>
-            <span className={`text-xs uppercase font-mono font-black tracking-wider block ${isDark ? 'text-[#E4E98E]' : 'text-emerald-900'}`}>
+            <span className={`text-xs uppercase font-mono font-semibold tracking-wider block ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
               {t.guestGuide.cards.doorCodeTitle}
             </span>
-            <div className={`font-mono text-4xl sm:text-5xl font-black tracking-widest my-1 select-all ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>
+            <div className={`font-mono text-4xl sm:text-5xl font-bold tracking-widest my-1 select-all ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
               {property.doorKeypadCode}
             </div>
             <button
               onClick={() => handleCopy(property.doorKeypadCode, 'door')}
-              className="px-4 py-2 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 transition-all active:scale-95"
+              className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm ${
+                isDark ? 'bg-zinc-800 hover:bg-zinc-750 text-zinc-200 border border-zinc-700' : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-900'
+              }`}
             >
               {doorCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               <span>{doorCopied ? t.common.copied : t.common.copy}</span>
@@ -1260,22 +1481,22 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
           </div>
 
           <div>
-            <h4 className={`font-black text-xs uppercase font-mono mb-1.5 ${isDark ? 'text-[#E4E98E]' : 'text-stone-900'}`}>
+            <h4 className={`font-semibold text-xs uppercase font-mono mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
               {t.guestGuide.cards.directionsTitle}
             </h4>
-            <p className={`p-4 rounded-2xl border text-xs sm:text-sm leading-relaxed font-medium shadow-2xs ${
-              isDark ? 'bg-[#14191C] border-stone-800 text-stone-100' : 'bg-white border-stone-300 text-stone-950'
+            <p className={`p-4 rounded-xl border text-xs sm:text-sm leading-relaxed font-normal shadow-sm ${
+              isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-900'
             }`}>
               {property.arrivalDirections}
             </p>
           </div>
 
           <div>
-            <h4 className={`font-black text-xs uppercase font-mono mb-1.5 ${isDark ? 'text-[#E4E98E]' : 'text-stone-900'}`}>
+            <h4 className={`font-semibold text-xs uppercase font-mono mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
               {t.guestGuide.cards.parkingTitle}
             </h4>
-            <p className={`p-4 rounded-2xl border text-xs sm:text-sm leading-relaxed font-medium shadow-2xs ${
-              isDark ? 'bg-[#14191C] border-stone-800 text-stone-100' : 'bg-white border-stone-300 text-stone-950'
+            <p className={`p-4 rounded-xl border text-xs sm:text-sm leading-relaxed font-normal shadow-sm ${
+              isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-900'
             }`}>
               {property.parkingInstructions}
             </p>
@@ -1291,31 +1512,33 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
         subtitle={property.wifiNetwork}
         icon={<Wifi className="w-5 h-5 text-emerald-400" />}
       >
-        <div className="space-y-4 text-center">
-          <div className={`p-6 rounded-2xl border space-y-3 shadow-xs ${
-            isDark ? 'bg-[#14191C] border-stone-800' : 'bg-stone-50 border-stone-300'
+        <div className="space-y-4 text-center tracking-tight">
+          <div className={`p-6 rounded-xl border space-y-3 shadow-sm ${
+            isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
           }`}>
-            <span className={`text-xs uppercase font-mono font-black tracking-wider block ${isDark ? 'text-stone-300' : 'text-stone-900'}`}>
+            <span className={`text-xs uppercase font-mono font-semibold tracking-wider block ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
               {t.propertyHub.forms.networkName}
             </span>
-            <div className={`text-2xl font-black font-mono select-all ${isDark ? 'text-white' : 'text-stone-950'}`}>
+            <div className={`text-2xl font-bold font-mono select-all ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
               {property.wifiNetwork}
             </div>
 
-            <div className="pt-3 border-t border-stone-200 dark:border-stone-800">
-              <span className={`text-xs uppercase font-mono font-black tracking-wider block ${isDark ? 'text-[#E4E98E]' : 'text-stone-900'}`}>
+            <div className="pt-3 border-t border-zinc-800">
+              <span className={`text-xs uppercase font-mono font-semibold tracking-wider block ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
                 {t.guestGuide.cards.wifiPassword}
               </span>
-              <div className={`text-3xl sm:text-4xl font-mono font-black tracking-widest my-2 select-all ${isDark ? 'text-[#E4E98E]' : 'text-stone-950'}`}>
+              <div className={`text-3xl sm:text-4xl font-mono font-bold tracking-widest my-2 select-all ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
                 {property.wifiPassword}
               </div>
             </div>
 
             <button
               onClick={() => handleCopy(property.wifiPassword, 'wifi')}
-              className="w-full mt-3 py-3.5 rounded-xl bg-[#E4E98E] hover:bg-[#d8dd80] text-stone-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
+              className={`w-full mt-3 py-3 rounded-xl font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer ${
+                isDark ? 'bg-zinc-100 hover:bg-white text-zinc-950' : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-100'
+              }`}
             >
-              {wifiCopied ? <Check className="w-4 h-4 stroke-[2.2]" /> : <Copy className="w-4 h-4 stroke-[2.2]" />}
+              {wifiCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               <span>{wifiCopied ? t.guestGuide.cards.passwordCopied : t.guestGuide.cards.copyPassword}</span>
             </button>
           </div>
@@ -1330,28 +1553,42 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
         subtitle={`${property.appliances.length} items with step-by-step instructions`}
         icon={<Zap className="w-5 h-5 text-sky-400" />}
       >
-        <div className="space-y-3.5">
+        <div className="space-y-3 tracking-tight">
           {property.appliances.map(app => (
             <div 
               key={app.id}
-              className={`p-4 rounded-2xl border space-y-3 transition-all shadow-xs ${
-                isDark ? 'bg-[#14191C] border-stone-800' : 'bg-white border-stone-300'
+              onClick={() => {
+                triggerHaptic();
+                setSelectedAppliance(app);
+                setActiveDrawer('selected_appliance');
+              }}
+              className={`p-4 rounded-2xl border space-y-2.5 transition-all shadow-xs cursor-pointer group hover:scale-[1.01] active:scale-[0.99] ${
+                isDark 
+                  ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-100' 
+                  : 'bg-white border-stone-200 hover:border-stone-300 text-stone-900'
               }`}
             >
-              <div className="flex items-center gap-2.5 font-bold text-base text-stone-950 dark:text-stone-100">
-                <div className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-stone-800 flex items-center justify-center shrink-0 border border-stone-200 dark:border-stone-700">
-                  {getApplianceIcon(app.icon)}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 font-semibold text-base">
+                  <div className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 border border-stone-200 dark:border-zinc-700 group-hover:scale-105 transition-transform">
+                    {getApplianceIcon(app.icon)}
+                  </div>
+                  <span className="font-semibold text-base">{app.title}</span>
                 </div>
-                <span className="font-serif font-bold text-base">{app.title}</span>
+
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold font-mono bg-[#F55A51]/15 text-[#F55A51] border border-[#F55A51]/30 flex items-center gap-1 shrink-0 group-hover:bg-[#F55A51] group-hover:text-white transition-colors">
+                  <Play className="w-3 h-3 fill-current" />
+                  <span>{language === 'ka' ? 'ვიდეო გიდი' : '10s Guide'}</span>
+                </span>
               </div>
               
-              <p className={`text-xs sm:text-sm leading-relaxed font-medium ${isDark ? 'text-stone-200' : 'text-stone-900'}`}>
+              <p className={`text-xs sm:text-sm leading-relaxed font-normal ${isDark ? 'text-zinc-300' : 'text-stone-700'}`}>
                 {app.instructions}
               </p>
 
               {app.troubleshooting && (
-                <div className={`p-2.5 rounded-xl border text-xs font-semibold flex items-start gap-2 ${
-                  isDark ? 'bg-amber-950/30 border-amber-800/50 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-950'
+                <div className={`p-2.5 rounded-xl border text-xs font-medium flex items-start gap-2 ${
+                  isDark ? 'bg-zinc-850/60 border-zinc-800 text-zinc-300' : 'bg-stone-50 border-stone-200 text-stone-800'
                 }`}>
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
                   <span><strong>Troubleshooting:</strong> {app.troubleshooting}</span>
@@ -1359,74 +1596,159 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
               )}
 
               {/* Direct Host WhatsApp Assistance */}
-              <div className="pt-2 border-t border-stone-200 dark:border-stone-800/80 flex items-center justify-between text-xs">
-                <span className={`font-semibold ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-                  {language === 'ka' ? 'მაინც გაუგებარია?' : language === 'ru' ? 'Остались вопросы?' : 'Still confused?'}
+              <div className="pt-2 border-t border-stone-200/60 dark:border-zinc-800/80 flex items-center justify-between text-xs">
+                <span className={`font-normal ${isDark ? 'text-zinc-400' : 'text-stone-500'}`}>
+                  {language === 'ka' ? 'დააწკაპუნეთ ვიდეო ინსტრუქციის სანახავად' : 'Tap to open video & guide'}
                 </span>
-                <a
-                  href={`https://wa.me/${property.hostWhatsApp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${property.hostName}, I have a question about the ${app.title} at ${property.title}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-black text-emerald-700 dark:text-[#E4E98E] hover:underline flex items-center gap-1"
-                >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  <span>Ask {property.hostName} on WhatsApp</span>
-                </a>
+                <span className="font-semibold text-[#F55A51] group-hover:underline flex items-center gap-1">
+                  <span>Open Guide</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </span>
               </div>
             </div>
           ))}
         </div>
       </MobileBottomSheet>
 
-      {/* 4. Single Selected Appliance Sheet */}
-      {selectedAppliance && (
-        <MobileBottomSheet
-          isOpen={activeDrawer === 'selected_appliance'}
-          onClose={() => {
-            setActiveDrawer(null);
-            setSelectedAppliance(null);
-          }}
-          title={selectedAppliance.title}
-          subtitle="How to use & troubleshooting"
-          icon={getApplianceIcon(selectedAppliance.icon)}
-          stickyBottomAction={
-            <a
-              href={`https://wa.me/${property.hostWhatsApp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${property.hostName}, I have a quick question about ${selectedAppliance.title} in the apartment.`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
-            >
-              <MessageCircle className="w-4 h-4 stroke-[2.2]" />
-              <span>Ask {property.hostName} on WhatsApp</span>
-            </a>
-          }
-        >
-          <div className="space-y-4">
-            <div className={`p-4 rounded-2xl border space-y-2 shadow-xs ${
-              isDark ? 'bg-[#14191C] border-stone-800' : 'bg-white border-stone-300'
-            }`}>
-              <h4 className={`font-black text-xs font-mono uppercase ${isDark ? 'text-[#E4E98E]' : 'text-stone-900'}`}>Instructions</h4>
-              <p className={`text-xs sm:text-sm leading-relaxed font-medium ${isDark ? 'text-stone-200' : 'text-stone-900'}`}>
-                {selectedAppliance.instructions}
-              </p>
-            </div>
+      {/* 4. Single Selected Appliance Interactive Modal / Drawer with 10-Sec Video */}
+      {selectedAppliance && (() => {
+        const mediaSource = selectedAppliance.mediaUrl || (selectedAppliance.id === 'app-1' || selectedAppliance.id === 'app-ob-1' ? '/tbilisi-twilight.mp4' : undefined);
+        const isVideoMedia = selectedAppliance.mediaType === 'video' || (!selectedAppliance.mediaType && mediaSource?.endsWith('.mp4'));
 
-            {selectedAppliance.troubleshooting && (
+        return (
+          <MobileBottomSheet
+            isOpen={activeDrawer === 'selected_appliance'}
+            onClose={() => {
+              setActiveDrawer(null);
+              setSelectedAppliance(null);
+            }}
+            title={selectedAppliance.title}
+            subtitle={language === 'ka' ? 'ვიდეო ინსტრუქცია და მოხმარების წესები' : 'Video instruction & step-by-step guide'}
+            icon={getApplianceIcon(selectedAppliance.icon)}
+            stickyBottomAction={
+              <a
+                href={`https://wa.me/${property.hostWhatsApp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${property.hostName}, I have a quick question about ${selectedAppliance.title} in ${property.title}.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Ask {property.hostName} on WhatsApp</span>
+              </a>
+            }
+          >
+            <div className="space-y-4 tracking-tight">
+              {/* Clean Auto-Looping 10-Second Video Player with Play/Pause & Audio controls */}
+              {mediaSource ? (
+                <div className="rounded-2xl overflow-hidden border border-stone-200 dark:border-white/10 bg-black relative shadow-lg">
+                  {isVideoMedia ? (
+                    <div className="relative aspect-video w-full bg-black flex items-center justify-center">
+                      <video
+                        ref={appVideoRef}
+                        src={mediaSource}
+                        autoPlay
+                        loop
+                        muted={isMutedAppVideo}
+                        playsInline
+                        className="w-full h-full object-cover"
+                      />
+                      
+                      {/* Video Player Floating Controls */}
+                      <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-auto">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-[10px] font-mono text-white border border-white/20">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>10s Visual Guide</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (appVideoRef.current) {
+                                if (appVideoRef.current.paused) {
+                                  appVideoRef.current.play();
+                                  setIsPlayingAppVideo(true);
+                                } else {
+                                  appVideoRef.current.pause();
+                                  setIsPlayingAppVideo(false);
+                                }
+                              }
+                            }}
+                            className="p-2 rounded-full bg-black/75 hover:bg-black text-white border border-white/20 backdrop-blur-md transition-all active:scale-95 cursor-pointer"
+                            title={isPlayingAppVideo ? "Pause" : "Play"}
+                          >
+                            {isPlayingAppVideo ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (appVideoRef.current) {
+                                appVideoRef.current.muted = !isMutedAppVideo;
+                                setIsMutedAppVideo(!isMutedAppVideo);
+                              }
+                            }}
+                            className="p-2 rounded-full bg-black/75 hover:bg-black text-white border border-white/20 backdrop-blur-md transition-all active:scale-95 cursor-pointer"
+                            title={isMutedAppVideo ? "Unmute" : "Mute"}
+                          >
+                            {isMutedAppVideo ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative aspect-video w-full bg-stone-900 flex items-center justify-center">
+                      <img
+                        src={mediaSource}
+                        alt={selectedAppliance.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/70 text-white text-[10px] font-mono border border-white/20">
+                        Photo Guide
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-2xl p-4 bg-stone-100 dark:bg-zinc-850 border border-stone-200 dark:border-zinc-700/80 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-stone-600 dark:text-zinc-300">
+                    <Video className="w-4 h-4 text-[#F55A51]" />
+                    <span>{language === 'ka' ? 'ტექსტური ინსტრუქცია' : 'Text Instructions'}</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-emerald-500 font-bold">Verified Guide</span>
+                </div>
+              )}
+
+              {/* Operating Instructions */}
               <div className={`p-4 rounded-2xl border space-y-2 shadow-xs ${
-                isDark ? 'bg-amber-950/30 border-amber-800/50 text-amber-100' : 'bg-amber-50 border-amber-300 text-stone-950'
+                isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-stone-200 text-stone-900'
               }`}>
-                <h4 className="font-black text-xs font-mono uppercase flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Troubleshooting</span>
+                <h4 className={`font-bold text-xs font-mono uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-stone-500'}`}>
+                  {language === 'ka' ? 'მოხმარების წესები' : 'Operating Instructions'}
                 </h4>
-                <p className={`text-xs sm:text-sm leading-relaxed font-semibold ${isDark ? 'text-amber-100' : 'text-stone-950'}`}>
-                  {selectedAppliance.troubleshooting}
+                <p className={`text-xs sm:text-sm leading-relaxed font-normal ${isDark ? 'text-zinc-300' : 'text-stone-700'}`}>
+                  {selectedAppliance.instructions}
                 </p>
               </div>
-            )}
-          </div>
-        </MobileBottomSheet>
-      )}
+
+              {/* Troubleshooting */}
+              {selectedAppliance.troubleshooting && (
+                <div className={`p-4 rounded-2xl border space-y-2 shadow-xs ${
+                  isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-amber-50/70 border-amber-200 text-stone-900'
+                }`}>
+                  <h4 className="font-bold text-xs font-mono uppercase flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>{language === 'ka' ? 'ხარვეზის აღმოფხვრა' : 'Troubleshooting'}</span>
+                  </h4>
+                  <p className={`text-xs sm:text-sm leading-relaxed font-normal ${isDark ? 'text-zinc-300' : 'text-stone-700'}`}>
+                    {selectedAppliance.troubleshooting}
+                  </p>
+                </div>
+              )}
+            </div>
+          </MobileBottomSheet>
+        );
+      })()}
 
       {/* 5. House Rules Sheet */}
       <MobileBottomSheet
@@ -1436,35 +1758,35 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
         subtitle="Quiet hours, garbage schedule & house norms"
         icon={<BookOpen className="w-5 h-5 text-amber-400" />}
       >
-        <div className="space-y-3.5">
-          <div className={`p-4 rounded-2xl border shadow-xs ${
-            isDark ? 'bg-[#14191C] border-stone-800' : 'bg-white border-stone-300'
+        <div className="space-y-3 tracking-tight">
+          <div className={`p-4 rounded-xl border shadow-sm ${
+            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
           }`}>
-            <span className={`font-black block text-xs font-mono uppercase mb-1.5 ${isDark ? 'text-[#E4E98E]' : 'text-stone-900'}`}>
+            <span className={`font-semibold block text-xs font-mono uppercase mb-1 ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
               {t.guestGuide.cards.quietHoursLabel}
             </span>
-            <p className={`font-black text-lg ${isDark ? 'text-stone-100' : 'text-stone-950'}`}>{property.quietHours}</p>
+            <p className={`font-bold text-lg ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{property.quietHours}</p>
           </div>
 
-          <div className={`p-4 rounded-2xl border shadow-xs ${
-            isDark ? 'bg-[#14191C] border-stone-800' : 'bg-white border-stone-300'
+          <div className={`p-4 rounded-xl border shadow-sm ${
+            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
           }`}>
-            <span className={`font-black block text-xs font-mono uppercase mb-1.5 ${isDark ? 'text-[#E4E98E]' : 'text-stone-900'}`}>
+            <span className={`font-semibold block text-xs font-mono uppercase mb-1 ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
               {t.guestGuide.cards.trashScheduleLabel}
             </span>
-            <p className={`text-xs sm:text-sm font-semibold leading-relaxed ${isDark ? 'text-stone-200' : 'text-stone-900'}`}>{property.trashSchedule}</p>
+            <p className={`text-xs sm:text-sm font-normal leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>{property.trashSchedule}</p>
           </div>
 
-          <div className={`p-4 rounded-2xl border space-y-2.5 shadow-xs ${
-            isDark ? 'bg-[#14191C] border-stone-800' : 'bg-white border-stone-300'
+          <div className={`p-4 rounded-xl border space-y-2.5 shadow-sm ${
+            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
           }`}>
-            <span className={`font-black block text-xs font-mono uppercase ${isDark ? 'text-[#E4E98E]' : 'text-stone-900'}`}>
+            <span className={`font-semibold block text-xs font-mono uppercase ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
               General House Norms
             </span>
-            <ul className="space-y-2.5">
+            <ul className="space-y-2">
               {property.houseRules.map((rule, idx) => (
-                <li key={idx} className={`flex items-start gap-2.5 text-xs sm:text-sm font-semibold ${isDark ? 'text-stone-200' : 'text-stone-900'}`}>
-                  <span className="text-[#E4E98E] font-black text-base leading-none">•</span>
+                <li key={idx} className={`flex items-start gap-2.5 text-xs sm:text-sm font-normal ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
+                  <span className="text-zinc-400 font-bold text-base leading-none">•</span>
                   <span>{rule}</span>
                 </li>
               ))}
@@ -1479,7 +1801,7 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
         onClose={() => setActiveDrawer(null)}
         title={t.guestGuide.cards.checkoutChecklist}
         subtitle={`Check-out time: ${property.checkOutTime}`}
-        icon={<CheckSquare className="w-5 h-5 text-purple-400" />}
+        icon={<CheckSquare className="w-5 h-5 text-zinc-300" />}
         stickyBottomAction={
           <button
             onClick={() => {
@@ -1487,35 +1809,35 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
               setActiveDrawer(null);
               setIsReviewModalOpen(true);
             }}
-            className="w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+            className="w-full py-3.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98 cursor-pointer"
           >
-            <Star className="w-4 h-4 fill-stone-950" />
+            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
             <span>{language === 'ka' ? 'შეაფასეთ თქვენი დასვენება ⭐⭐⭐⭐⭐' : language === 'ru' ? 'Оставить отзыв ⭐⭐⭐⭐⭐' : 'Leave Stay Review ⭐⭐⭐⭐⭐'}</span>
           </button>
         }
       >
-        <div className="space-y-3.5">
-          <p className={`text-xs sm:text-sm font-semibold leading-relaxed ${isDark ? 'text-stone-200' : 'text-stone-900'}`}>
+        <div className="space-y-3.5 tracking-tight">
+          <p className={`text-xs sm:text-sm font-normal leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
             Please complete these quick steps before turning the door latch.
           </p>
           
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {property.departureChecklist.map((item, idx) => (
               <button
                 key={idx}
                 onClick={() => toggleCheck(idx)}
-                className={`w-full p-4 rounded-2xl border text-left flex items-start gap-3 transition-all ${
+                className={`w-full p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all cursor-pointer shadow-sm ${
                   checkedItems[idx]
-                    ? isDark ? 'bg-emerald-950/40 text-stone-400 line-through border-emerald-800/60' : 'bg-emerald-50 text-stone-500 line-through border-emerald-300'
-                    : isDark ? 'bg-[#14191C] text-stone-100 border-stone-800 hover:border-stone-600' : 'bg-white text-stone-950 border-stone-300 shadow-2xs hover:border-stone-400'
+                    ? isDark ? 'bg-zinc-900/60 text-zinc-500 line-through border-zinc-800' : 'bg-zinc-100 text-zinc-400 line-through border-zinc-200'
+                    : isDark ? 'bg-zinc-900 text-zinc-200 border-zinc-800 hover:border-zinc-700' : 'bg-white text-zinc-900 border-zinc-200 hover:border-zinc-300'
                 }`}
               >
                 {checkedItems[idx] ? (
-                  <CheckSquare className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 ) : (
-                  <Square className="w-5 h-5 text-stone-400 shrink-0 mt-0.5" />
+                  <Square className="w-4 h-4 text-zinc-500 shrink-0 mt-0.5" />
                 )}
-                <span className="text-xs sm:text-sm font-bold">{item}</span>
+                <span className="text-xs sm:text-sm font-medium">{item}</span>
               </button>
             ))}
           </div>
@@ -1528,30 +1850,30 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
         onClose={() => setActiveDrawer(null)}
         title={language === 'ka' ? 'სასარგებლო ბარათები & სერვისები' : 'Useful Stickers & Essentials'}
         subtitle="24/7 Markets, Taxi Bolt, Trash, and neighborhood tips"
-        icon={<ShoppingBag className="w-5 h-5 text-amber-500" />}
+        icon={<ShoppingBag className="w-5 h-5 text-zinc-300" />}
       >
-        <div className="space-y-3.5">
+        <div className="space-y-3 tracking-tight">
           {/* 1. 24/7 Groceries & Supermarket */}
-          <div className={`p-4 rounded-2xl border space-y-2.5 shadow-xs ${
-            isDark ? 'bg-amber-950/25 border-amber-500/30 text-amber-100' : 'bg-amber-50/70 border-amber-300 text-stone-950'
+          <div className={`p-4 rounded-xl border space-y-2 shadow-sm ${
+            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
           }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                <span className="font-bold text-xs uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                <ShoppingBag className="w-4 h-4 text-zinc-400" />
+                <span className="font-semibold text-xs uppercase tracking-wider text-zinc-300">
                   24/7 Groceries & Markets
                 </span>
               </div>
-              <span className="font-mono font-bold text-xs bg-amber-500/20 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded-md">Spar & Nikora</span>
+              <span className="font-mono text-xs text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-md border border-zinc-700">Spar & Nikora</span>
             </div>
-            <p className="text-xs sm:text-sm font-medium leading-relaxed">
+            <p className={`text-xs sm:text-sm font-normal leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
               Convenience stores, fresh water, Georgian wine, and snacks are available 24/7 within a 2-minute walk.
             </p>
             <a
               href={`https://maps.google.com/?q=${encodeURIComponent('supermarket 24/7 near ' + property.address + ', ' + property.city)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95"
+              className="w-full py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-750 text-zinc-200 text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-all border border-zinc-700"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Find Nearest 24/7 Supermarkets</span>
@@ -1559,26 +1881,26 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
           </div>
 
           {/* 2. Taxi & Transfers */}
-          <div className={`p-4 rounded-2xl border space-y-2 shadow-xs ${
-            isDark ? 'bg-emerald-950/25 border-emerald-500/30 text-emerald-100' : 'bg-emerald-50 border-emerald-300 text-stone-950'
+          <div className={`p-4 rounded-xl border space-y-2 shadow-sm ${
+            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
           }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Car className="w-5 h-5 text-emerald-600" />
-                <span className="font-bold text-xs uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                <Car className="w-4 h-4 text-emerald-400" />
+                <span className="font-semibold text-xs uppercase tracking-wider text-zinc-300">
                   Taxi & Transfers
                 </span>
               </div>
-              <span className="font-mono font-bold text-xs bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-md">Bolt App</span>
+              <span className="font-mono text-xs text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-md border border-zinc-700">Bolt App</span>
             </div>
-            <p className="text-xs sm:text-sm font-medium leading-relaxed">
+            <p className={`text-xs sm:text-sm font-normal leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
               {property.taxiInfo}
             </p>
             <a
               href="https://bolt.eu"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs"
+              className="w-full py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-750 text-zinc-200 text-xs font-semibold flex items-center justify-center gap-2 shadow-sm border border-zinc-700"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Open Bolt Taxi</span>
@@ -1586,25 +1908,25 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
           </div>
 
           {/* Trash & Recycling */}
-          <div className={`p-4 rounded-2xl border space-y-1.5 shadow-xs ${
-            isDark ? 'bg-[#14191C] border-stone-800' : 'bg-white border-stone-300'
+          <div className={`p-4 rounded-xl border space-y-1.5 shadow-sm ${
+            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
           }`}>
-            <span className={`text-xs font-mono uppercase font-black tracking-wider block ${isDark ? 'text-[#E4E98E]' : 'text-stone-900'}`}>
+            <span className={`text-xs font-mono uppercase font-semibold tracking-wider block ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
               Trash & Bin Location
             </span>
-            <p className={`text-xs sm:text-sm font-medium leading-relaxed ${isDark ? 'text-stone-200' : 'text-stone-900'}`}>
+            <p className={`text-xs sm:text-sm font-normal leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
               {property.trashSchedule}
             </p>
           </div>
 
           {/* Tap Water */}
-          <div className={`p-4 rounded-2xl border space-y-1.5 shadow-xs ${
-            isDark ? 'bg-[#14191C] border-stone-800' : 'bg-white border-stone-300'
+          <div className={`p-4 rounded-xl border space-y-1.5 shadow-sm ${
+            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
           }`}>
-            <span className={`text-xs font-mono uppercase font-black tracking-wider block ${isDark ? 'text-[#E4E98E]' : 'text-stone-900'}`}>
+            <span className={`text-xs font-mono uppercase font-semibold tracking-wider block ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
               💧 Tap Water Safety
             </span>
-            <p className={`text-xs sm:text-sm font-medium leading-relaxed ${isDark ? 'text-stone-200' : 'text-stone-900'}`}>
+            <p className={`text-xs sm:text-sm font-normal leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
               Tbilisi tap water is mountain spring water, crystal clear, tested daily, and completely safe to drink.
             </p>
           </div>
@@ -1613,8 +1935,8 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
           <div className="pt-2 pb-1 text-center">
             <a
               href={`tel:${property.emergencyServicesNumber || '112'}`}
-              className={`text-xs font-medium inline-flex items-center justify-center gap-1.5 ${
-                isDark ? 'text-stone-400 hover:text-stone-200' : 'text-stone-600 hover:text-stone-900'
+              className={`text-xs font-normal inline-flex items-center justify-center gap-1.5 ${
+                isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
               }`}
             >
               <span>Need emergency services? Call 112 (24/7 in English & Russian)</span>
@@ -1638,6 +1960,20 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
       <AddToHomeScreenModal
         isOpen={isInstallModalOpen}
         onClose={() => setIsInstallModalOpen(false)}
+      />
+
+      {/* Rich Fallback Share Guide Modal (System Share / WhatsApp / Telegram / QR Code / Copy Link) */}
+      <ShareGuideModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        property={property}
+        favoriteGems={favoriteGemsList}
+      />
+
+      {/* Direct Guest Request Modal */}
+      <GuestRequestModal
+        isOpen={isRequestModalOpen}
+        onClose={() => setIsRequestModalOpen(false)}
       />
 
     </div>

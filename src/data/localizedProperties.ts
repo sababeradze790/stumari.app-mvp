@@ -2,7 +2,7 @@ import { Property } from '../types';
 import { Language } from '../i18n/types';
 
 export function getLocalizedProperty(property: Property, lang: Language): Property {
-  if (lang === 'en') {
+  if (!property || lang === 'en') {
     return property;
   }
 
@@ -118,10 +118,33 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
       };
     }
 
-    if (property.id === 'prop-2' || property.slug.includes('batumi')) {
+    if (property.id === 'prop-2' || property.slug.includes('sunny-sololaki')) {
       return {
         ...property,
-        title: 'ბათუმის ზღვის ხედის აპარტამენტი',
+        title: 'მზიანი სოლოლაკი',
+        subtitle: 'მყუდრო ნათელი ლოფტი ძველ თბილისში ღია აივნით',
+        tagline: 'თბილი მზის სინათლე, ბოჰემური სიმყუდროვე და მწვანე ეზო სოლოლაკის გულში.',
+        city: 'თბილისი',
+        country: 'საქართველო',
+        address: 'ლადო ასათიანის ქ. 8, ბინა 4',
+        hostName: 'საბა ბერაძე',
+        hostRole: 'მასპინძელი & სუპერჰოსტი',
+        welcomeTitle: 'მოგესალმებით მზიან სოლოლაკში!',
+        welcomeGreeting: 'დატკბით მყუდრო ოთახებით, ახლადმოხალული ყავითა და ძველი თბილისის ცოცხალი ატმოსფეროთი.',
+        checkInTime: '15:00',
+        checkOutTime: '11:00',
+        doorKeypadCode: '4820#',
+        parkingInstructions: 'უფასო პარკინგი ასათიანის ქუჩაზე ან შენობის უკან მდებარე ღია ეზოში.',
+        arrivalDirections: 'შედით ხის ჭიშკრით, აუყევით რკინის კიბეს მე-2 სართულზე, ზურმუხტისფერი კარი მარცხნივ. აკრიფეთ 4820# კოდის საკეტზე.',
+        wifiNetwork: 'SunnySololaki_5G',
+        wifiPassword: 'SololakiSun2026!'
+      };
+    }
+
+    if (property.id === 'prop-3' || property.slug.includes('batumi-sea-view')) {
+      return {
+        ...property,
+        title: 'ბათუმის ზღვის ხედი',
         subtitle: 'პანორამული ხედი შავ ზღვაზე და მზის ჩასვლა',
         tagline: 'გაიღვიძეთ ტალღების ხმაზე. თქვენი თანამედროვე სანაპირო თავშესაფარი ბათუმში.',
         city: 'ბათუმი',
@@ -131,26 +154,54 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
         welcomeGreeting: 'დატკბით ზღვის პანორამით და ბათუმის ბულვარის სიმყუდროვით.',
         checkInTime: '15:00',
         checkOutTime: '11:00',
+        doorKeypadCode: '9182#',
         parkingInstructions: 'უფასო მიწისქვეშა პარკინგი კოშკ B-ში, ადგილი #42.',
-        arrivalDirections: 'შედით მთავარი რეცეფციიდან, ლიფტით აბრძანდით მე-18 სართულზე, ბინა 1804 მარჯვენა ფრთაშია.',
+        arrivalDirections: 'შედით მთავარი რეცეფციიდან, ლიფტით აბრძანდით მე-18 სართულზე, ბინა 1804 მარჯვენა ფრთაშია. აკრიფეთ 9182# საკეტზე.',
         taxiInfo: 'ბათუმში საუკეთესოდ მუშაობს Bolt აპლიკაცია.',
         transitInfo: 'ბათუმის ბულვარი და სანაპირო პირდაპირ კორპუსის წინ არის.',
         airportTransit: 'ბათუმის საერთაშორისო აეროპორტამდე 12 წუთია ტაქსით (~15-20 ლარი).'
       };
     }
 
-    if (property.id === 'prop-3' || property.slug.includes('kazbegi')) {
+    if (property.id === 'prop-4' || property.slug.includes('kazbegi-cabin') || property.slug.includes('mountain-house')) {
       return {
         ...property,
-        title: 'მთის კოტეჯი ყაზბეგში',
+        title: 'ყაზბეგის კოტეჯი',
         subtitle: 'მყინვარწვერის ხედი და მყუდრო ალპური შალე',
-        tagline: 'სუფთა მთის ჰაერი და გერგეტის სამების პანორამა.',
+        tagline: 'სუფთა მთის ჰაერი, ბუხრის სითბო და გერგეტის სამების პანორამა.',
         city: 'სტეფანწმინდა',
         country: 'საქართველო',
-        welcomeTitle: 'მოგესალმებით ყაზბეგში!',
-        welcomeGreeting: 'დაისვენეთ კავკასიონის მთების გარემოცვაში.',
-        checkInTime: '14:00',
-        checkOutTime: '12:00'
+        address: 'გერგეტის ხეობის გზა 12',
+        welcomeTitle: 'მოგესალმებით ყაზბეგის კოტეჯში!',
+        welcomeGreeting: 'დაისვენეთ კავკასიონის მთების გარემოცვაში ბუხართან და საუნასთან ერთად.',
+        checkInTime: '15:00',
+        checkOutTime: '11:00',
+        doorKeypadCode: '7721#',
+        parkingInstructions: 'კერძო დახურული ეზო გერგეტის გზაზე (ეტევა 3 ჯიპი).',
+        arrivalDirections: 'გადაუხვიეთ გერგეტის შესახვევში ხიდის შემდეგ. კედარის ჭიშკარი აღნიშნულია Stumari #12 ნიშნით. აკრიფეთ 7721#.',
+        wifiNetwork: 'Kazbegi_Peak_WiFi',
+        wifiPassword: 'MountKazbek2026!'
+      };
+    }
+
+    if (property.id === 'prop-5' || property.slug.includes('vake-garden')) {
+      return {
+        ...property,
+        title: 'ვაკის ბაღის სახლი',
+        subtitle: 'დახვეწილი ურბანული რეზიდენცია მყუდრო ეზოთი და გამწვანებით',
+        tagline: 'მყუდრო მწვანე ელეგანტურობა ვაკეში, პარკებთან, კაფეებთან და ღვინის ბარებთან ახლოს.',
+        city: 'თბილისი',
+        country: 'საქართველო',
+        address: 'ირაკლი აბაშიძის ქ. 12, ბინა 6',
+        welcomeTitle: 'მოგესალმებით ვაკის ბაღის სახლში!',
+        welcomeGreeting: 'დაისვენეთ ჩვენს მწვანე ეზოიან სახლში თბილისის ყველაზე გამორჩეულ უბანში.',
+        checkInTime: '15:00',
+        checkOutTime: '11:00',
+        doorKeypadCode: '5514#',
+        parkingInstructions: 'გამოყოფილი მიწისქვეშა პარკინგის ადგილი #6 შენობის სარდაფში.',
+        arrivalDirections: 'შედით შენობის ჰოლიდან აბაშიძის ქუჩაზე. ლიფტით მე-2 სართულზე, ბინა 6 მარჯვნივაა. აკრიფეთ 5514#.',
+        wifiNetwork: 'VakeGarden_Ultra',
+        wifiPassword: 'VakeGreen2026!'
       };
     }
   }
@@ -267,7 +318,30 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
       };
     }
 
-    if (property.id === 'prop-2' || property.slug.includes('batumi')) {
+    if (property.id === 'prop-2' || property.slug.includes('sunny-sololaki')) {
+      return {
+        ...property,
+        title: 'Солнечный Сололаки',
+        subtitle: 'Уютный светлый лофт в Старом Тбилиси с открытым балконом',
+        tagline: 'Тёплый солнечный свет, богемный уют и зелёный дворик в самом сердце Сололаки.',
+        city: 'Тбилиси',
+        country: 'Грузия',
+        address: 'ул. Ладо Асатиани, 8, кв. 4',
+        hostName: 'Саба Берадзе',
+        hostRole: 'Хозяин & Суперхозяин',
+        welcomeTitle: 'Добро пожаловать в Солнечный Сололаки!',
+        welcomeGreeting: 'Насладитесь светлыми комнатами, свежесваренным кофе и колоритом Старого Тбилиси.',
+        checkInTime: '15:00',
+        checkOutTime: '11:00',
+        doorKeypadCode: '4820#',
+        parkingInstructions: 'Бесплатная парковка вдоль улицы Асатиани или во внутреннем дворике.',
+        arrivalDirections: 'Пройдите через деревянные ворота во двор, поднимитесь по лестнице на 2 этаж, бирюзовая дверь слева. Код замка 4820#.',
+        wifiNetwork: 'SunnySololaki_5G',
+        wifiPassword: 'SololakiSun2026!'
+      };
+    }
+
+    if (property.id === 'prop-3' || property.slug.includes('batumi-sea-view')) {
       return {
         ...property,
         title: 'Апартаменты с видом на море в Батуми',
@@ -280,26 +354,56 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
         welcomeGreeting: 'Насладитесь морским бризом и закатами на Батумском бульваре.',
         checkInTime: '15:00',
         checkOutTime: '11:00',
+        doorKeypadCode: '9182#',
         parkingInstructions: 'Бесплатный подземный паркинг в башне B, парковочное место #42.',
-        arrivalDirections: 'Зайдите через главный холл, поднимитесь на лифте на 18 этаж, квартира 1804 в правом крыле.',
+        arrivalDirections: 'Зайдите через главный холл, поднимитесь на лифте на 18 этаж, квартира 1804 в правом крыле. Введите 9182# на замке.',
+        wifiNetwork: 'BatumiSea_Fiber',
+        wifiPassword: 'BlackSeaBreeze26!',
         taxiInfo: 'В Батуми быстрее и удобнее всего вызывать такси через Bolt.',
         transitInfo: 'Батумский бульвар и пляж расположены прямо перед зданием.',
         airportTransit: 'До аэропорта Батуми 12 минут на такси (~15-20 лари).'
       };
     }
 
-    if (property.id === 'prop-3' || property.slug.includes('kazbegi')) {
+    if (property.id === 'prop-4' || property.slug.includes('kazbegi-cabin') || property.slug.includes('mountain-house')) {
       return {
         ...property,
-        title: 'Горный коттедж в Казбеги',
-        subtitle: 'Вид на Казбек и уютное альпийское шале',
-        tagline: 'Кристальный горный воздух и панорама Троицкой церкви в Гергети.',
+        title: 'Шале в Казбеги',
+        subtitle: 'Вид на Казбек и уютный альпийский домик',
+        tagline: 'Кристальный горный воздух, дровяной камин и панорама Троицкой церкви в Гергети.',
         city: 'Степанцминда',
         country: 'Грузия',
-        welcomeTitle: 'Добро пожаловать в Казбеги!',
-        welcomeGreeting: 'Отдохните среди величественных вершин Кавказа.',
-        checkInTime: '14:00',
-        checkOutTime: '12:00'
+        address: 'дорога в ущелье Гергети, 12',
+        welcomeTitle: 'Добро пожаловать в Шале Казбеги!',
+        welcomeGreeting: 'Отдохните среди величественных вершин Кавказа у живого камина и в кедровой сауне.',
+        checkInTime: '15:00',
+        checkOutTime: '11:00',
+        doorKeypadCode: '7721#',
+        parkingInstructions: 'Частный огороженный двор на дороге Гергети (помещается 3 внедорожника).',
+        arrivalDirections: 'Сверните в переулок Гергети за мостом. Кедровые ворота с табличкой Stumari #12. Код 7721#.',
+        wifiNetwork: 'Kazbegi_Peak_WiFi',
+        wifiPassword: 'MountKazbek2026!'
+      };
+    }
+
+    if (property.id === 'prop-5' || property.slug.includes('vake-garden')) {
+      return {
+        ...property,
+        title: 'Резиденция в Ваке с садом',
+        subtitle: 'Изысканные городские апартаменты с приватным зеленым патио',
+        tagline: 'Зеленая элегантность и тишина в Ваке, рядом с парками, уютными кофейнями и винными барами.',
+        city: 'Тбилиси',
+        country: 'Грузия',
+        address: 'ул. Ираклия Абашидзе, 12, кв. 6',
+        welcomeTitle: 'Добро пожаловать в Дом с садом в Ваке!',
+        welcomeGreeting: 'Отдохните в нашем уютном зеленом доме в самом респектабельном районе Тбилиси.',
+        checkInTime: '15:00',
+        checkOutTime: '11:00',
+        doorKeypadCode: '5514#',
+        parkingInstructions: 'Закрепленное подземное парковочное место #6 в цоколе здания.',
+        arrivalDirections: 'Вход через лобби с улицы Абашидзе. Лифт на 2-й этаж, квартира 6 справа. Код 5514#.',
+        wifiNetwork: 'VakeGarden_Ultra',
+        wifiPassword: 'VakeGreen2026!'
       };
     }
   }

@@ -52,7 +52,7 @@ export const FeaturesPage: React.FC = () => {
 
   return (
     <div className={`min-h-screen font-sans transition-colors duration-300 pb-20 ${
-      isDark ? 'bg-[#080B0D] text-stone-100' : 'bg-stone-50 text-stone-900'
+      isDark ? 'bg-[#0D0E12] text-zinc-100' : 'bg-[#FAFAF8] text-zinc-900'
     }`}>
       {/* Header Banner */}
       <section className={`pt-12 sm:pt-16 pb-16 sm:pb-20 px-4 sm:px-6 lg:px-8 border-b transition-colors ${
@@ -60,13 +60,13 @@ export const FeaturesPage: React.FC = () => {
       }`}>
         <div className="max-w-4xl mx-auto text-center space-y-4">
           <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase inline-block ${
-            isDark ? 'bg-[#E4E98E]/15 text-[#E4E98E] border border-[#E4E98E]/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+            isDark ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
           }`}>
             {content.badge}
           </span>
           <h1 className="text-3xl sm:text-5xl font-serif font-bold tracking-tight text-white">
             {content.titlePart1} <br className="hidden sm:inline" />
-            <span className={isDark ? 'text-[#E4E98E]' : 'text-amber-400'}>{content.titleHighlight}</span>
+            <span className="text-amber-400 font-extrabold">{content.titleHighlight}</span>
           </h1>
           <p className="text-sm sm:text-base text-stone-300 max-w-2xl mx-auto leading-relaxed">
             {content.subtitle}
@@ -76,7 +76,7 @@ export const FeaturesPage: React.FC = () => {
             <button
               onClick={() => setCurrentRoute('/onboarding')}
               className={`px-6 py-3.5 rounded-full font-bold text-xs sm:text-sm shadow-md transition-all flex items-center gap-2 active:scale-95 ${
-                isDark ? 'bg-[#E4E98E] hover:bg-[#d9de7d] text-[#0C1510]' : 'bg-amber-400 hover:bg-amber-300 text-stone-950'
+                isDark ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'bg-stone-900 hover:bg-stone-800 text-white'
               }`}
             >
               <span>{content.ctaPrimary}</span>
@@ -113,7 +113,7 @@ export const FeaturesPage: React.FC = () => {
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
                   selectedCategory === cat.id
                     ? isDark 
-                      ? 'bg-[#E4E98E] text-[#0C1510] shadow-xs' 
+                      ? 'bg-amber-600 text-white shadow-xs' 
                       : 'bg-stone-900 text-white shadow-xs'
                     : isDark 
                       ? 'text-stone-400 hover:text-white hover:bg-stone-800' 
@@ -131,7 +131,7 @@ export const FeaturesPage: React.FC = () => {
               onClick={() => setMobileViewMode('cards')}
               className={`p-1.5 rounded-lg text-xs font-bold ${
                 mobileViewMode === 'cards' 
-                  ? isDark ? 'bg-stone-800 text-[#E4E98E]' : 'bg-stone-200 text-stone-900' 
+                  ? isDark ? 'bg-stone-800 text-amber-400' : 'bg-stone-200 text-stone-900' 
                   : 'text-stone-400'
               }`}
               title={content.viewCards}
@@ -142,7 +142,7 @@ export const FeaturesPage: React.FC = () => {
               onClick={() => setMobileViewMode('grid')}
               className={`p-1.5 rounded-lg text-xs font-bold ${
                 mobileViewMode === 'grid' 
-                  ? isDark ? 'bg-stone-800 text-[#E4E98E]' : 'bg-stone-200 text-stone-900' 
+                  ? isDark ? 'bg-stone-800 text-amber-400' : 'bg-stone-200 text-stone-900' 
                   : 'text-stone-400'
               }`}
               title={content.viewGrid}
@@ -223,7 +223,7 @@ export const FeaturesPage: React.FC = () => {
                       {feat.title}
                     </h3>
                     <p className={`font-medium ${
-                      isDark ? 'text-[#E4E98E]' : 'text-amber-800'
+                      isDark ? 'text-amber-400' : 'text-amber-800'
                     } ${isCompactMobile ? 'text-[10px] line-clamp-1' : 'text-xs mt-0.5'}`}>
                       {feat.subtitle}
                     </p>
@@ -256,7 +256,7 @@ export const FeaturesPage: React.FC = () => {
             : 'bg-amber-50/80 border-amber-200/90 text-stone-900'
         }`}>
           <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full inline-block ${
-            isDark ? 'bg-stone-800 text-[#E4E98E]' : 'bg-amber-100 text-amber-900'
+            isDark ? 'bg-stone-800 text-amber-400' : 'bg-amber-100 text-amber-900'
           }`}>
             {content.disciplineBadge}
           </span>
@@ -288,7 +288,7 @@ export const FeaturesPage: React.FC = () => {
             <button
               onClick={() => setCurrentRoute('/onboarding')}
               className={`px-6 py-3 rounded-full font-bold text-xs sm:text-sm shadow-sm transition-all active:scale-95 ${
-                isDark ? 'bg-[#E4E98E] text-[#0C1510] hover:bg-[#d9de7d]' : 'bg-amber-400 text-stone-950 hover:bg-amber-300'
+                isDark ? 'bg-amber-600 text-white hover:bg-amber-500' : 'bg-amber-500 text-stone-950 hover:bg-amber-400'
               }`}
             >
               {content.ctaBannerBtn1}

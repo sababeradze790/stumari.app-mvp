@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Compass, 
   Wifi, 
@@ -96,22 +97,32 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
           {moments.map((m) => {
             const isSelected = activeMoment === m.id;
             return (
-              <button
+              <motion.button
                 key={m.id}
+                whileTap={{ scale: 0.94 }}
                 onClick={() => setActiveMoment(m.id)}
-                className={`px-3.5 py-2 rounded-2xl border text-xs font-bold transition-all shrink-0 flex items-center gap-2 active:scale-95 ${
+                className={`px-3.5 py-2 rounded-2xl border text-xs font-bold transition-colors shrink-0 flex items-center gap-2 relative cursor-pointer ${
                   isSelected
                     ? isDark 
-                      ? 'bg-[#E4E98E] text-[#0C1510] border-[#E4E98E] shadow-sm' 
-                      : 'bg-stone-900 text-white border-stone-900 shadow-sm'
+                      ? 'text-[#0C1510] font-black' 
+                      : 'text-white font-black'
                     : isDark 
                       ? 'bg-[#121619] border-stone-800 text-stone-300 hover:border-stone-700' 
                       : 'bg-white border-stone-200 text-stone-700 hover:border-stone-300 shadow-2xs'
                 }`}
               >
+                {isSelected && (
+                  <motion.div
+                    layoutId="activeStayMomentIndicator"
+                    transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+                    className={`absolute inset-0 rounded-2xl shadow-sm -z-10 ${
+                      isDark ? 'bg-amber-600' : 'bg-stone-900'
+                    }`}
+                  />
+                )}
                 <span>{m.icon}</span>
                 <span>{m.label}</span>
-              </button>
+              </motion.button>
             );
           })}
         </div>
@@ -121,14 +132,22 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
       <div className={`p-5 sm:p-7 rounded-[32px] border transition-all ${
         isDark ? 'bg-[#0E1317] border-stone-800 text-stone-100 shadow-xl' : 'bg-white border-stone-200 text-stone-900 shadow-md'
       }`}>
+        <AnimatePresence mode="wait">
         
         {/* 1. BEFORE ARRIVAL */}
         {activeMoment === 'before_arrival' && (
-          <div className="space-y-5 animate-in fade-in">
+          <motion.div 
+            key="before_arrival"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-5"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <span className={`text-xs font-mono uppercase tracking-wider font-bold block mb-1 ${
-                  isDark ? 'text-[#E4E98E]' : 'text-amber-700'
+                  isDark ? 'text-amber-400' : 'text-amber-700'
                 }`}>
                   🚗 {language === 'ka' ? 'ეტაპი 1 • ჩამოსვლამდე' : language === 'ru' ? 'Шаг 1 • До заезда' : 'Step 1 • Before Arrival'}
                 </span>
@@ -145,7 +164,7 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
               {/* Address card */}
               <div className={`p-4 rounded-2xl border space-y-2 ${isDark ? 'bg-[#14191C] border-stone-800 text-stone-200' : 'bg-stone-50 border-stone-200 text-stone-800'}`}>
                 <div className={`flex items-center gap-2 font-bold ${isDark ? 'text-stone-100' : 'text-stone-950'}`}>
-                  <MapPin className={`w-4 h-4 ${isDark ? 'text-[#E4E98E]' : 'text-amber-600'}`} />
+                  <MapPin className={`w-4 h-4 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                   <span>{language === 'ka' ? 'ზუსტი მისამართი' : language === 'ru' ? 'Точный адрес' : 'Exact Address'}</span>
                 </div>
                 <p className="font-mono text-[13px] font-bold">{property.address}, {property.city}</p>
@@ -153,7 +172,7 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
                   href={`https://maps.google.com/?q=${encodeURIComponent(`${property.address}, ${property.city}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`inline-flex items-center gap-1.5 font-bold text-xs hover:underline mt-1 ${isDark ? 'text-[#E4E98E]' : 'text-amber-700'}`}
+                  className={`inline-flex items-center gap-1.5 font-bold text-xs hover:underline mt-1 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}
                 >
                   <span>{language === 'ka' ? 'გახსნა Google Maps-ში' : language === 'ru' ? 'Открыть в Google Maps' : 'Open in Google Maps'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -189,7 +208,7 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
                 <button
                   onClick={() => onSelectTab('checkin')}
                   className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all ${
-                    isDark ? 'bg-[#E4E98E] text-[#0C1510] hover:bg-[#d8dd80]' : 'bg-stone-900 text-white hover:bg-stone-800'
+                    isDark ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-stone-900 text-white hover:bg-stone-800'
                   }`}
                 >
                   <span>{language === 'ka' ? 'Check-in ინსტრუქცია' : language === 'ru' ? 'Пошаговый заезд' : 'View Step-by-Step Check-in'}</span>
@@ -197,15 +216,22 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
                 </button>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* 2. FIRST 10 MINUTES */}
         {activeMoment === 'first_10_min' && (
-          <div className="space-y-5 animate-in fade-in">
+          <motion.div 
+            key="first_10_min"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-5"
+          >
             <div>
               <span className={`text-xs font-mono uppercase tracking-wider font-bold block mb-1 ${
-                isDark ? 'text-[#E4E98E]' : 'text-emerald-700'
+                isDark ? 'text-emerald-400' : 'text-emerald-700'
               }`}>
                 📶 {language === 'ka' ? 'ეტაპი 2 • პირველი 10 წუთი' : language === 'ru' ? 'Шаг 2 • Первые 10 минут' : 'Step 2 • First 10 Minutes'}
               </span>
@@ -242,7 +268,7 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
                 <button
                   onClick={copyWifi}
                   className={`px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 active:scale-95 shadow-sm transition-all ${
-                    isDark ? 'bg-[#E4E98E] text-[#0C1510] hover:bg-[#d8dd80]' : 'bg-stone-900 text-white hover:bg-stone-800'
+                    isDark ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-stone-900 text-white hover:bg-stone-800'
                   }`}
                 >
                   <span>{language === 'ka' ? 'კოპირება' : language === 'ru' ? 'Копировать' : 'Copy'}</span>
@@ -290,15 +316,22 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
                 {language === 'ka' ? 'მასპინძლის კონტაქტი' : language === 'ru' ? 'Связь с хозяином' : 'Contact Host'}
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* 3. FIRST EVENING */}
         {activeMoment === 'first_evening' && (
-          <div className="space-y-5 animate-in fade-in">
+          <motion.div 
+            key="first_evening"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-5"
+          >
             <div>
               <span className={`text-xs font-mono uppercase tracking-wider font-bold block mb-1 ${
-                isDark ? 'text-[#E4E98E]' : 'text-amber-700'
+                isDark ? 'text-amber-400' : 'text-amber-700'
               }`}>
                 🥟 {language === 'ka' ? 'ეტაპი 3 • პირველი საღამო' : language === 'ru' ? 'Шаг 3 • Первый вечер' : 'Step 3 • First Evening'}
               </span>
@@ -314,7 +347,7 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
               isDark ? 'bg-[#14191C] border-stone-800' : 'bg-stone-50 border-stone-200'
             }`}>
               <div className="space-y-1.5 min-w-0">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#E4E98E] text-[#0C1510] inline-block">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-stone-950 inline-block shadow-xs">
                   {language === 'ka' ? 'მასპინძლის რჩეული' : language === 'ru' ? 'Выбор хозяина' : "Host's Top Pick"}
                 </span>
                 <h4 className={`font-serif text-lg font-bold ${isDark ? 'text-white' : 'text-stone-950'}`}>
@@ -332,22 +365,29 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
               <button
                 onClick={() => onSelectTab('gems')}
                 className={`px-5 py-2.5 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1.5 shadow-sm active:scale-95 transition-all ${
-                  isDark ? 'bg-[#E4E98E] text-[#0C1510] hover:bg-[#d8dd80]' : 'bg-stone-900 text-white hover:bg-stone-800'
+                  isDark ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-stone-900 text-white hover:bg-stone-800'
                 }`}
               >
                 <span>{language === 'ka' ? 'ყველა რესტორანი' : language === 'ru' ? 'Все гастро-места' : 'Browse All Food Gems'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* 4. NEXT MORNING */}
         {activeMoment === 'next_morning' && (
-          <div className="space-y-5 animate-in fade-in">
+          <motion.div 
+            key="next_morning"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-5"
+          >
             <div>
               <span className={`text-xs font-mono uppercase tracking-wider font-bold block mb-1 ${
-                isDark ? 'text-[#E4E98E]' : 'text-amber-700'
+                isDark ? 'text-amber-400' : 'text-amber-700'
               }`}>
                 ☕ {language === 'ka' ? 'ეტაპი 4 • მეორე დილა' : language === 'ru' ? 'Шаг 4 • Следующее утро' : 'Step 4 • Next Morning'}
               </span>
@@ -388,15 +428,22 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
               <span>{language === 'ka' ? 'საუზმის და ყავის ყველა ლოკაცია' : language === 'ru' ? 'Все места для завтрака и кофе' : 'Explore All Breakfast & Coffee Spots'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
-          </div>
+          </motion.div>
         )}
 
         {/* 5. DURING STAY */}
         {activeMoment === 'during_stay' && (
-          <div className="space-y-5 animate-in fade-in">
+          <motion.div 
+            key="during_stay"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-5"
+          >
             <div>
               <span className={`text-xs font-mono uppercase tracking-wider font-bold block mb-1 ${
-                isDark ? 'text-[#E4E98E]' : 'text-emerald-700'
+                isDark ? 'text-emerald-400' : 'text-emerald-700'
               }`}>
                 🗺 {language === 'ka' ? 'ეტაპი 5 • ქალაქის აღმოჩენა' : language === 'ru' ? 'Шаг 5 • Во время отдыха' : 'Step 5 • During Stay'}
               </span>
@@ -425,22 +472,29 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
               <button
                 onClick={() => onSelectTab('gems')}
                 className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all ${
-                  isDark ? 'bg-[#E4E98E] text-[#0C1510] hover:bg-[#d8dd80]' : 'bg-stone-900 text-white hover:bg-stone-800'
+                  isDark ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-stone-900 text-white hover:bg-stone-800'
                 }`}
               >
                 <span>{language === 'ka' ? 'Gems კატალოგის გახსნა' : language === 'ru' ? 'Открыть каталог мест' : 'Open Full Gems Catalog'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* 6. BEFORE CHECKOUT */}
         {activeMoment === 'before_checkout' && (
-          <div className="space-y-5 animate-in fade-in">
+          <motion.div 
+            key="before_checkout"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-5"
+          >
             <div>
               <span className={`text-xs font-mono uppercase tracking-wider font-bold block mb-1 ${
-                isDark ? 'text-[#E4E98E]' : 'text-amber-700'
+                isDark ? 'text-amber-400' : 'text-amber-700'
               }`}>
                 🧳 {language === 'ka' ? 'ეტაპი 6 • გამგზავრება' : language === 'ru' ? 'Шаг 6 • Выезд' : 'Step 6 • Departure'}
               </span>
@@ -476,19 +530,26 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
               </div>
               <button
                 onClick={onOpenFeedback}
-                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs active:scale-95 shadow-sm shrink-0 ml-3"
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs active:scale-95 shadow-sm shrink-0 ml-3 cursor-pointer"
               >
                 ⭐ {language === 'ka' ? 'შეფასება' : language === 'ru' ? 'Оценить' : 'Rate Your Stay'}
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* 7. AFTER CHECKOUT / STAY FEEDBACK */}
         {activeMoment === 'after_checkout' && (
-          <div className="space-y-5 animate-in fade-in text-center py-4">
-            <div className="w-14 h-14 rounded-full bg-[#E4E98E]/20 text-[#E4E98E] flex items-center justify-center mx-auto border border-[#E4E98E]/30">
-              <Heart className="w-7 h-7 fill-[#E4E98E]" />
+          <motion.div 
+            key="after_checkout"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-5 text-center py-4"
+          >
+            <div className="w-14 h-14 rounded-full bg-amber-500/15 text-amber-500 flex items-center justify-center mx-auto border border-amber-500/30">
+              <Heart className="w-7 h-7 fill-amber-500 text-amber-500" />
             </div>
 
             <div>
@@ -504,18 +565,22 @@ export const StayMomentsTimeline: React.FC<StayMomentsTimelineProps> = ({
               </p>
             </div>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.94 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 25 }}
               onClick={onOpenFeedback}
-              className={`px-8 py-3 rounded-full font-bold text-xs shadow-lg transition-all active:scale-95 inline-flex items-center gap-2 ${
-                isDark ? 'bg-[#E4E98E] hover:bg-[#d8dd80] text-[#0C1510]' : 'bg-stone-900 hover:bg-stone-800 text-white'
+              className={`px-8 py-3 rounded-full font-bold text-xs shadow-lg transition-colors cursor-pointer inline-flex items-center gap-2 ${
+                isDark ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-stone-900 hover:bg-stone-800 text-white'
               }`}
             >
               <span>{language === 'ka' ? 'შეაფასეთ სტუმრობა' : language === 'ru' ? 'Оставить отзыв хозяину' : 'Share Private Stay Feedback'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         )}
 
+        </AnimatePresence>
       </div>
 
     </div>

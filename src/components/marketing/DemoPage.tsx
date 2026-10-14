@@ -22,7 +22,7 @@ export const DemoPage: React.FC = () => {
 
   return (
     <div className={`min-h-screen font-sans transition-colors duration-300 pb-20 ${
-      isDark ? 'bg-[#080B0D] text-stone-100' : 'bg-stone-100 text-stone-900'
+      isDark ? 'bg-[#0D0E12] text-zinc-100' : 'bg-[#FAFAF8] text-zinc-900'
     }`}>
       {/* Top Banner */}
       <section className={`py-10 sm:py-12 px-4 sm:px-6 lg:px-8 border-b text-center transition-colors ${
@@ -30,7 +30,7 @@ export const DemoPage: React.FC = () => {
       }`}>
         <div className="max-w-3xl mx-auto space-y-3">
           <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase inline-block ${
-            isDark ? 'bg-[#E4E98E]/15 text-[#E4E98E] border border-[#E4E98E]/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+            isDark ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
           }`}>
             {content.badge}
           </span>
@@ -50,12 +50,8 @@ export const DemoPage: React.FC = () => {
                 onClick={() => setSelectedSlug(p.slug)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
                   selectedSlug === p.slug
-                    ? isDark 
-                      ? 'bg-[#E4E98E] text-[#0C1510] shadow-xs' 
-                      : 'bg-amber-400 text-stone-950 shadow-xs'
-                    : isDark 
-                      ? 'bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-750' 
-                      : 'bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700'
+                    ? 'bg-amber-600 text-white shadow-xs font-black'
+                    : 'bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700'
                 }`}
               >
                 {p.title.split(' ')[0]}
@@ -72,7 +68,7 @@ export const DemoPage: React.FC = () => {
             onClick={() => setMobileTab('demo')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               mobileTab === 'demo'
-                ? isDark ? 'bg-[#E4E98E] text-[#0C1510]' : 'bg-stone-900 text-white'
+                ? isDark ? 'bg-amber-600 text-white' : 'bg-stone-900 text-white'
                 : 'text-stone-500'
             }`}
           >
@@ -83,7 +79,7 @@ export const DemoPage: React.FC = () => {
             onClick={() => setMobileTab('journey')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               mobileTab === 'journey'
-                ? isDark ? 'bg-[#E4E98E] text-[#0C1510]' : 'bg-stone-900 text-white'
+                ? isDark ? 'bg-amber-600 text-white' : 'bg-stone-900 text-white'
                 : 'text-stone-500'
             }`}
           >
@@ -123,7 +119,7 @@ export const DemoPage: React.FC = () => {
                   }`}
                 >
                   <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 font-bold ${
-                    isDark ? 'bg-[#E4E98E] text-[#0C1510]' : 'bg-amber-100 text-amber-900'
+                    isDark ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-900'
                   }`}>
                     {st.step}
                   </div>
@@ -140,7 +136,7 @@ export const DemoPage: React.FC = () => {
                 onClick={() => navigateToGuestGuide(selectedProperty.slug)}
                 className={`w-full py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-xs ${
                   isDark 
-                    ? 'bg-[#E4E98E] text-[#0C1510] hover:bg-[#d9de7d]' 
+                    ? 'bg-amber-600 text-white hover:bg-amber-500' 
                     : 'bg-stone-900 text-white hover:bg-stone-800'
                 }`}
               >
@@ -183,7 +179,7 @@ export const DemoPage: React.FC = () => {
             <span>{content.helperTip}</span>
             <button 
               onClick={() => navigateToGuestGuide(selectedProperty.slug)}
-              className="text-[#E4E98E] font-bold underline"
+              className="text-amber-600 dark:text-amber-400 font-bold underline"
             >
               {content.openFullscreen}
             </button>

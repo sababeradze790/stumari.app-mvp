@@ -7,15 +7,29 @@ import {
   StayFeedback, 
   StayMoment, 
   GemMood, 
-  GemExperience 
+  GemExperience,
+  GuestRequest,
+  ArrivalScheduleItem,
+  RequestStatus
 } from '../types';
-import { INITIAL_PROPERTIES, MOCK_HOST_USER, MOCK_STAY_FEEDBACKS } from '../data/mockData';
+import { INITIAL_PROPERTIES, MOCK_HOST_USER, MOCK_STAY_FEEDBACKS, MOCK_GUEST_REQUESTS, MOCK_TODAY_ARRIVALS } from '../data/mockData';
 import { TBILISI_GEMS_LIBRARY } from '../data/stumariGemsData';
 import { Language, SUPPORTED_LANGUAGES } from '../i18n/types';
 import { translations, Translations } from '../i18n/translations';
 import { getLocalizedProperty } from '../data/localizedProperties';
 import { doc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut as firebaseSignOut, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  updateProfile, 
+  sendPasswordResetEmail, 
+  onAuthStateChanged, 
+  User 
+} from 'firebase/auth';
+import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 
 interface ToastState {
   id: number;
@@ -25,7 +39,7 @@ interface ToastState {
 
 export type ThemeMode = 'dark' | 'light';
 
-export type PropertyTab = 'overview' | 'guide' | 'gems' | 'reviews' | 'preview' | 'qr' | 'settings';
+export type PropertyTab = 'overview' | 'guide' | 'gems' | 'reviews' | 'preview' | 'qr' | 'analytics' | 'settings';
 export type GuideSectionKey = 
   | 'welcome' 
   | 'checkin' 
@@ -86,11 +100,54 @@ interface AppContextType {
   resolveFeedback: (id: string) => void;
   isFeedbackModalOpen: boolean;
   setIsFeedbackModalOpen: (open: boolean) => void;
+
+  // Guest Requests & Issues (Stage 1 Operations)
+  requests: GuestRequest[];
+  addGuestRequest: (req: Omit<GuestRequest, 'id' | 'createdAt' | 'status'>) => void;
+  updateRequestStatus: (id: string, status: RequestStatus) => void;
+
+  // Arrivals Schedule (Stage 1 Operational)
+  todayArrivals: ArrivalScheduleItem[];
+  markArrivalCheckedIn: (id: string) => void;
+
+  // Guest Saved Favorites
+  guestFavorites: string[];
+  toggleGuestFavorite: (spotId: string, spotTitle?: string) => void;
+  isGuestFavorite: (spotId: string) => boolean;
+  guestFavoritesCount: number;
+
+  // Firebase Auth
+  firebaseUser: User | null;
+  isAuthLoading: boolean;
+  isAuthModalOpen: boolean;
+  authModalMode: 'login' | 'signup';
+  openAuthModal: (mode?: 'login' | 'signup') => void;
+  closeAuthModal: () => void;
+  signInWithEmail: (email: string, pass: string) => Promise<void>;
+  signUpWithEmail: (email: string, pass: string, displayName?: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  signOutHost: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  loginAsDemoHost: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Firebase Auth State
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+
+  const openAuthModal = (mode: 'login' | 'signup' = 'login') => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  };
+
+  const closeAuthModal = () => {
+    setIsAuthModalOpen(false);
+  };
   const [properties, setProperties] = useState<Property[]>(() => {
     try {
       const saved = localStorage.getItem('stumari_mvp_properties_v2');
@@ -145,6 +202,95 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+
+  // Guest Requests & Issues State (Stage 1 Operational)
+  const [requests, setRequests] = useState<GuestRequest[]>(() => {
+    try {
+      const saved = localStorage.getItem('stumari_requests_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return MOCK_GUEST_REQUESTS;
+  });
+
+  const [todayArrivals, setTodayArrivals] = useState<ArrivalScheduleItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('stumari_arrivals_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return MOCK_TODAY_ARRIVALS;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('stumari_requests_v1', JSON.stringify(requests));
+    } catch {
+      // ignore
+    }
+  }, [requests]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('stumari_arrivals_v1', JSON.stringify(todayArrivals));
+    } catch {
+      // ignore
+    }
+  }, [todayArrivals]);
+
+  // Guest Saved Favorites (persisted in localStorage across sessions)
+  const [guestFavorites, setGuestFavorites] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('stumari_guest_favorites_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+
+  const toggleGuestFavorite = (spotId: string, spotTitle?: string) => {
+    try {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(10);
+      }
+    } catch {}
+
+    setGuestFavorites(prev => {
+      const isFav = prev.includes(spotId);
+      const next = isFav ? prev.filter(id => id !== spotId) : [...prev, spotId];
+      try {
+        localStorage.setItem('stumari_guest_favorites_v1', JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+
+      if (isFav) {
+        showToast(
+          language === 'ka' 
+            ? 'წაიშალა რჩეულებიდან' 
+            : language === 'ru' 
+            ? 'Удалено из избранного' 
+            : 'Removed from favorites'
+        );
+      } else {
+        showToast(
+          language === 'ka' 
+            ? `❤️ ${spotTitle || 'ადგილი'} შენახულია რჩეულებში!` 
+            : language === 'ru' 
+            ? `❤️ ${spotTitle || 'Место'} сохранено в избранное!` 
+            : `❤️ ${spotTitle || 'Spot'} saved to your favorites!`
+        );
+      }
+      return next;
+    });
+  };
+
+  const isGuestFavorite = (spotId: string) => {
+    return guestFavorites.includes(spotId);
+  };
 
   useEffect(() => {
     try {
@@ -222,6 +368,116 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
+  // Firebase Auth State Listener & User Profile Synchronization
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = onAuthStateChanged(auth, (user) => {
+        setFirebaseUser(user);
+        setIsAuthLoading(false);
+        if (user) {
+          const hostProfile: HostUser = {
+            id: user.uid,
+            name: user.displayName || user.email?.split('@')[0] || 'Host',
+            email: user.email || '',
+            avatar: user.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+            plan: 'pro',
+            billingCycle: 'monthly',
+            joinedDate: 'Joined recently',
+            propertyCount: properties.length || 1,
+            status: 'active'
+          };
+          setCurrentUser(hostProfile);
+          try {
+            localStorage.setItem('stumari_mvp_user_v2', JSON.stringify(hostProfile));
+            setDoc(doc(db, 'users', user.uid), {
+              uid: user.uid,
+              email: user.email,
+              displayName: user.displayName,
+              photoURL: user.photoURL,
+              lastLogin: new Date().toISOString()
+            }, { merge: true }).catch(() => {});
+          } catch {}
+        }
+      });
+    } catch (e) {
+      console.warn('Auth listener init error:', e);
+      setIsAuthLoading(false);
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [properties.length]);
+
+  const signInWithEmail = async (emailStr: string, pass: string) => {
+    try {
+      const res = await signInWithEmailAndPassword(auth, emailStr, pass);
+      showToast(`Welcome back, ${res.user.displayName || res.user.email}!`);
+      setCurrentRoute('/app');
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.GET, 'auth/signIn');
+      throw err;
+    }
+  };
+
+  const signUpWithEmail = async (emailStr: string, pass: string, name?: string) => {
+    try {
+      const res = await createUserWithEmailAndPassword(auth, emailStr, pass);
+      if (name) {
+        await updateProfile(res.user, { displayName: name });
+      }
+      showToast('Host account created! Welcome to Stumari.');
+      setCurrentRoute('/app');
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.CREATE, 'auth/signUp');
+      throw err;
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const res = await signInWithPopup(auth, provider);
+      showToast(`Signed in as ${res.user.displayName || res.user.email}`);
+      setCurrentRoute('/app');
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.GET, 'auth/googleSignIn');
+      throw err;
+    }
+  };
+
+  const signOutHost = async () => {
+    try {
+      await firebaseSignOut(auth);
+      setFirebaseUser(null);
+      setCurrentUser(MOCK_HOST_USER);
+      localStorage.removeItem('stumari_mvp_user_v2');
+      showToast('Signed out successfully.');
+      setCurrentRoute('/');
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.DELETE, 'auth/signOut');
+      throw err;
+    }
+  };
+
+  const resetPassword = async (emailStr: string) => {
+    try {
+      await sendPasswordResetEmail(auth, emailStr);
+      showToast('Password reset link sent to your email.');
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.UPDATE, 'auth/resetPassword');
+      throw err;
+    }
+  };
+
+  const loginAsDemoHost = () => {
+    setCurrentUser(MOCK_HOST_USER);
+    localStorage.setItem('stumari_mvp_user_v2', JSON.stringify(MOCK_HOST_USER));
+    showToast('Logged in as Demo Host: Saba Beradze (Tbilisi Superhost) ✨');
+    setCurrentRoute('/app');
+  };
+
   const addStayFeedback = (feedbackData: Omit<StayFeedback, 'id' | 'createdAt' | 'status'>) => {
     const newFeedback: StayFeedback = {
       id: `fb-${Date.now()}`,
@@ -255,6 +511,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     } catch (e) {}
     showToast('Feedback item updated');
+  };
+
+  const addGuestRequest = (reqData: Omit<GuestRequest, 'id' | 'createdAt' | 'status'>) => {
+    const newReq: GuestRequest = {
+      id: `req-${Date.now()}`,
+      createdAt: language === 'ka' ? 'ახლახანს' : 'Just now',
+      status: 'new',
+      ...reqData
+    };
+    setRequests(prev => [newReq, ...prev]);
+    showToast(language === 'ka' ? 'მოთხოვნა გაიგზავნა მასპინძელთან 🔔' : 'Request sent to host 🔔');
+  };
+
+  const updateRequestStatus = (id: string, status: RequestStatus) => {
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    showToast(language === 'ka' ? 'სტატუსი განახლდა' : 'Request status updated');
+  };
+
+  const markArrivalCheckedIn = (id: string) => {
+    setTodayArrivals(prev => prev.map(a => a.id === id ? { ...a, status: 'checked_in' } : a));
+    showToast(language === 'ka' ? 'სტუმარი დარეგისტრირდა ✅' : 'Guest marked as checked in ✅');
   };
 
   const togglePropertyGem = (propertyId: string, gemId: string) => {
@@ -718,6 +995,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         resolveFeedback,
         isFeedbackModalOpen,
         setIsFeedbackModalOpen,
+
+        // Guest Requests & Issues (Stage 1 Operational)
+        requests,
+        addGuestRequest,
+        updateRequestStatus,
+
+        // Arrivals Schedule (Stage 1 Operational)
+        todayArrivals,
+        markArrivalCheckedIn,
+
+        // Guest Saved Favorites
+        guestFavorites,
+        toggleGuestFavorite,
+        isGuestFavorite,
+        guestFavoritesCount: guestFavorites.length,
+
+        // Firebase Auth
+        firebaseUser,
+        isAuthLoading,
+        isAuthModalOpen,
+        authModalMode,
+        openAuthModal,
+        closeAuthModal,
+        signInWithEmail,
+        signUpWithEmail,
+        signInWithGoogle,
+        signOutHost,
+        resetPassword,
+        loginAsDemoHost,
       }}
     >
       {children}

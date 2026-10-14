@@ -20,7 +20,8 @@ import {
   Wifi, 
   CheckCircle2, 
   Sparkles,
-  ArrowUpRight
+  ArrowUpRight,
+  Heart
 } from 'lucide-react';
 import { Property, Recommendation } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -36,7 +37,7 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
   onClose,
   isCompact = false
 }) => {
-  const { theme, t, showToast, language } = useApp();
+  const { theme, t, showToast, language, isGuestFavorite, toggleGuestFavorite } = useApp();
   const isDark = theme === 'dark';
 
   // Base coordinates for property (defaults to Old Tbilisi coordinates if not explicitly set)
@@ -205,7 +206,7 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
       }`}>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-[#E4E98E] text-[#0C1510] flex items-center justify-center font-bold shadow-xs shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
               <MapPin className="w-4 h-4 fill-current" />
             </div>
             <div className="min-w-0">
@@ -260,7 +261,7 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
                 className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 shadow-2xs ${
                   isActive
                     ? isDark 
-                      ? 'bg-[#E4E98E] text-[#0C1510] font-black shadow-xs' 
+                      ? 'bg-amber-600 text-white font-black shadow-xs' 
                       : 'bg-stone-950 text-white font-black shadow-xs'
                     : isDark 
                       ? 'bg-stone-900 text-stone-200 border border-stone-700/80 hover:bg-stone-800 hover:text-white' 
@@ -387,7 +388,7 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
                   y1="0"
                   x2={selectedSpot.dx * scale}
                   y2={selectedSpot.dy * scale}
-                  stroke={isDark ? '#E4E98E' : '#0C1510'}
+                  stroke={isDark ? '#F55A51' : '#0C1510'}
                   strokeWidth="3"
                   strokeDasharray="6 6"
                   strokeLinecap="round"
@@ -403,14 +404,14 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
                     height="22"
                     rx="11"
                     fill={isDark ? '#0C1510' : '#FFFFFF'}
-                    stroke={isDark ? '#E4E98E' : '#0C1510'}
+                    stroke={isDark ? '#F55A51' : '#0C1510'}
                     strokeWidth="1.5"
                   />
                   <text
                     x="0"
                     y="3.5"
                     textAnchor="middle"
-                    fill={isDark ? '#E4E98E' : '#0C1510'}
+                    fill={isDark ? '#F55A51' : '#0C1510'}
                     fontSize="9"
                     fontFamily="monospace"
                     fontWeight="bold"
@@ -426,7 +427,7 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
               cx="0"
               cy="0"
               r="22"
-              fill={isDark ? '#E4E98E' : '#0C1510'}
+              fill={isDark ? '#F55A51' : '#0C1510'}
               opacity="0.15"
               className="animate-ping"
             />
@@ -434,7 +435,7 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
               cx="0"
               cy="0"
               r="12"
-              fill={isDark ? '#E4E98E' : '#0C1510'}
+              fill={isDark ? '#F55A51' : '#0C1510'}
               opacity="0.25"
             />
           </g>
@@ -454,7 +455,7 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
               {/* Home Icon Pin */}
               <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 active:scale-95 border-2 ${
                 isDark 
-                  ? 'bg-[#E4E98E] text-[#0C1510] border-white/80 shadow-emerald-950/40' 
+                  ? 'bg-amber-600 text-white border-white/80 shadow-amber-950/40' 
                   : 'bg-stone-900 text-white border-white shadow-stone-900/30'
               }`}>
                 <Home className="w-5 h-5 fill-current" />
@@ -463,7 +464,7 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
               {/* Tag Label */}
               <div className={`mt-1 px-2.5 py-0.5 rounded-full shadow-md text-[10px] font-bold font-mono whitespace-nowrap border ${
                 isDark 
-                  ? 'bg-stone-900/95 text-[#E4E98E] border-stone-700' 
+                  ? 'bg-stone-900/95 text-amber-400 border-stone-700' 
                   : 'bg-white/95 text-stone-900 border-stone-200'
               }`}>
                 📍 {t.guestGuide.map.youAreHere}
@@ -504,7 +505,7 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
                   <div className={`mt-0.5 px-2 py-0.5 rounded-md text-[9px] font-bold whitespace-nowrap shadow-xs border transition-all max-w-[110px] truncate ${
                     isSelected
                       ? isDark 
-                        ? 'bg-[#E4E98E] text-[#0C1510] border-transparent font-extrabold' 
+                        ? 'bg-amber-600 text-white border-transparent font-extrabold' 
                         : 'bg-stone-900 text-white border-transparent font-extrabold'
                       : isDark
                         ? 'bg-stone-900/90 text-stone-200 border-stone-800'
@@ -560,8 +561,8 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
             onClick={handleCenterProperty}
             className={`w-9 h-9 rounded-2xl border shadow-md flex items-center justify-center transition-all active:scale-95 ${
               isDark 
-                ? 'bg-stone-900/95 hover:bg-stone-850 border-stone-800 text-[#E4E98E]' 
-                : 'bg-white/95 hover:bg-stone-50 border-stone-200 text-emerald-600'
+                ? 'bg-stone-900/95 hover:bg-stone-850 border-stone-800 text-amber-400' 
+                : 'bg-white/95 hover:bg-stone-50 border-stone-200 text-amber-600'
             }`}
             title={t.guestGuide.map.centerOnProperty}
           >
@@ -605,14 +606,35 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={() => setSelectedSpotId(null)}
-              className={`p-1.5 rounded-full shrink-0 transition-colors ${
-                isDark ? 'bg-stone-800 text-stone-300 hover:text-white' : 'bg-stone-100 text-stone-700 hover:text-stone-950'
-              }`}
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  toggleGuestFavorite(selectedSpot.id, selectedSpot.name);
+                }}
+                className={`p-1.5 rounded-full transition-all active:scale-75 cursor-pointer ${
+                  isGuestFavorite(selectedSpot.id)
+                    ? 'bg-rose-500 text-white shadow-xs'
+                    : isDark
+                    ? 'bg-stone-800 text-stone-300 hover:text-white'
+                    : 'bg-stone-100 text-stone-700 hover:text-stone-950'
+                }`}
+                title={isGuestFavorite(selectedSpot.id) ? "Saved to favorites" : "Save to favorites"}
+                aria-label="Save to favorites"
+              >
+                <Heart className={`w-4 h-4 ${isGuestFavorite(selectedSpot.id) ? 'fill-white' : ''}`} />
+              </button>
+
+              <button
+                onClick={() => setSelectedSpotId(null)}
+                className={`p-1.5 rounded-full shrink-0 transition-colors cursor-pointer ${
+                  isDark ? 'bg-stone-800 text-stone-300 hover:text-white' : 'bg-stone-100 text-stone-700 hover:text-stone-950'
+                }`}
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Description & Distance Bar */}
@@ -674,7 +696,7 @@ export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
           isDark ? 'bg-[#0B0F12] border-stone-800 text-stone-300' : 'bg-stone-100/80 border-stone-200 text-stone-800'
         }`}>
           <span className="flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-[#E4E98E]" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
             <span>{language === 'ka' ? 'დააწკაპუნეთ მარკერზე მანძილისა და რჩევის სანახავად' : language === 'ru' ? 'Нажмите на точку, чтобы увидеть расстояние и совет' : 'Tap any spot to see walking distance & host advice'}</span>
           </span>
           <span className="font-mono text-xs font-bold opacity-80">{filteredSpots.length} {language === 'ka' ? 'ადგილი' : language === 'ru' ? 'мест' : 'spots'}</span>

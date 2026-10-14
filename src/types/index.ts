@@ -24,6 +24,9 @@ export interface ApplianceGuide {
   instructions: string;
   troubleshooting?: string;
   category?: 'climate' | 'kitchen' | 'laundry' | 'entertainment' | 'access' | 'other';
+  mediaType?: 'video' | 'photo';
+  mediaUrl?: string;
+  mediaPoster?: string;
 }
 
 // ==========================================
@@ -99,6 +102,42 @@ export interface StayFeedback {
   comment?: string;
   publicReviewPlatformChosen?: 'airbnb' | 'google' | 'booking' | 'none';
   status: 'new' | 'reviewed' | 'resolved';
+}
+
+// ==========================================
+// 3.5. GUEST REQUESTS & ARRIVALS (STAGE 1 OPERATIONAL)
+// ==========================================
+export type RequestCategory = 'wifi' | 'climate' | 'water' | 'electricity' | 'access' | 'cleaning' | 'room' | 'other';
+export type RequestStatus = 'new' | 'in_progress' | 'resolved';
+
+export interface GuestRequest {
+  id: string;
+  propertyId: string;
+  propertyName: string;
+  guestName: string;
+  category: RequestCategory;
+  title: string;
+  description?: string;
+  createdAt: string;
+  status: RequestStatus;
+  urgency: 'low' | 'medium' | 'high';
+  assignedTo?: string;
+}
+
+export interface ArrivalScheduleItem {
+  id: string;
+  time: string;
+  checkInTime?: string;
+  guestCount?: number;
+  guestName: string;
+  guestAvatar?: string;
+  propertyId: string;
+  propertyName: string;
+  status: 'confirmed' | 'checked_in' | 'pending';
+  doorKeypadCode: string;
+  wifiNetwork: string;
+  guideOpened: boolean;
+  phone?: string;
 }
 
 // ==========================================
@@ -222,7 +261,10 @@ export type AppRoute =
   | '/demo'
   // 2. Host SaaS
   | '/app'
+  | '/app/analytics'
   | '/app/properties'
+  | '/app/reviews'
+  | '/app/requests'
   | '/app/properties/:id'
   // 3. Onboarding
   | '/onboarding'

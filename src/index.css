@@ -3,17 +3,98 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Urbanist', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-serif: 'Playfair Display', Georgia, Cambria, 'Times New Roman', Times, serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  /* Stumari Brand Palette */
+  --color-coral: #F55A51;
+  --color-coral-hover: #E04840;
+  --color-coral-subtle: #FDF1F0;
+  --color-coral-dark: #C93E36;
+
+  --color-slate-blue: #748C96;
+  --color-slate-blue-hover: #607680;
+  --color-slate-blue-subtle: #F0F4F6;
+  --color-slate-blue-dark: #4D6169;
+
+  --color-gold: #FFC757;
+  --color-gold-hover: #EBB242;
+  --color-gold-subtle: #FFF9ED;
+  --color-gold-dark: #C99732;
+
+  --color-warm-neutral: #DADADA;
+  --color-warm-neutral-light: #E3E3E3;
+  --color-warm-surface: #FAF8F5;
+  --color-warm-card: #FFFFFF;
+}
+
+:root {
+  /* Brand Core Tokens */
+  --brand-coral: #F55A51;
+  --brand-coral-hover: #E04840;
+  --brand-coral-subtle: #FDF1F0;
+  
+  --brand-slate: #748C96;
+  --brand-slate-hover: #607680;
+  --brand-slate-subtle: #F0F4F6;
+
+  --brand-gold: #FFC757;
+  --brand-gold-hover: #EBB242;
+  --brand-gold-subtle: #FFF9ED;
+
+  --brand-neutral: #DADADA;
+  --brand-neutral-light: #E3E3E3;
+
+  /* Semantic Light Mode Tokens */
+  --surface-canvas: #FAF8F5;
+  --surface-card: #FFFFFF;
+  --surface-subtle: #F3EFE9;
+  --surface-muted: #ECE7DF;
+  --border-subtle: #EBE6DF;
+  --border-default: #DDD8CF;
+  --border-strong: #C4BDAF;
+  --text-primary: #1C1B1A;
+  --text-secondary: #5C5853;
+  --text-muted: #8A857D;
+  --focus-ring: #F55A51;
+}
+
+.dark {
+  /* Semantic Dark Mode Tokens with warm boutique darks */
+  --surface-canvas: #141312;
+  --surface-card: #1F1E1C;
+  --surface-subtle: #272522;
+  --surface-muted: #322F2B;
+  --border-subtle: #2B2926;
+  --border-default: #3B3833;
+  --border-strong: #544F48;
+  --text-primary: #F7F5F0;
+  --text-secondary: #ACA79F;
+  --text-muted: #78736A;
+  --focus-ring: #F55A51;
+
+  --brand-coral-subtle: rgba(245, 90, 81, 0.12);
+  --brand-slate-subtle: rgba(116, 140, 150, 0.12);
+  --brand-gold-subtle: rgba(255, 199, 87, 0.14);
 }
 
 @layer base {
   html, body {
     font-family: var(--font-sans);
+    background-color: var(--surface-canvas);
+    color: var(--text-primary);
     overflow-x: hidden;
     width: 100%;
     max-width: 100vw;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
   }
 }
 
@@ -36,6 +117,171 @@
   50% { opacity: 0.85; }
 }
 
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-7px); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(0.5deg); }
+}
+
+@keyframes float-reverse {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(6px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(245, 90, 81, 0.45);
+  }
+  50% { 
+    box-shadow: 0 0 20px 4px rgba(245, 90, 81, 0.25);
+  }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-6deg); }
+  75% { transform: rotate(6deg); }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.92); opacity: 0; }
+  70% { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 .animate-pulse-subtle {
   animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-float {
+  animation: float 4.5s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: float-reverse 5s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-wiggle {
+  animation: wiggle 0.6s ease-in-out;
+}
+
+.animate-pop-in {
+  animation: pop-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes beacon-ping {
+  0% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  100% { transform: translateX(250%) skewX(-20deg); }
+}
+
+@keyframes sparkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.25) rotate(180deg); opacity: 0.8; }
+}
+
+@keyframes border-glow {
+  0%, 100% { border-color: rgba(245, 90, 81, 0.3); }
+  50% { border-color: rgba(245, 90, 81, 0.8); }
+}
+
+.animate-beacon-ping {
+  animation: beacon-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.animate-shimmer-sweep {
+  animation: shimmer-sweep 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-sparkle {
+  animation: sparkle 3s ease-in-out infinite;
+}
+
+.animate-border-glow {
+  animation: border-glow 3s ease-in-out infinite;
+}
+
+/* Bespoke Seductive Warm Boutique Card Shadows */
+.shadow-warm-sm {
+  box-shadow: 0 2px 8px -1px rgba(28, 27, 26, 0.05), 0 1px 3px rgba(28, 27, 26, 0.03);
+}
+.shadow-warm-md {
+  box-shadow: 0 8px 24px -4px rgba(28, 27, 26, 0.07), 0 2px 6px -1px rgba(28, 27, 26, 0.03);
+}
+.shadow-warm-lg {
+  box-shadow: 0 16px 40px -8px rgba(28, 27, 26, 0.09), 0 4px 12px -2px rgba(28, 27, 26, 0.04);
+}
+.dark .shadow-warm-sm {
+  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.dark .shadow-warm-md {
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.dark .shadow-warm-lg {
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Tactile Seductive Card Micro-interactions */
+.card-seductive {
+  position: relative;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.2s ease, 
+              background-color 0.2s ease;
+}
+.card-seductive:hover {
+  transform: translateY(-2.5px);
+}
+.card-seductive:active {
+  transform: scale(0.985) translateY(0);
+}
+
+/* Tactile Spring Press on Interactive Elements */
+.interactive-spring {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.interactive-spring:hover {
+  transform: translateY(-2px);
+}
+.interactive-spring:active {
+  transform: scale(0.97) translateY(0);
+}
+
+.interactive-card {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+}
+.interactive-card:hover {
+  transform: translateY(-3px);
+}
+
+/* Accessible Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

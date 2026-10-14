@@ -56,9 +56,9 @@ export const StumariLogo: React.FC<StumariLogoProps> = ({
   if (stacked) {
     return (
       <div className={`flex flex-col items-center justify-center gap-2 ${className}`}>
-        <StumariArchIcon size={iconSize * 1.3} className="text-stone-900" />
+        <StumariArchIcon size={iconSize * 1.3} className="text-[#F55A51]" />
         {showText && (
-          <span className="font-serif tracking-[0.25em] text-sm uppercase font-bold text-stone-900 select-none pl-1">
+          <span className="font-serif tracking-[0.22em] text-sm uppercase font-bold text-[#1C1B1A] dark:text-[#F7F5F0] select-none pl-1">
             STUMARI
           </span>
         )}
@@ -68,11 +68,11 @@ export const StumariLogo: React.FC<StumariLogoProps> = ({
 
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <div className="w-9 h-9 rounded-xl bg-stone-100/90 border border-stone-200/90 flex items-center justify-center text-stone-900 shadow-2xs transition-colors group-hover:bg-amber-100/60 group-hover:border-amber-300/80">
-        <StumariArchIcon size={iconSize} className="text-stone-900" />
+      <div className="w-9 h-9 rounded-xl bg-[#FDF1F0] dark:bg-[#F55A51]/15 border border-[#F55A51]/25 flex items-center justify-center text-[#F55A51] shadow-2xs transition-colors">
+        <StumariArchIcon size={iconSize} className="text-[#F55A51]" />
       </div>
       {showText && (
-        <span className="font-serif tracking-[0.22em] text-lg font-bold uppercase text-stone-900 select-none">
+        <span className="font-serif tracking-[0.18em] text-lg font-bold uppercase text-[#1C1B1A] dark:text-[#F7F5F0] select-none">
           STUMARI
         </span>
       )}

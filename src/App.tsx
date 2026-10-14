@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/common/Header';
 import { Toast } from './components/common/Toast';
+import { AuthModal } from './components/common/AuthModal';
 import { LandingPage } from './components/marketing/LandingPage';
 import { FeaturesPage } from './components/marketing/FeaturesPage';
 import { ForPropertiesPage } from './components/marketing/ForPropertiesPage';
@@ -13,6 +15,32 @@ import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
 import { GuestGuideSimple } from './components/guest/GuestGuideSimple';
 import { AdminConsole } from './components/admin/AdminConsole';
 
+const pageVariants = {
+  initial: {
+    opacity: 0,
+    y: 16,
+    scale: 0.992,
+  },
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.28,
+      ease: [0.16, 1, 0.3, 1] as const,
+    },
+  },
+  exit: {
+    opacity: 0,
+    y: -10,
+    scale: 0.994,
+    transition: {
+      duration: 0.18,
+      ease: [0.16, 1, 0.3, 1] as const,
+    },
+  },
+};
+
 const MainApp: React.FC = () => {
   const { 
     currentRoute, 
@@ -20,8 +48,15 @@ const MainApp: React.FC = () => {
     navigateToGuestGuide, 
     navigateToPropertyHub,
     properties,
+    currentProperty,
+    activeGuestSlug,
     theme 
   } = useApp();
+
+  // Scroll to top on route change for a clean entrance
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [currentRoute, activeGuestSlug]);
 
   // Listen to hash and URL navigation for SPA routing
   useEffect(() => {
@@ -47,6 +82,12 @@ const MainApp: React.FC = () => {
         setCurrentRoute('/onboarding');
       } else if (hash === '#/app/properties' || path === '/app/properties') {
         setCurrentRoute('/app/properties');
+      } else if (hash === '#/app/analytics' || path === '/app/analytics') {
+        setCurrentRoute('/app/analytics');
+      } else if (hash === '#/app/reviews' || path === '/app/reviews') {
+        setCurrentRoute('/app/reviews');
+      } else if (hash === '#/app/requests' || path === '/app/requests') {
+        setCurrentRoute('/app/requests');
       } else if (hash.startsWith('#/app/properties/')) {
         const parts = hash.replace('#/app/properties/', '').split('/');
         const propId = parts[0];
@@ -76,43 +117,68 @@ const MainApp: React.FC = () => {
   const isGuestFullscreen = currentRoute === '/g/:propertySlug';
   const isDark = theme === 'dark';
 
+  // Compute key to ensure Framer Motion triggers on dynamic routes as well
+  const pageKey = 
+    currentRoute === '/g/:propertySlug'
+      ? `guest-${activeGuestSlug || 'active'}`
+      : currentRoute === '/app/properties/:id'
+      ? `property-${currentProperty?.id || 'hub'}`
+      : currentRoute;
+
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 w-full overflow-x-hidden ${
-      isDark ? 'bg-[#080B0D] text-stone-100' : 'bg-stone-50 text-stone-900'
-    } selection:bg-[#E4E98E] selection:text-stone-950`}>
+      isDark ? 'bg-[#0D0E12] text-zinc-100' : 'bg-[#F8F8F6] text-zinc-900'
+    } selection:bg-[#F55A51] selection:text-white tracking-tight`}>
       
       {/* Universal Navigation Header */}
       {!isGuestFullscreen && <Header />}
 
-      {/* Main View Router */}
-      <main className="flex-1 w-full overflow-x-hidden">
-        {/* 1. Marketing 5 Pages */}
-        {currentRoute === '/' && <LandingPage />}
-        {currentRoute === '/features' && <FeaturesPage />}
-        {currentRoute === '/for-properties' && <ForPropertiesPage />}
-        {currentRoute === '/pricing' && <PricingPage />}
-        {currentRoute === '/demo' && <DemoPage />}
+      {/* Main View Router with Framer Motion Page Entrance Transition */}
+      <main className="flex-1 w-full overflow-x-hidden flex flex-col">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={pageKey}
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="w-full flex-1 flex flex-col"
+          >
+            {/* 1. Marketing 5 Pages */}
+            {currentRoute === '/' && <LandingPage />}
+            {currentRoute === '/features' && <FeaturesPage />}
+            {currentRoute === '/for-properties' && <ForPropertiesPage />}
+            {currentRoute === '/pricing' && <PricingPage />}
+            {currentRoute === '/demo' && <DemoPage />}
 
-        {/* 2. Host SaaS Views */}
-        {currentRoute === '/app' && <HostDashboardSimple isFullList={false} />}
-        {currentRoute === '/app/properties' && <HostDashboardSimple isFullList={true} />}
-        {currentRoute === '/app/properties/:id' && <PropertyHub />}
+            {/* 2. Host SaaS Views */}
+            {currentRoute === '/app' && <HostDashboardSimple isFullList={false} activeTab="overview" />}
+            {currentRoute === '/app/analytics' && <HostDashboardSimple isFullList={false} activeTab="analytics" />}
+            {currentRoute === '/app/properties' && <HostDashboardSimple isFullList={true} activeTab="properties" />}
+            {currentRoute === '/app/reviews' && <HostDashboardSimple isFullList={false} activeTab="reviews" />}
+            {currentRoute === '/app/requests' && <HostDashboardSimple isFullList={false} activeTab="requests" />}
+            {currentRoute === '/app/properties/:id' && <PropertyHub />}
 
-        {/* 3. Onboarding */}
-        {currentRoute === '/onboarding' && <OnboardingWizard />}
+            {/* 3. Onboarding */}
+            {currentRoute === '/onboarding' && <OnboardingWizard />}
 
-        {/* 4. Guest Experience */}
-        {currentRoute === '/g/:propertySlug' && <GuestGuideSimple />}
+            {/* 4. Guest Experience */}
+            {currentRoute === '/g/:propertySlug' && <GuestGuideSimple />}
 
-        {/* 5. Admin Console */}
-        {(currentRoute === '/admin' || 
-          currentRoute === '/admin/hosts' || 
-          currentRoute === '/admin/properties' || 
-          currentRoute === '/admin/settings') && <AdminConsole />}
+            {/* 5. Admin Console */}
+            {(currentRoute === '/admin' || 
+              currentRoute === '/admin/hosts' || 
+              currentRoute === '/admin/properties' || 
+              currentRoute === '/admin/settings') && <AdminConsole />}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Toast Notifications */}
       <Toast />
+
+      {/* Firebase Authentication Modal */}
+      <AuthModal />
     </div>
   );
 };

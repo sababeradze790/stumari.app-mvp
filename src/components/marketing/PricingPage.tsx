@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Check, ArrowRight, ChevronDown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { PRICING_PLANS } from '../../data/mockData';
@@ -16,7 +17,7 @@ export const PricingPage: React.FC = () => {
 
   return (
     <div className={`min-h-screen pb-20 font-sans transition-colors duration-300 ${
-      isDark ? 'bg-[#080B0D] text-stone-100' : 'bg-stone-50 text-stone-900'
+      isDark ? 'bg-[#0D0E12] text-zinc-100' : 'bg-[#FAFAF8] text-zinc-900'
     }`}>
       {/* Hero Header */}
       <section className={`pt-12 sm:pt-16 pb-16 sm:pb-20 px-4 sm:px-6 lg:px-8 border-b text-center transition-colors ${
@@ -24,7 +25,7 @@ export const PricingPage: React.FC = () => {
       }`}>
         <div className="max-w-3xl mx-auto space-y-4">
           <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase inline-block ${
-            isDark ? 'bg-[#E4E98E]/15 text-[#E4E98E] border border-[#E4E98E]/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+            isDark ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
           }`}>
             {t.nav.pricing}
           </span>
@@ -45,9 +46,11 @@ export const PricingPage: React.FC = () => {
               className="w-12 h-6 rounded-full bg-stone-800 border border-stone-700 p-0.5 transition-colors relative cursor-pointer"
               aria-label="Toggle annual billing"
             >
-              <div
-                className={`w-5 h-5 rounded-full transition-transform ${
-                  annualBilling ? 'translate-x-6 bg-[#E4E98E]' : 'translate-x-0 bg-stone-400'
+              <motion.div
+                layout
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className={`w-5 h-5 rounded-full ${
+                  annualBilling ? 'translate-x-6 bg-amber-500' : 'translate-x-0 bg-stone-400'
                 }`}
               />
             </button>
@@ -55,7 +58,7 @@ export const PricingPage: React.FC = () => {
               <span className={`text-xs font-semibold ${annualBilling ? 'text-white' : 'text-stone-400'}`}>
                 {t.marketing.pricing.annual}
               </span>
-              <span className="text-[10px] font-bold bg-[#E4E98E] text-[#0C1510] px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold bg-amber-500 text-stone-950 px-2 py-0.5 rounded-full">
                 {t.marketing.pricing.saveTag}
               </span>
             </div>
@@ -70,7 +73,7 @@ export const PricingPage: React.FC = () => {
             onClick={() => setSelectedMobilePlan('all')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
               selectedMobilePlan === 'all'
-                ? isDark ? 'bg-[#E4E98E] text-[#0C1510]' : 'bg-stone-900 text-white'
+                ? isDark ? 'bg-amber-600 text-white' : 'bg-stone-900 text-white'
                 : 'text-stone-500'
             }`}
           >
@@ -82,7 +85,7 @@ export const PricingPage: React.FC = () => {
               onClick={() => setSelectedMobilePlan(plan.id)}
               className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 selectedMobilePlan === plan.id
-                  ? isDark ? 'bg-[#E4E98E] text-[#0C1510]' : 'bg-stone-900 text-white'
+                  ? isDark ? 'bg-amber-600 text-white' : 'bg-stone-900 text-white'
                   : 'text-stone-500'
               }`}
             >
@@ -106,8 +109,8 @@ export const PricingPage: React.FC = () => {
                 accentBorder: isDark ? 'hover:border-[#859768]/50' : 'hover:border-[#859768]'
               },
               {
-                badge: 'bg-[#E4E98E] text-[#0C1510] border-[#d8dd7a]',
-                accentBorder: isDark ? 'border-[#E4E98E]' : 'border-amber-400'
+                badge: isDark ? 'bg-amber-950/40 text-amber-300 border-amber-600/30' : 'bg-amber-100 text-amber-900 border-amber-300',
+                accentBorder: isDark ? 'border-amber-500' : 'border-amber-400'
               },
               {
                 badge: isDark ? 'bg-[#182733] text-[#B8D9EF] border-[#92B1C9]/30' : 'bg-[#E3EDF4] text-[#0F2230] border-[#C9DEED]',
@@ -117,12 +120,16 @@ export const PricingPage: React.FC = () => {
             const currentPlanTheme = planThemes[index % planThemes.length];
 
             return (
-              <div
+              <motion.div
                 key={plan.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.1 }}
+                whileHover={{ y: -8 }}
                 className={`rounded-[30px] sm:rounded-[32px] p-6 sm:p-8 border flex flex-col justify-between transition-all duration-300 relative ${
                   isHeroCard
                     ? isDark 
-                      ? 'bg-gradient-to-b from-[#182024] to-[#12171A] border-[#E4E98E] shadow-2xl ring-1 ring-[#E4E98E]/50'
+                      ? 'bg-gradient-to-b from-[#182024] to-[#12171A] border-amber-500 shadow-2xl ring-1 ring-amber-500/50'
                       : 'bg-white border-amber-400 shadow-xl ring-2 ring-amber-400/40'
                     : isDark 
                       ? `bg-[#0C1013] border-stone-800 text-stone-100 shadow-lg ${currentPlanTheme.accentBorder}` 
@@ -130,7 +137,7 @@ export const PricingPage: React.FC = () => {
                 }`}
               >
                 {isHeroCard && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#E4E98E] text-[#0C1510] font-mono text-[10px] font-bold uppercase tracking-wider px-3.5 py-1 rounded-full shadow-md whitespace-nowrap">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-stone-950 font-mono text-[10px] font-bold uppercase tracking-wider px-3.5 py-1 rounded-full shadow-md whitespace-nowrap animate-glow">
                     {content.mostPopular}
                   </div>
                 )}
@@ -170,12 +177,14 @@ export const PricingPage: React.FC = () => {
                 </div>
 
                 <div className="pt-6 sm:pt-8">
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
                     onClick={() => setCurrentRoute('/onboarding')}
-                    className={`w-full py-3 sm:py-3.5 rounded-full font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 ${
+                    className={`w-full py-3 sm:py-3.5 rounded-full font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer ${
                       isHeroCard
                         ? isDark 
-                          ? 'bg-[#E4E98E] hover:bg-[#d9de7d] text-[#0C1510]' 
+                          ? 'bg-amber-600 hover:bg-amber-500 text-white' 
                           : 'bg-stone-950 hover:bg-stone-850 text-white'
                         : isDark 
                           ? 'bg-stone-800 hover:bg-stone-750 text-white' 
@@ -184,9 +193,9 @@ export const PricingPage: React.FC = () => {
                   >
                     <span>{plan.cta}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                  </motion.button>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -201,8 +210,9 @@ export const PricingPage: React.FC = () => {
           {content.faqs.map((faq, idx) => {
             const isOpen = openFaq === idx;
             return (
-              <div 
+              <motion.div 
                 key={idx}
+                whileHover={{ y: -2 }}
                 onClick={() => setOpenFaq(isOpen ? null : idx)}
                 className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer ${
                   isDark ? 'bg-[#0C1013] border-stone-800 text-stone-100 hover:border-stone-700' : 'bg-white border-stone-200 text-stone-900 hover:shadow-xs'
@@ -210,14 +220,27 @@ export const PricingPage: React.FC = () => {
               >
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs font-bold">{faq.q}</h4>
-                  <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${isOpen ? 'rotate-180 text-amber-500' : 'text-stone-400'}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-amber-500' : 'text-stone-400'}`} />
                 </div>
-                <p className={`text-xs leading-relaxed mt-2 ${
-                  isOpen ? 'block' : 'hidden sm:block'
-                } ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>
-                  {faq.a}
-                </p>
-              </div>
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.p 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className={`text-xs leading-relaxed mt-2 ${isDark ? 'text-stone-400' : 'text-stone-600'}`}
+                    >
+                      {faq.a}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+                {!isOpen && (
+                  <p className={`hidden sm:block text-xs leading-relaxed mt-2 ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>
+                    {faq.a}
+                  </p>
+                )}
+              </motion.div>
             );
           })}
         </div>

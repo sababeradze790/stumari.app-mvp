@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -37,82 +38,96 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end animate-in fade-in duration-200">
-      {/* Backdrop */}
-      <div 
-        onClick={onClose}
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity" 
-        aria-hidden="true"
-      />
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          {/* Backdrop */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm" 
+            aria-hidden="true"
+          />
 
-      {/* Slide-Up Sheet Container */}
-      <div 
-        className={`relative z-10 w-full max-w-lg mx-auto rounded-t-[32px] border-t shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-8 duration-300 ${maxHeight} ${
-          isDark 
-            ? 'bg-[#0E1317] border-stone-800 text-stone-100' 
-            : 'bg-white border-stone-200 text-stone-900'
-        }`}
-      >
-        {/* iOS Drag Handle */}
-        <div 
-          onClick={onClose}
-          className="w-full pt-3 pb-1 flex items-center justify-center cursor-pointer shrink-0"
-        >
-          <div className="w-12 h-1.5 rounded-full bg-stone-500/40 hover:bg-stone-500/70 transition-colors" />
-        </div>
+          {/* Slide-Up Sheet Container */}
+          <motion.div 
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+            className={`relative z-10 w-full max-w-lg mx-auto rounded-t-2xl border-t shadow-xl flex flex-col overflow-hidden tracking-tight ${maxHeight} ${
+              isDark 
+                ? 'bg-zinc-950 border-zinc-800 text-zinc-100' 
+                : 'bg-white border-zinc-200 text-zinc-900'
+            }`}
+          >
+            {/* Drag Handle */}
+            <div 
+              onClick={onClose}
+              className="w-full pt-3 pb-1 flex items-center justify-center cursor-pointer shrink-0"
+            >
+              <div className="w-10 h-1 rounded-full bg-zinc-700/60 hover:bg-zinc-600 transition-colors" />
+            </div>
 
-        {/* Sheet Header */}
-        <div className={`px-5 py-3 border-b flex items-center justify-between shrink-0 gap-3 ${
-          isDark ? 'border-stone-800/80 bg-[#12171B]' : 'border-stone-100 bg-stone-50'
-        }`}>
-          <div className="flex items-center gap-2.5 min-w-0">
-            {icon && (
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                isDark ? 'bg-stone-800 text-[#E4E98E]' : 'bg-stone-200 text-stone-900'
+            {/* Sheet Header */}
+            <div className={`px-5 py-3.5 border-b flex items-center justify-between shrink-0 gap-3 ${
+              isDark ? 'border-zinc-800 bg-zinc-900/80' : 'border-zinc-200 bg-zinc-50'
+            }`}>
+              <div className="flex items-center gap-2.5 min-w-0">
+                {icon && (
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border shadow-sm ${
+                    isDark ? 'bg-zinc-800 border-zinc-700/80 text-zinc-200' : 'bg-zinc-100 border-zinc-200 text-zinc-800'
+                  }`}>
+                    {icon}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-base sm:text-lg leading-tight truncate tracking-tight text-zinc-100 dark:text-zinc-100">
+                    {title}
+                  </h3>
+                  {subtitle && (
+                    <p className="text-[11px] text-zinc-400 truncate mt-0.5 font-medium tracking-tight">
+                      {subtitle}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onClose}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors cursor-pointer border ${
+                  isDark 
+                    ? 'bg-zinc-850 border-zinc-750 text-zinc-400 hover:text-white hover:bg-zinc-800' 
+                    : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900'
+                }`}
+                aria-label="Close drawer"
+              >
+                <X className="w-4 h-4" />
+              </motion.button>
+            </div>
+
+            {/* Sheet Scrollable Content */}
+            <div className="p-5 overflow-y-auto space-y-4 text-xs leading-relaxed flex-1 overscroll-contain">
+              {children}
+            </div>
+
+            {/* Sticky Bottom Action (if provided) */}
+            {stickyBottomAction && (
+              <div className={`p-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] border-t shrink-0 ${
+                isDark ? 'border-zinc-800 bg-zinc-950' : 'border-zinc-200 bg-white'
               }`}>
-                {icon}
+                {stickyBottomAction}
               </div>
             )}
-            <div className="min-w-0">
-              <h3 className="font-serif font-bold text-base sm:text-lg leading-tight truncate">
-                {title}
-              </h3>
-              {subtitle && (
-                <p className="text-[11px] text-stone-600 dark:text-stone-400 truncate mt-0.5 font-medium">
-                  {subtitle}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-              isDark ? 'bg-stone-800 text-stone-300 hover:bg-stone-700' : 'bg-stone-200 text-stone-600 hover:bg-stone-300'
-            }`}
-            aria-label="Close drawer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          </motion.div>
         </div>
-
-        {/* Sheet Scrollable Content */}
-        <div className="p-5 overflow-y-auto space-y-4 text-xs leading-relaxed flex-1 overscroll-contain">
-          {children}
-        </div>
-
-        {/* Sticky Bottom Action (if provided) */}
-        {stickyBottomAction && (
-          <div className={`p-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] border-t shrink-0 ${
-            isDark ? 'border-stone-800/80 bg-[#0E1317]' : 'border-stone-100 bg-white'
-          }`}>
-            {stickyBottomAction}
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 };

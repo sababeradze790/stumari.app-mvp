@@ -19,22 +19,40 @@ import {
 import { useApp } from '../../context/AppContext';
 import { GuestRequest, RequestStatus, RequestCategory } from '../../types';
 
-export const GuestRequestsInbox: React.FC = () => {
+interface GuestRequestsInboxProps {
+  propertyIdFilter?: string;
+}
+
+export const GuestRequestsInbox: React.FC<GuestRequestsInboxProps> = ({ propertyIdFilter }) => {
   const { 
     theme, 
     language, 
     requests, 
     updateRequestStatus, 
     properties, 
-    showToast 
+    showToast,
+    firebaseUser
   } = useApp();
 
   const isDark = theme === 'dark';
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string>('all');
+  const hostProperties = firebaseUser
+    ? properties.filter(p => p.ownerId === firebaseUser.uid && !p.isDemo)
+    : properties;
+  const hostRequests = firebaseUser
+    ? requests.filter(r => r.hostId === firebaseUser.uid)
+    : requests;
+
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string>(propertyIdFilter || 'all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
-  const filteredRequests = requests.filter(req => {
+  React.useEffect(() => {
+    if (propertyIdFilter) {
+      setSelectedPropertyId(propertyIdFilter);
+    }
+  }, [propertyIdFilter]);
+
+  const filteredRequests = hostRequests.filter(req => {
     if (selectedPropertyId !== 'all' && req.propertyId !== selectedPropertyId) return false;
     if (selectedCategory !== 'all' && req.category !== selectedCategory) return false;
     if (selectedStatus !== 'all' && req.status !== selectedStatus) return false;
@@ -79,7 +97,7 @@ export const GuestRequestsInbox: React.FC = () => {
     }
   };
 
-  const pendingCount = requests.filter(r => r.status !== 'resolved').length;
+  const pendingCount = hostRequests.filter(r => r.status !== 'resolved').length;
 
   return (
     <div className="space-y-6">
@@ -153,8 +171,10 @@ export const GuestRequestsInbox: React.FC = () => {
               className="px-3 py-1.5 rounded-xl border font-medium focus:outline-none transition-colors bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-800 text-stone-900 dark:text-zinc-100 focus:border-amber-600 dark:focus:border-amber-500"
             >
               <option value="all">{language === 'ka' ? 'ყველა ობიექტი' : language === 'ru' ? 'Все объекты' : 'All Properties'}</option>
-              {properties.map(p => (
-                <option key={p.id} value={p.id}>{p.title}</option>
+              {hostProperties.map((p, pIdx) => (
+                <option key={p.id ? `prop-opt-${p.id}` : `prop-opt-${pIdx}`} value={p.id || `prop-${pIdx}`}>
+                  {p.title || `Property ${pIdx + 1}`}
+                </option>
               ))}
             </select>
 
@@ -177,32 +197,41 @@ export const GuestRequestsInbox: React.FC = () => {
 
       {/* Requests List */}
       <div className="space-y-3">
-        {filteredRequests.length === 0 ? (
-          <div className={`p-10 rounded-[24px] border text-center space-y-2 ${
-            isDark ? 'bg-[#13191D] border-stone-800 text-stone-400' : 'bg-white border-stone-200 text-stone-600'
-          }`}>
-            <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-400 opacity-80" />
-            <h4 className="font-serif font-bold text-base text-stone-200">
-              {language === 'ka' ? 'მოთხოვნები არ არის' : language === 'ru' ? 'Нет активных запросов' : 'No matching requests'}
-            </h4>
-            <p className="text-xs">
-              {language === 'ka' ? 'ყველა მოთხოვნა მოგვარებულია ან ფილტრი ცარიელია.' : 'All guest requests are resolved or no tickets match filters.'}
-            </p>
-          </div>
-        ) : (
-          filteredRequests.map((req) => (
+        <AnimatePresence mode="popLayout">
+          {filteredRequests.length === 0 ? (
             <motion.div
-              key={req.id}
-              layout
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className={`p-4 sm:p-5 rounded-[22px] border transition-all ${
-                isDark 
-                  ? 'bg-[#141A1E] border-stone-800 hover:border-stone-700 text-stone-100' 
-                  : 'bg-white border-stone-200 hover:border-stone-300 text-stone-900 shadow-xs'
+              key="empty-requests-state"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className={`p-10 rounded-[24px] border text-center space-y-2 ${
+                isDark ? 'bg-[#13191D] border-stone-800 text-stone-400' : 'bg-white border-stone-200 text-stone-600'
               }`}
             >
+              <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-400 opacity-80" />
+              <h4 className="font-serif font-bold text-base text-stone-200">
+                {language === 'ka' ? 'მოთხოვნები არ არის' : language === 'ru' ? 'Нет активных запросов' : 'No matching requests'}
+              </h4>
+              <p className="text-xs">
+                {language === 'ka' ? 'ყველა მოთხოვნა მოგვარებულია ან ფილტრი ცარიელია.' : 'All guest requests are resolved or no tickets match filters.'}
+              </p>
+            </motion.div>
+          ) : (
+            filteredRequests.map((req, reqIdx) => {
+              const uniqueKey = req.id ? `req-${req.id}` : `req-idx-${reqIdx}`;
+              return (
+                <motion.div
+                  key={uniqueKey}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className={`p-4 sm:p-5 rounded-[22px] border transition-all ${
+                    isDark 
+                      ? 'bg-[#141A1E] border-stone-800 hover:border-stone-700 text-stone-100' 
+                      : 'bg-white border-stone-200 hover:border-stone-300 text-stone-900 shadow-xs'
+                  }`}
+                >
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <div className={`p-2.5 rounded-xl shrink-0 mt-0.5 border ${
@@ -293,8 +322,10 @@ export const GuestRequestsInbox: React.FC = () => {
                 </div>
               </div>
             </motion.div>
-          ))
-        )}
+              );
+            })
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

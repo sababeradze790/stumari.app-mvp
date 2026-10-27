@@ -2,7 +2,7 @@
   "entities": {
     "Property": {
       "title": "Property",
-      "description": "A rental property digital guide and stay manual",
+      "description": "Public rental property digital guide and stay manual (excludes private access credentials, exact street address, and personal host phone numbers)",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -11,19 +11,56 @@
         "subtitle": { "type": "string" },
         "type": { "type": "string" },
         "status": { "type": "string" },
-        "address": { "type": "string" },
         "city": { "type": "string" },
         "country": { "type": "string" },
         "coverImage": { "type": "string" },
         "hostName": { "type": "string" },
-        "hostPhone": { "type": "string" },
-        "hostWhatsApp": { "type": "string" },
         "checkInTime": { "type": "string" },
         "checkOutTime": { "type": "string" },
-        "wifiNetwork": { "type": "string" },
-        "wifiPassword": { "type": "string" }
+        "hasPrivateCredentials": { "type": "boolean" },
+        "ownerId": { "type": "string" },
+        "isDemo": { "type": "boolean" }
       },
       "required": ["id", "slug", "title", "city"]
+    },
+    "PropertyPrivateAccess": {
+      "title": "PropertyPrivateAccess",
+      "description": "Capability-token-gated check-in, Wi-Fi, exact address, and host direct contact details for authorized guests",
+      "type": "object",
+      "properties": {
+        "wifiNetwork": { "type": "string" },
+        "wifiPassword": { "type": "string" },
+        "doorKeypadCode": { "type": "string" },
+        "lockboxCode": { "type": "string" },
+        "arrivalDirections": { "type": "string" },
+        "parkingInstructions": { "type": "string" },
+        "address": { "type": "string" },
+        "hostPhone": { "type": "string" },
+        "hostWhatsApp": { "type": "string" },
+        "emergencyContact": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "PropertyHostSecrets": {
+      "title": "PropertyHostSecrets",
+      "description": "Owner-only record containing the active capability token and private credentials/contact details for host editing",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "accessToken": { "type": "string" },
+        "wifiNetwork": { "type": "string" },
+        "wifiPassword": { "type": "string" },
+        "doorKeypadCode": { "type": "string" },
+        "lockboxCode": { "type": "string" },
+        "arrivalDirections": { "type": "string" },
+        "parkingInstructions": { "type": "string" },
+        "address": { "type": "string" },
+        "hostPhone": { "type": "string" },
+        "hostWhatsApp": { "type": "string" },
+        "emergencyContact": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["ownerId", "accessToken"]
     },
     "StayFeedback": {
       "title": "StayFeedback",
@@ -32,6 +69,7 @@
       "properties": {
         "id": { "type": "string" },
         "propertyId": { "type": "string" },
+        "hostId": { "type": "string" },
         "propertyName": { "type": "string" },
         "guestName": { "type": "string" },
         "sentiment": { "type": "string" },
@@ -39,7 +77,7 @@
         "status": { "type": "string" },
         "createdAt": { "type": "string" }
       },
-      "required": ["id", "propertyId", "sentiment", "createdAt"]
+      "required": ["id", "propertyId", "hostId", "sentiment", "createdAt"]
     },
     "StumariGem": {
       "title": "StumariGem",
@@ -47,6 +85,7 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "ownerId": { "type": "string" },
         "title": { "type": "string" },
         "subtitle": { "type": "string" },
         "type": { "type": "string" },
@@ -56,7 +95,7 @@
         "whyWeRecommend": { "type": "string" },
         "localTip": { "type": "string" }
       },
-      "required": ["id", "title", "experience"]
+      "required": ["id", "ownerId", "title", "experience"]
     },
     "UserProfile": {
       "title": "UserProfile",
@@ -70,12 +109,39 @@
         "lastLogin": { "type": "string" }
       },
       "required": ["uid", "email"]
+    },
+    "GuestRequest": {
+      "title": "GuestRequest",
+      "description": "One-tap guest request for linens, maintenance, climate or help",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "hostId": { "type": "string" },
+        "propertyName": { "type": "string" },
+        "guestName": { "type": "string" },
+        "category": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "status": { "type": "string" },
+        "urgency": { "type": "string" }
+      },
+      "required": ["id", "propertyId", "hostId", "category", "title", "createdAt", "status"]
     }
   },
   "firestore": {
     "/properties/{propertyId}": {
       "schema": { "$ref": "#/entities/Property" },
-      "description": "Public property stay guides published by hosts"
+      "description": "Public property stay guides published by hosts (without sensitive credentials or private contact details)"
+    },
+    "/properties/{propertyId}/hostSecrets/{docId}": {
+      "schema": { "$ref": "#/entities/PropertyHostSecrets" },
+      "description": "Owner-only private credentials, exact address, contact numbers, and active guest capability token"
+    },
+    "/properties/{propertyId}/privateAccess/{accessToken}": {
+      "schema": { "$ref": "#/entities/PropertyPrivateAccess" },
+      "description": "Capability-token-gated check-in, Wi-Fi, exact address, and direct host contact details for guests"
     },
     "/feedbacks/{feedbackId}": {
       "schema": { "$ref": "#/entities/StayFeedback" },
@@ -84,6 +150,10 @@
     "/gems/{gemId}": {
       "schema": { "$ref": "#/entities/StumariGem" },
       "description": "Curated Tbilisi local gems library and host secrets"
+    },
+    "/requests/{requestId}": {
+      "schema": { "$ref": "#/entities/GuestRequest" },
+      "description": "Guest requests submitted by guests and managed by hosts"
     },
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/UserProfile" },

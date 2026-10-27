@@ -1,0 +1,26 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Host-scoped media (property photos and how-to video guides)
+    match /hosts/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() 
+                    && request.auth.uid == userId
+                    && request.resource.size < 25 * 1024 * 1024
+                    && (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+    }
+
+    // Property media directory
+    match /properties/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated()
+                    && request.resource.size < 25 * 1024 * 1024
+                    && (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+    }
+  }
+}

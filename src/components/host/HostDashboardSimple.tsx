@@ -48,12 +48,15 @@ import { Property, RequestStatus } from '../../types';
 import { HostAnalytics } from './HostAnalytics';
 import { ReviewEngineInbox } from './ReviewEngineInbox';
 import { GuestRequestsInbox } from './GuestRequestsInbox';
+import { PropertyTemplatesManager } from './PropertyTemplatesManager';
 import { PrintFlyer } from '../print/PrintFlyer';
 import { PhysicalStandModal } from '../common/PhysicalStandModal';
+import { auth } from '../../firebase';
+import { safeCopyToClipboard } from '../../utils/clipboard';
 
 interface HostDashboardSimpleProps {
   isFullList?: boolean;
-  activeTab?: 'overview' | 'analytics' | 'properties' | 'reviews' | 'requests';
+  activeTab?: 'overview' | 'analytics' | 'properties' | 'templates' | 'reviews' | 'requests';
 }
 
 export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({ 
@@ -73,16 +76,18 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
     getLocalizedProperty,
     firebaseUser,
     openAuthModal,
+    openAddPropertyModal,
     signOutHost,
     feedbacks,
     requests,
     updateRequestStatus,
     todayArrivals,
-    markArrivalCheckedIn
+    markArrivalCheckedIn,
+    templates
   } = useApp();
 
   const isDarkMode = theme === 'dark';
-  const [currentTab, setCurrentTab] = useState<'overview' | 'analytics' | 'properties' | 'reviews' | 'requests'>(
+  const [currentTab, setCurrentTab] = useState<'overview' | 'analytics' | 'properties' | 'templates' | 'reviews' | 'requests'>(
     propActiveTab || (isFullList ? 'properties' : 'overview')
   );
   const [propertySearchQuery, setPropertySearchQuery] = useState('');
@@ -105,42 +110,202 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
   const [mobileView, setMobileView] = useState<'cards' | 'grid' | 'list'>('cards');
   const [activePropertyIndex, setActivePropertyIndex] = useState<number>(0);
 
-  const localizedProperties = properties.map(p => getLocalizedProperty(p));
+  const currentUid = auth.currentUser?.uid || firebaseUser?.uid;
+  const hostVisibleProperties = properties.filter(p => {
+    if (currentUid) {
+      return p.ownerId === currentUid && !p.isDemo;
+    }
+    return true;
+  });
+
+  const hostPropertyIds = React.useMemo(
+    () => new Set(hostVisibleProperties.map(p => p.id)),
+    [hostVisibleProperties]
+  );
+
+  const hostFeedbacks = React.useMemo(
+    () => feedbacks.filter(f => hostPropertyIds.has(f.propertyId)),
+    [feedbacks, hostPropertyIds]
+  );
+
+  const hostRequests = React.useMemo(
+    () => requests.filter(r => hostPropertyIds.has(r.propertyId)),
+    [requests, hostPropertyIds]
+  );
+
+  const pendingHostRequests = React.useMemo(
+    () => hostRequests.filter(r => r.status !== 'resolved'),
+    [hostRequests]
+  );
+
+  const resolvedHostRequestsCount = React.useMemo(
+    () => hostRequests.filter(r => r.status === 'resolved').length,
+    [hostRequests]
+  );
+
+  const computedResolutionRate = React.useMemo(
+    () =>
+      hostRequests.length > 0
+        ? Math.round((resolvedHostRequestsCount / hostRequests.length) * 100)
+        : null,
+    [hostRequests.length, resolvedHostRequestsCount]
+  );
+
+  const totalGuideViews = React.useMemo(
+    () => hostVisibleProperties.reduce((sum, p) => sum + (p.viewsCount || 0), 0),
+    [hostVisibleProperties]
+  );
+
+  const computedAvgRating = React.useMemo(() => {
+    if (hostFeedbacks.length === 0) return null;
+    const totalScore = hostFeedbacks.reduce((sum, f) => {
+      const score =
+        f.sentiment === 'amazing'
+          ? 5
+          : f.sentiment === 'good'
+          ? 4.2
+          : f.sentiment === 'could_be_better'
+          ? 3
+          : 2;
+      return sum + score;
+    }, 0);
+    return (totalScore / hostFeedbacks.length).toFixed(2);
+  }, [hostFeedbacks]);
+
+  const normalizePropertyCity = (rawCity?: string): string => {
+    const trimmed = (rawCity || '').trim();
+    if (!trimmed) return 'Other';
+    const lower = trimmed.toLowerCase();
+    if (
+      lower.includes('kazbegi') ||
+      lower.includes('stepantsminda') ||
+      lower.includes('ყაზბეგი') ||
+      lower.includes('სტეფანწმინდა') ||
+      lower.includes('казбеги') ||
+      lower.includes('степанцминда')
+    ) {
+      return 'Kazbegi';
+    }
+    if (lower.includes('tbilisi') || lower.includes('თბილისი') || lower.includes('тбилиси')) {
+      return 'Tbilisi';
+    }
+    if (lower.includes('batumi') || lower.includes('ბათუმი') || lower.includes('батуми')) {
+      return 'Batumi';
+    }
+    if (lower.includes('kutaisi') || lower.includes('ქუთაისი') || lower.includes('кутаиси')) {
+      return 'Kutaisi';
+    }
+    if (lower.includes('gudauri') || lower.includes('გუდაური') || lower.includes('гудаури')) {
+      return 'Gudauri';
+    }
+    if (lower.includes('bakuriani') || lower.includes('ბაკურიანი') || lower.includes('бакуриани')) {
+      return 'Bakuriani';
+    }
+    if (lower.includes('sighnaghi') || lower.includes('სიღნაღი') || lower.includes('сигнахи')) {
+      return 'Sighnaghi';
+    }
+    if (lower.includes('mestia') || lower.includes('მესტია') || lower.includes('местиа')) {
+      return 'Mestia';
+    }
+    if (lower.includes('borjomi') || lower.includes('ბორჯომი') || lower.includes('боржоми')) {
+      return 'Borjomi';
+    }
+    if (lower.includes('telavi') || lower.includes('თელავი') || lower.includes('телави')) {
+      return 'Telavi';
+    }
+    return trimmed;
+  };
+
+  const availableCities = Array.from(
+    new Set(
+      hostVisibleProperties
+        .map(p => normalizePropertyCity(p.city))
+        .filter(Boolean)
+    )
+  );
+
+  const cityFilterOptions = ['all', ...availableCities];
+  const activeCityFilter =
+    selectedCityFilter === 'all' ||
+    availableCities.some(city => city.toLowerCase() === selectedCityFilter.toLowerCase())
+      ? selectedCityFilter
+      : 'all';
+
+  const hostDisplayName = (() => {
+    const rawName = (
+      firebaseUser?.displayName ||
+      auth.currentUser?.displayName ||
+      (currentUser?.id && currentUser.id !== 'host-user-1' ? currentUser.name : '') ||
+      ''
+    ).trim();
+    if (!rawName || rawName.toLowerCase() === 'host') return '';
+    return rawName.split(/\s+/)[0];
+  })();
+
+  const now = new Date();
+  const localeCode = language === 'ka' ? 'ka-GE' : language === 'ru' ? 'ru-RU' : 'en-US';
+  const shortFormattedDate = new Intl.DateTimeFormat(localeCode, {
+    month: language === 'en' ? 'short' : 'long',
+    day: 'numeric'
+  }).format(now);
+  const todayPillLabel =
+    language === 'ka'
+      ? `დღეს, ${shortFormattedDate}`
+      : language === 'ru'
+      ? `Сегодня, ${shortFormattedDate}`
+      : `Today, ${shortFormattedDate}`;
+  const fullFormattedDate = new Intl.DateTimeFormat(localeCode, {
+    month: language === 'en' ? 'short' : 'long',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(now);
+
+  const localizedProperties = hostVisibleProperties.map(p => getLocalizedProperty(p));
   const primaryProperty = localizedProperties[activePropertyIndex] || localizedProperties[0];
 
-  const filteredProperties = properties.filter(p => {
-    if (selectedCityFilter !== 'all' && p.city.toLowerCase() !== selectedCityFilter.toLowerCase()) {
+  const filteredProperties = hostVisibleProperties.filter(p => {
+    const normalizedCity = normalizePropertyCity(p.city);
+    if (activeCityFilter !== 'all' && normalizedCity.toLowerCase() !== activeCityFilter.toLowerCase()) {
       return false;
     }
     if (propertySearchQuery.trim()) {
       const q = propertySearchQuery.toLowerCase();
       const matchTitle = p.title.toLowerCase().includes(q);
-      const matchCity = p.city.toLowerCase().includes(q);
+      const matchCity = p.city.toLowerCase().includes(q) || normalizedCity.toLowerCase().includes(q);
       const matchAddress = p.address?.toLowerCase().includes(q);
       if (!matchTitle && !matchCity && !matchAddress) return false;
     }
     return true;
   });
 
-  const handleCopy = (p: Property) => {
+  const handleCopy = async (p: Property) => {
     const url = `${window.location.origin}/#/g/${p.slug}`;
-    navigator.clipboard.writeText(url);
-    setCopiedSlug(p.slug);
-    showToast(t.common.copied);
-    setTimeout(() => setCopiedSlug(null), 2000);
+    const ok = await safeCopyToClipboard(url);
+    if (ok) {
+      setCopiedSlug(p.slug);
+      showToast(t.common.copied);
+      setTimeout(() => setCopiedSlug(null), 2000);
+    } else {
+      showToast(language === 'ka' ? 'ბმულის კოპირება ვერ მოხერხდა' : 'Could not copy link automatically');
+    }
   };
 
-  const handleCopyText = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedItem(label);
-    showToast(`${label} ${t.common.copied}`);
-    setTimeout(() => setCopiedItem(null), 2000);
+  const handleCopyText = async (text: string, label: string) => {
+    if (!text) return;
+    const ok = await safeCopyToClipboard(text);
+    if (ok) {
+      setCopiedItem(label);
+      showToast(`${label} ${t.common.copied}`);
+      setTimeout(() => setCopiedItem(null), 2000);
+    } else {
+      showToast(language === 'ka' ? 'კოპირება ვერ მოხერხდა' : 'Could not copy automatically');
+    }
   };
 
-  const publishedCount = properties.filter(p => p.status === 'published').length;
+  const publishedCount = hostVisibleProperties.filter(p => p.status === 'published').length;
 
   return (
-    <div className={`max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 font-sans rounded-[28px] my-3 sm:my-6 border relative overflow-hidden transition-colors duration-300 pb-20 md:pb-10 tracking-tight ${
+    <div className={`max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 sm:space-y-8 font-sans rounded-[24px] sm:rounded-[28px] my-2 sm:my-6 border relative overflow-hidden transition-colors duration-300 pb-28 md:pb-10 tracking-tight ${
       isDarkMode 
         ? 'bg-[#1F1E1C] text-[#F7F5F0] border-[#2B2926] shadow-[0_16px_40px_rgba(0,0,0,0.3)]' 
         : 'bg-white text-[#1C1B1A] border-[#EBE6DF] shadow-[0_14px_36px_rgba(0,0,0,0.03)]'
@@ -150,19 +315,21 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
       <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b transition-colors ${
         isDarkMode ? 'border-[#2B2926]' : 'border-[#EBE6DF]'
       }`}>
-        <div>
-          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-            <h1 className={`text-xl sm:text-2xl font-serif font-bold tracking-tight leading-tight ${
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <h1 className={`text-xl sm:text-2xl font-serif font-bold tracking-tight leading-tight break-words ${
               isDarkMode ? 'text-zinc-100' : 'text-zinc-950'
             }`}>
-              {language === 'ka' ? 'კარგი დღე, Saba 👋' : language === 'ru' ? 'Добрый день, Saba 👋' : 'Good day, Saba 👋'}
+              {hostDisplayName
+                ? (language === 'ka' ? `კარგი დღე, ${hostDisplayName} 👋` : language === 'ru' ? `Добрый день, ${hostDisplayName} 👋` : `Good day, ${hostDisplayName} 👋`)
+                : (language === 'ka' ? 'კარგი დღე 👋' : language === 'ru' ? 'Добрый день 👋' : 'Good day 👋')}
             </h1>
-            <span className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold font-mono tracking-tight border shadow-xs ${
+            <span className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold font-mono tracking-tight border shadow-xs shrink-0 ${
               isDarkMode 
                 ? 'bg-zinc-900 border-zinc-800 text-zinc-300' 
                 : 'bg-zinc-100 border-zinc-200 text-zinc-700'
             }`}>
-              {currentUser.plan} • {properties.length} {language === 'ka' ? 'ობიექტი' : language === 'ru' ? 'объектов' : 'properties'}
+              {currentUser.plan} • {hostVisibleProperties.length} {language === 'ka' ? 'ობიექტი' : language === 'ru' ? 'объектов' : 'properties'}
             </span>
           </div>
           <p className={`text-xs sm:text-sm mt-1 font-normal ${
@@ -177,125 +344,30 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 flex-wrap">
+          {/* Active Guides Status Pill */}
+          <div className={`hidden sm:flex px-3 py-1.5 rounded-xl text-xs font-medium border items-center gap-1.5 shadow-xs ${
+            isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
+          }`}>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>{publishedCount} of {hostVisibleProperties.length} active</span>
+          </div>
+
           {/* Today Date Pill */}
           <div className={`px-3 py-1.5 rounded-xl text-xs font-medium border flex items-center gap-1.5 shadow-xs ${
             isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
           }`}>
-            <Calendar className="w-3.5 h-3.5 text-amber-400" />
-            <span>{language === 'ka' ? 'დღეს, 8 ოქტომბერი' : language === 'ru' ? 'Сегодня, 8 октября' : 'Today, Oct 8'}</span>
+            <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span>{todayPillLabel}</span>
           </div>
 
           <button
-            onClick={() => setCurrentRoute('/onboarding')}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-[#F55A51] hover:bg-[#e04a41] text-white font-bold text-xs shadow-md shadow-[#F55A51]/25 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+            onClick={() => openAddPropertyModal()}
+            className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-[#B85D3B] hover:bg-[#A35132] text-white font-bold text-xs shadow-md shadow-[#B85D3B]/25 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
           >
-            <Plus className="w-4 h-4 text-white" />
-            <span>{t.nav.addProperty}</span>
-            <ArrowUpRight className="w-3.5 h-3.5 text-white opacity-80" />
+            <Plus className="w-4 h-4 text-white shrink-0" />
+            <span>{t.nav.addProperty.replace(/^\+\s*/, '')}</span>
+            <ArrowUpRight className="w-3.5 h-3.5 text-white opacity-80 shrink-0" />
           </button>
-        </div>
-      </div>
-
-      {/* Primary Host Dashboard Tab Navigation Bar (Overview | Properties | Analytics | Reviews | Requests) */}
-      <div className="flex items-center justify-between border-b pb-3.5 pt-1 border-zinc-200 dark:border-zinc-800 overflow-x-auto no-scrollbar transition-colors gap-3">
-        <div className={`inline-flex items-center p-1 rounded-xl border transition-all ${
-          isDarkMode 
-            ? 'bg-[#141312] border-[#2B2926] shadow-2xs' 
-            : 'bg-[#F3EFE9] border-[#EBE6DF] shadow-2xs'
-        }`}>
-          {[
-            { 
-              id: 'overview', 
-              label: language === 'ka' ? 'მიმოხილვა' : language === 'ru' ? 'Обзор' : 'Overview', 
-              icon: Building2 
-            },
-            { 
-              id: 'properties', 
-              label: language === 'ka' ? `ობიექტები (${properties.length})` : language === 'ru' ? `Объекты (${properties.length})` : `Properties (${properties.length})`, 
-              icon: Layers 
-            },
-            { 
-              id: 'analytics', 
-              label: language === 'ka' ? 'ანალიტიკა' : language === 'ru' ? 'Аналитика' : 'Analytics', 
-              icon: TrendingUp,
-              badge: 'Live'
-            },
-            { 
-              id: 'reviews', 
-              label: language === 'ka' ? `შეფასებები (${feedbacks.length})` : language === 'ru' ? `Отзывы (${feedbacks.length})` : `Reviews (${feedbacks.length})`, 
-              icon: MessageSquareHeart,
-              badge: feedbacks.filter(f => f.status !== 'resolved' && (f.sentiment === 'could_be_better' || f.sentiment === 'problem')).length > 0 ? '1 Alert' : undefined
-            },
-            { 
-              id: 'requests', 
-              label: language === 'ka' ? `მოთხოვნები (${requests.filter(r => r.status !== 'resolved').length})` : language === 'ru' ? `Запросы (${requests.filter(r => r.status !== 'resolved').length})` : `Requests (${requests.filter(r => r.status !== 'resolved').length})`, 
-              icon: Bell,
-              badge: requests.filter(r => r.status === 'new').length > 0 ? `${requests.filter(r => r.status === 'new').length} New` : undefined
-            },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = currentTab === tab.id;
-            return (
-              <motion.button
-                key={tab.id}
-                onClick={() => {
-                  setCurrentTab(tab.id as any);
-                  if (tab.id === 'analytics') {
-                    setCurrentRoute('/app/analytics');
-                  } else if (tab.id === 'properties') {
-                    setCurrentRoute('/app/properties');
-                  } else if (tab.id === 'reviews') {
-                    setCurrentRoute('/app/reviews');
-                  } else if (tab.id === 'requests') {
-                    setCurrentRoute('/app/requests');
-                  } else {
-                    setCurrentRoute('/app');
-                  }
-                }}
-                whileTap={{ scale: 0.96 }}
-                className={`relative px-3.5 sm:px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
-                  isActive
-                    ? isDarkMode 
-                      ? 'text-[#F7F5F0]' 
-                      : 'text-[#1C1B1A]'
-                    : isDarkMode
-                      ? 'text-[#ACA79F] hover:text-[#F7F5F0] hover:bg-[#272522]'
-                      : 'text-[#5C5853] hover:text-[#1C1B1A] hover:bg-white'
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="activeHostTabPill"
-                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                    className={`absolute inset-0 rounded-xl shadow-xs ${
-                      isDarkMode 
-                        ? 'bg-[#272522] border border-[#3B3833]' 
-                        : 'bg-white border border-[#EBE6DF] shadow-xs'
-                    }`}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-2">
-                  <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F55A51]" />
-                  <span>{tab.label}</span>
-                  {tab.badge && (
-                    <span className={`text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-md font-bold transition-colors ${
-                      isActive 
-                        ? isDarkMode ? 'bg-[#141312] text-[#F7F5F0] border border-[#3B3833]' : 'bg-[#FAF8F5] text-[#1C1B1A] border border-[#DDD8CF]'
-                        : isDarkMode ? 'bg-[#FFC757]/15 text-[#FFC757] border border-[#FFC757]/25' : 'bg-[#FFF9ED] text-[#996F00] border border-[#FFC757]/30'
-                    }`}>
-                      {tab.badge}
-                    </span>
-                  )}
-                </span>
-              </motion.button>
-            );
-          })}
-        </div>
-
-        {/* Right contextual info pill */}
-        <div className="hidden sm:flex items-center gap-2 text-xs text-zinc-400 font-medium shrink-0">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>{publishedCount} of {properties.length} active</span>
         </div>
       </div>
 
@@ -315,25 +387,123 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
               onNavigateToProperty={(propId) => navigateToPropertyHub(propId, 'overview')}
             />
           </motion.div>
-        ) : currentTab === 'reviews' ? (
+        ) : (currentTab === 'requests' || currentTab === 'reviews') ? (
           <motion.div
-            key="tab-reviews"
+            key="tab-inbox"
             initial={{ opacity: 0, y: 12, scale: 0.992 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.994 }}
             transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-5"
           >
-            <ReviewEngineInbox />
+            {/* Unified Inbox Sub-Navigation (Guest Requests vs. Stay Reviews) */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="font-serif font-bold text-lg sm:text-xl tracking-tight">
+                  {language === 'ka' ? 'სტუმრების შემოსული შეტყობინებები' : language === 'ru' ? 'Входящие от гостей' : 'Guest Inbox & Feedback'}
+                </h2>
+                <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                  {language === 'ka'
+                    ? 'მართეთ სტუმრების მიმდინარე მოთხოვნები და შთაბეჭდილებები ერთ სივრცეში.'
+                    : language === 'ru'
+                    ? 'Управляйте запросами гостей и отзывами о проживании в одном месте.'
+                    : 'Manage live in-stay guest assistance requests and post-stay review feedback in one place.'}
+                </p>
+              </div>
+
+              <div className={`inline-flex flex-wrap items-center p-1 rounded-xl border self-start sm:self-auto max-w-full ${
+                isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-100 border-zinc-200'
+              }`}>
+                <button
+                  onClick={() => {
+                    setCurrentTab('requests');
+                    setCurrentRoute('/app/requests');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    currentTab === 'requests'
+                      ? isDarkMode ? 'bg-zinc-800 text-white shadow-xs border border-zinc-700' : 'bg-white text-zinc-900 shadow-xs'
+                      : isDarkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  <Bell className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>
+                    {language === 'ka' ? 'მოთხოვნები' : language === 'ru' ? 'Запросы' : 'Guest Requests'} ({pendingHostRequests.length})
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    setCurrentTab('reviews');
+                    setCurrentRoute('/app/reviews');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    currentTab === 'reviews'
+                      ? isDarkMode ? 'bg-zinc-800 text-white shadow-xs border border-zinc-700' : 'bg-white text-zinc-900 shadow-xs'
+                      : isDarkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  <MessageSquareHeart className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>
+                    {language === 'ka' ? 'შეფასებები' : language === 'ru' ? 'Отзывы' : 'Stay Reviews'} ({hostFeedbacks.length})
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {currentTab === 'requests' ? <GuestRequestsInbox /> : <ReviewEngineInbox />}
           </motion.div>
-        ) : currentTab === 'requests' ? (
+        ) : currentTab === 'templates' ? (
           <motion.div
-            key="tab-requests"
+            key="tab-templates"
             initial={{ opacity: 0, y: 12, scale: 0.992 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.994 }}
             transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-5"
           >
-            <GuestRequestsInbox />
+            {/* Properties vs Templates Sub-Navigation */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="font-serif font-bold text-lg sm:text-xl tracking-tight">
+                  {language === 'ka' ? 'ობიექტები და შაბლონები' : language === 'ru' ? 'Объекты и шаблоны' : 'Properties & Reusable Templates'}
+                </h2>
+                <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                  {language === 'ka'
+                    ? 'გამოიყენეთ მზა შაბლონები სახლის წესებისა და ტექნიკის ინსტრუქციების სწრაფად გადასატანად.'
+                    : 'Standardize house rules, check-in schedules, and visual appliance guides across your portfolio.'}
+                </p>
+              </div>
+
+              <div className={`inline-flex flex-wrap items-center p-1 rounded-xl border self-start sm:self-auto max-w-full ${
+                isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-100 border-zinc-200'
+              }`}>
+                <button
+                  onClick={() => {
+                    setCurrentTab('properties');
+                    setCurrentRoute('/app/properties');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    isDarkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5 shrink-0" />
+                  <span>{language === 'ka' ? 'ყველა ობიექტი' : 'All Properties'} ({hostVisibleProperties.length})</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setCurrentTab('templates');
+                    setCurrentRoute('/app/templates');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    isDarkMode ? 'bg-zinc-800 text-white shadow-xs border border-zinc-700' : 'bg-white text-zinc-900 shadow-xs'
+                  }`}
+                >
+                  <Grid2x2 className="w-3.5 h-3.5 text-[#F55A51] shrink-0" />
+                  <span>{language === 'ka' ? 'შაბლონები' : 'Templates'} ({templates.length})</span>
+                </button>
+              </div>
+            </div>
+
+            <PropertyTemplatesManager />
           </motion.div>
         ) : (
           <motion.div
@@ -345,7 +515,7 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
             className="space-y-6"
           >
 
-      {/* SECTION 1: ASYMMETRIC BENTO METRICS & HERO STATUS */}
+      {/* SECTION 1: COMMAND CENTER OVERVIEW */}
       {currentTab === 'overview' && !primaryProperty && (
         <div className={`p-8 sm:p-12 rounded-xl border text-center space-y-4 shadow-sm ${
           isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
@@ -365,31 +535,125 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                 : 'Create your first digital guest guide to welcome guests seamlessly with 1-tap Wi-Fi, door codes, and curated gems.'}
             </p>
           </div>
-          <button
-            onClick={() => setCurrentRoute('/onboarding')}
-            className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 inline-flex items-center gap-2 cursor-pointer shadow-sm transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{language === 'ka' ? 'პირველი ობიექტის დამატება' : language === 'ru' ? 'Добавить жильё' : 'Create First Property'}</span>
-          </button>
+          <div className="flex items-center justify-center gap-2.5 flex-wrap pt-1">
+            <button
+              onClick={() => openAddPropertyModal()}
+              className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-[#B85D3B] hover:bg-[#A35132] text-white inline-flex items-center gap-2 cursor-pointer shadow-sm transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{language === 'ka' ? 'პირველი ობიექტის დამატება' : language === 'ru' ? 'Добавить жильё' : 'Create First Property'}</span>
+            </button>
+            <button
+              onClick={() => setCurrentRoute('/demo')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-semibold border inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
+                isDarkMode
+                  ? 'bg-zinc-800 border-zinc-700 text-zinc-200 hover:bg-zinc-750'
+                  : 'bg-zinc-100 border-zinc-200 text-zinc-800 hover:bg-zinc-200'
+              }`}
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>{language === 'ka' ? 'დემო გიდების ნახვა' : language === 'ru' ? 'Смотреть демо-гиды' : 'Explore Demo Guides'}</span>
+            </button>
+          </div>
         </div>
       )}
 
       {currentTab === 'overview' && primaryProperty && (
         <div className="space-y-4 sm:space-y-5">
 
+          {/* Guide Setup Checklist & Readiness Banner */}
+          {(() => {
+            const checklist = [
+              { label: language === 'ka' ? 'Wi-Fi წვდომა' : language === 'ru' ? 'Wi-Fi доступ' : 'Wi-Fi Access', done: !!primaryProperty.wifiPassword, icon: Wifi },
+              { label: language === 'ka' ? 'კარის კოდი' : language === 'ru' ? 'Код двери' : 'Door Code', done: !!primaryProperty.doorKeypadCode || !!primaryProperty.lockboxCode, icon: KeyRound },
+              { label: language === 'ka' ? 'ტექნიკის გიდი' : language === 'ru' ? 'Инструкции' : 'Visual How-Tos', done: (primaryProperty.appliances || []).length >= 2, icon: Zap },
+              { label: language === 'ka' ? 'სახლის წესები' : language === 'ru' ? 'Правила дома' : 'House Rules', done: (primaryProperty.houseRules || []).length >= 2, icon: Shield },
+              { label: language === 'ka' ? 'მთავარი ფოტო' : language === 'ru' ? 'Обложка' : 'Cover Photo', done: !!primaryProperty.coverImage, icon: Building2 },
+              { label: language === 'ka' ? 'რჩეული ადგილები' : language === 'ru' ? 'Рекомендации' : 'Local Gems', done: (primaryProperty.gemIds || []).length > 0 || (primaryProperty.recommendations || []).length > 0, icon: Compass }
+            ];
+            const completed = checklist.filter(c => c.done).length;
+            const pct = Math.round((completed / checklist.length) * 100);
+
+            return (
+              <div className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4 min-w-0 ${
+                isDarkMode 
+                  ? 'bg-gradient-to-r from-[#201F1D] to-[#181716] border-[#3B3833] text-[#F7F5F0]' 
+                  : 'bg-gradient-to-r from-[#FAF8F5] to-[#F5F2EB] border-[#E5DFD5] text-[#1C1B1A]'
+              }`}>
+                <div className="space-y-2.5 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-serif font-bold text-sm sm:text-base leading-snug">
+                      {language === 'ka' ? 'გიდის მზაობის შემოწმება' : language === 'ru' ? 'Проверка готовности гида' : 'Guide Health & Setup Checklist'}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border shrink-0 ${
+                      pct === 100 
+                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' 
+                        : 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                    }`}>
+                      {pct}% Ready · {completed}/{checklist.length} Essentials
+                    </span>
+                  </div>
+
+                  {/* Checklist items */}
+                  <div className="grid grid-cols-2 sm:flex sm:items-center gap-x-3 gap-y-1.5 sm:gap-3 sm:flex-wrap text-xs">
+                    {checklist.map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 min-w-0">
+                        {item.done ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        ) : (
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        )}
+                        <span className={`text-[11px] truncate ${item.done ? (isDarkMode ? 'text-zinc-300' : 'text-stone-700') : (isDarkMode ? 'text-amber-400 font-medium' : 'text-amber-800 font-medium')}`}>
+                          {item.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto shrink-0 pt-1 lg:pt-0">
+                  <button
+                    type="button"
+                    onClick={() => openAddPropertyModal()}
+                    className="flex-1 sm:flex-initial justify-center px-3.5 py-2.5 text-xs font-semibold rounded-xl bg-[#B85D3B] hover:bg-[#A35132] text-white flex items-center gap-1.5 transition-all shadow-sm active:scale-98 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{language === 'ka' ? 'ოსტატის ჩართვა' : language === 'ru' ? 'Мастер настройки' : 'Guided Setup Wizard'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigateToPropertyHub(primaryProperty.id, 'guide')}
+                    className={`flex-1 sm:flex-initial justify-center px-3.5 py-2.5 text-xs font-semibold rounded-xl border transition-colors cursor-pointer ${
+                      isDarkMode
+                        ? 'border-zinc-700 bg-zinc-800/80 text-zinc-100 hover:bg-zinc-800'
+                        : 'border-stone-300 bg-white text-stone-800 hover:bg-stone-100'
+                    }`}
+                  >
+                    {language === 'ka' ? 'რედაქტირება' : language === 'ru' ? 'Редактировать' : 'Edit Guide'}
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* 1. TOP 5 KPI SUMMARY CARDS                                      */}
+          {/* 1. TOP 5 KPI SUMMARY CARDS (GROUNDED IN REAL SCOPED STATE)     */}
           {/* ═══════════════════════════════════════════════════════════════ */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
             {/* KPI 1: Active Properties */}
-            <div className={`p-4 rounded-2xl border transition-all ${
-              isDarkMode 
-                ? 'bg-[#181920] border-zinc-800 text-zinc-100 shadow-sm' 
-                : 'bg-white border-zinc-200/90 text-zinc-900 shadow-xs'
-            }`}>
-              <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-semibold ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+            <div 
+              onClick={() => {
+                setCurrentTab('properties');
+                setCurrentRoute('/app/properties');
+              }}
+              className={`p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer min-w-0 ${
+                isDarkMode 
+                  ? 'bg-[#181920] border-zinc-800 text-zinc-100 hover:border-zinc-700 shadow-sm' 
+                  : 'bg-white border-zinc-200/90 text-zinc-900 hover:border-zinc-300 shadow-xs'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1.5">
+                <span className={`text-[11px] font-semibold truncate ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                   {language === 'ka' ? 'აქტიური ობიექტი' : language === 'ru' ? 'Активные объекты' : 'Active Properties'}
                 </span>
                 <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
@@ -398,25 +662,28 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                   <Building2 className="w-3.5 h-3.5" />
                 </div>
               </div>
-              <div className="mt-2 flex items-baseline gap-2">
+              <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
                 <span className={`font-serif text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums ${isDarkMode ? 'text-zinc-100' : 'text-zinc-950'}`}>
-                  {properties.length}
+                  {publishedCount}
                 </span>
                 <span className={`text-[10px] font-mono font-medium ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                  {properties.length} {language === 'ka' ? 'სულ' : 'Total'}
+                  / {hostVisibleProperties.length} {language === 'ka' ? 'სულ' : language === 'ru' ? 'всего' : 'Total'}
                 </span>
               </div>
             </div>
 
-            {/* KPI 2: Views (30 Days) */}
-            <div className={`p-4 rounded-2xl border transition-all cursor-pointer group ${
+            {/* KPI 2: Views (30 Days) — Summed from hostVisibleProperties */}
+            <div className={`p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer group min-w-0 ${
               isDarkMode 
                 ? 'bg-[#181920] border-zinc-800 text-zinc-100 hover:border-zinc-700 shadow-sm' 
                 : 'bg-white border-zinc-200/90 text-zinc-900 hover:border-zinc-300 shadow-xs'
-            }`} onClick={() => setCurrentTab('analytics')}>
-              <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-semibold ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                  {language === 'ka' ? 'ნახვები (30 დღე)' : language === 'ru' ? 'Просмотры (30 дн)' : 'Views (30 Days)'}
+            }`} onClick={() => {
+              setCurrentTab('analytics');
+              setCurrentRoute('/app/analytics');
+            }}>
+              <div className="flex items-center justify-between gap-1.5">
+                <span className={`text-[11px] font-semibold truncate ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                  {language === 'ka' ? 'გიდის ნახვები' : language === 'ru' ? 'Просмотры гида' : 'Guide Views'}
                 </span>
                 <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 group-hover:text-[#F55A51] transition-colors ${
                   isDarkMode ? 'bg-zinc-800 text-zinc-300 border border-zinc-700' : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
@@ -424,48 +691,59 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                   <TrendingUp className="w-3.5 h-3.5" />
                 </div>
               </div>
-              <div className="mt-2 flex items-baseline gap-2">
+              <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
                 <span className={`font-serif text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums ${isDarkMode ? 'text-zinc-100' : 'text-zinc-950'}`}>
-                  12,436
+                  {totalGuideViews.toLocaleString()}
                 </span>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold flex items-center">
-                  +18.4%
+                <span className={`text-[10px] font-mono font-medium ${
+                  totalGuideViews > 0
+                    ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                    : isDarkMode ? 'text-zinc-400' : 'text-zinc-500'
+                }`}>
+                  {totalGuideViews > 0
+                    ? (language === 'ka' ? 'აქტიური' : language === 'ru' ? 'Активно' : 'Total')
+                    : (language === 'ka' ? 'ახალი' : language === 'ru' ? 'Нет просмотров' : 'No views yet')}
                 </span>
               </div>
             </div>
 
-            {/* KPI 3: Average Rating */}
-            <div className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+            {/* KPI 3: Average Rating — Computed from actual hostFeedbacks */}
+            <div className={`p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer min-w-0 ${
               isDarkMode 
                 ? 'bg-[#181920] border-zinc-800 text-zinc-100 hover:border-zinc-700 shadow-sm' 
                 : 'bg-white border-zinc-200/90 text-zinc-900 hover:border-zinc-300 shadow-xs'
-            }`} onClick={() => setCurrentTab('reviews')}>
-              <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-semibold ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+            }`} onClick={() => {
+              setCurrentTab('reviews');
+              setCurrentRoute('/app/reviews');
+            }}>
+              <div className="flex items-center justify-between gap-1.5">
+                <span className={`text-[11px] font-semibold truncate ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                   {language === 'ka' ? 'საშუალო რეიტინგი' : language === 'ru' ? 'Средний рейтинг' : 'Avg Rating'}
                 </span>
-                <div className="w-7 h-7 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center justify-center shrink-0">
                   <Star className="w-3.5 h-3.5 fill-amber-500" />
                 </div>
               </div>
-              <div className="mt-2 flex items-baseline gap-2">
+              <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
                 <span className={`font-serif text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums flex items-center gap-1 ${isDarkMode ? 'text-zinc-100' : 'text-zinc-950'}`}>
-                  ★ 4.88
+                  {computedAvgRating ? `★ ${computedAvgRating}` : '—'}
                 </span>
-                <span className={`text-[10px] font-mono ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                  (98 {language === 'ka' ? 'შეფასება' : 'reviews'})
+                <span className={`text-[10px] font-mono truncate ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                  {hostFeedbacks.length > 0
+                    ? `(${hostFeedbacks.length} ${language === 'ka' ? 'შეფასება' : language === 'ru' ? 'отз.' : 'reviews'})`
+                    : (language === 'ka' ? 'შეფასება არ არის' : language === 'ru' ? 'Нет отзывов' : 'No reviews yet')}
                 </span>
               </div>
             </div>
 
             {/* KPI 4: Guests Today */}
-            <div className={`p-4 rounded-2xl border transition-all ${
+            <div className={`p-3.5 sm:p-4 rounded-2xl border transition-all min-w-0 ${
               isDarkMode 
                 ? 'bg-[#181920] border-zinc-800 text-zinc-100 shadow-sm' 
                 : 'bg-white border-zinc-200/90 text-zinc-900 shadow-xs'
             }`}>
-              <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-semibold ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+              <div className="flex items-center justify-between gap-1.5">
+                <span className={`text-[11px] font-semibold truncate ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
                   {language === 'ka' ? 'სტუმრები დღეს' : language === 'ru' ? 'Гости сегодня' : 'Guests Today'}
                 </span>
                 <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
@@ -474,25 +752,31 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                   <Users className="w-3.5 h-3.5" />
                 </div>
               </div>
-              <div className="mt-2 flex items-baseline gap-2">
+              <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
                 <span className={`font-serif text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums ${isDarkMode ? 'text-zinc-100' : 'text-zinc-950'}`}>
-                  8
+                  {todayArrivals.reduce((sum, a) => sum + (a.guestCount || 2), 0)}
                 </span>
-                <span className={`text-[10px] font-mono font-medium ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                  {todayArrivals.length} {language === 'ka' ? 'ჩამოსვლა' : 'arrivals'}
+                <span className={`text-[10px] font-mono font-medium truncate ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                  {todayArrivals.length} {language === 'ka' ? 'ჩამოსვლა' : language === 'ru' ? 'заездов' : 'arrivals'}
                 </span>
               </div>
             </div>
 
-            {/* KPI 5: Response Speed */}
-            <div className={`col-span-2 sm:col-span-1 p-4 rounded-2xl border transition-all ${
-              isDarkMode 
-                ? 'bg-[#181920] border-zinc-800 text-zinc-100 shadow-sm' 
-                : 'bg-white border-zinc-200/90 text-zinc-900 shadow-xs'
-            }`}>
-              <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-semibold ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                  {language === 'ka' ? 'პასუხის სისწრაფე' : language === 'ru' ? 'Скорость ответа' : 'Response Speed'}
+            {/* KPI 5: Request Resolution Rate — Computed from actual hostRequests */}
+            <div
+              onClick={() => {
+                setCurrentTab('requests');
+                setCurrentRoute('/app/requests');
+              }}
+              className={`col-span-2 sm:col-span-1 p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer min-w-0 ${
+                isDarkMode 
+                  ? 'bg-[#181920] border-zinc-800 text-zinc-100 hover:border-zinc-700 shadow-sm' 
+                  : 'bg-white border-zinc-200/90 text-zinc-900 hover:border-zinc-300 shadow-xs'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1.5">
+                <span className={`text-[11px] font-semibold truncate ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                  {language === 'ka' ? 'მოთხოვნების სტატუსი' : language === 'ru' ? 'Запросы гостей' : 'Request Resolution'}
                 </span>
                 <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
                   isDarkMode ? 'bg-zinc-800 text-zinc-300 border border-zinc-700' : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
@@ -500,106 +784,210 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                   <Zap className="w-3.5 h-3.5" />
                 </div>
               </div>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="font-serif text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400">
-                  94%
+              <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
+                <span className={`font-serif text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums ${
+                  computedResolutionRate !== null
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : isDarkMode ? 'text-zinc-100' : 'text-zinc-950'
+                }`}>
+                  {computedResolutionRate !== null ? `${computedResolutionRate}%` : '—'}
                 </span>
-                <span className={`text-[10px] font-mono ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                  &lt; 15 {language === 'ka' ? 'წთ' : 'min'}
+                <span className={`text-[10px] font-mono truncate ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                  {hostRequests.length > 0
+                    ? `${resolvedHostRequestsCount}/${hostRequests.length} ${language === 'ka' ? 'დასრულდა' : language === 'ru' ? 'решено' : 'resolved'}`
+                    : (language === 'ka' ? 'მოთხოვნა არ არის' : language === 'ru' ? 'Нет запросов' : 'No requests yet')}
                 </span>
               </div>
             </div>
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* 2. NEEDS ATTENTION STRIP                                         */}
+          {/* 2. NEEDS ATTENTION STRIP (DYNAMICALLY GROUNDED IN REAL DATA)    */}
           {/* ═══════════════════════════════════════════════════════════════ */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
-                isDarkMode ? 'text-zinc-300' : 'text-zinc-700'
-              }`}>
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                <span>{language === 'ka' ? 'ყურადღებას მოითხოვს (2)' : language === 'ru' ? 'Требует внимания (2)' : 'Needs Attention (2)'}</span>
-              </span>
-            </div>
+          {(() => {
+            const attentionRequests = pendingHostRequests.slice(0, 2);
+            const recentFeedback = hostFeedbacks[0];
+            const totalAttentionCount = pendingHostRequests.length + (recentFeedback ? 1 : 0);
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-              {/* Alert 1: Wi-Fi issue */}
-              <div className={`p-3.5 sm:p-4 rounded-xl border flex items-center justify-between gap-3 transition-all shadow-sm ${
-                isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
-              }`}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-                    <Wifi className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-xs truncate">
-                        {language === 'ka' ? 'Wi-Fi Router შეფერხება' : 'Wi-Fi Router Drop'}
-                      </span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono font-medium shrink-0 border ${
-                        isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
-                      }`}>
-                        Old Tbilisi
-                      </span>
-                    </div>
-                    <p className={`text-[11px] truncate mt-0.5 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                      {language === 'ka' 
-                        ? 'სტუმარი Anna Müller: Router restart needed, drop during call' 
-                        : 'Guest Anna Müller: Router restart needed, drop during call'}
-                    </p>
-                  </div>
+            return (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className={`text-[11px] font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5 ${
+                    isDarkMode ? 'text-zinc-300' : 'text-zinc-700'
+                  }`}>
+                    {pendingHostRequests.length > 0 ? (
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    )}
+                    <span>
+                      {pendingHostRequests.length > 0
+                        ? (language === 'ka'
+                            ? `ყურადღებას მოითხოვს (${pendingHostRequests.length})`
+                            : language === 'ru'
+                            ? `Требует внимания (${pendingHostRequests.length})`
+                            : `Needs Attention (${pendingHostRequests.length})`)
+                        : (language === 'ka'
+                            ? 'სტუმრების აქტივობა'
+                            : language === 'ru'
+                            ? 'Активность гостей'
+                            : 'Guest Activity & Alerts')}
+                    </span>
+                  </span>
                 </div>
-                <button
-                  onClick={() => setCurrentTab('requests')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 cursor-pointer shadow-xs transition-colors border ${
-                    isDarkMode 
-                      ? 'bg-zinc-800 hover:bg-zinc-750 text-zinc-100 border-zinc-700' 
-                      : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-900 border-zinc-200'
-                  }`}
-                >
-                  {language === 'ka' ? 'მოგვარება' : 'Resolve'}
-                </button>
-              </div>
 
-              {/* Alert 2: 5.0 Review */}
-              <div className={`p-3.5 sm:p-4 rounded-xl border flex items-center justify-between gap-3 transition-all shadow-sm ${
-                isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
-              }`}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                    <Star className="w-4 h-4 fill-emerald-400" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-xs truncate">
-                        {language === 'ka' ? 'ახალი 5.0★ შეფასება' : 'New 5.0★ Review'}
-                      </span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono font-medium shrink-0 border ${
-                        isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
-                      }`}>
-                        Sololaki
-                      </span>
+                {totalAttentionCount === 0 ? (
+                  <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all shadow-xs ${
+                    isDarkMode ? 'bg-zinc-900/80 border-zinc-800 text-zinc-200' : 'bg-zinc-50/80 border-zinc-200 text-zinc-800'
+                  }`}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="font-semibold text-xs block">
+                          {language === 'ka'
+                            ? 'ყველა მოთხოვნა შესრულებულია'
+                            : language === 'ru'
+                            ? 'Нет активных запросов от гостей'
+                            : 'All caught up — no pending guest requests'}
+                        </span>
+                        <p className={`text-[11px] mt-0.5 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                          {language === 'ka'
+                            ? 'სტუმრების ახალი მოთხოვნები და შეფასებები აქ გამოჩნდება.'
+                            : language === 'ru'
+                            ? 'Новые запросы на поздний выезд и отзывы появятся здесь.'
+                            : 'New guest requests for late check-out, extra towels, or reviews will appear here.'}
+                        </p>
+                      </div>
                     </div>
-                    <p className={`text-[11px] truncate mt-0.5 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                      Elena Petrova: "ძალიან კომფორტული და სუფთა ბინა!"
-                    </p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCurrentTab('requests');
+                          setCurrentRoute('/app/requests');
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                          isDarkMode
+                            ? 'bg-zinc-800 hover:bg-zinc-750 text-zinc-200 border-zinc-700'
+                            : 'bg-white hover:bg-zinc-100 text-zinc-800 border-zinc-200'
+                        }`}
+                      >
+                        {language === 'ka' ? 'შემოსული' : language === 'ru' ? 'Входящие' : 'Open Inbox'}
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <button
-                  onClick={() => setCurrentTab('reviews')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 cursor-pointer shadow-xs transition-colors border ${
-                    isDarkMode 
-                      ? 'bg-zinc-800 hover:bg-zinc-750 text-zinc-100 border-zinc-700' 
-                      : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-900 border-zinc-200'
-                  }`}
-                >
-                  {language === 'ka' ? 'ნახვა' : 'View'}
-                </button>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    {attentionRequests.map((req) => {
+                      const propMatch = hostVisibleProperties.find(p => p.id === req.propertyId);
+                      const propLabel = propMatch ? propMatch.title : (req.propertyName || 'Property');
+                      return (
+                        <div
+                          key={req.id}
+                          className={`p-3.5 sm:p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all shadow-sm min-w-0 ${
+                            isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
+                          }`}
+                        >
+                          <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                              <Bell className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-xs truncate">
+                                  {req.title || req.category}
+                                </span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono font-medium shrink-0 border max-w-[140px] truncate ${
+                                  isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
+                                }`}>
+                                  {propLabel}
+                                </span>
+                              </div>
+                              <p className={`text-[11px] line-clamp-1 mt-0.5 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                                {req.guestName ? `${req.guestName}: ` : ''}{req.description || req.createdAt}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCurrentTab('requests');
+                              setCurrentRoute('/app/requests');
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 cursor-pointer shadow-xs transition-colors border self-end sm:self-center ${
+                              isDarkMode 
+                                ? 'bg-zinc-800 hover:bg-zinc-750 text-zinc-100 border-zinc-700' 
+                                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-900 border-zinc-200'
+                            }`}
+                          >
+                            {language === 'ka' ? 'მოგვარება' : language === 'ru' ? 'Открыть' : 'Resolve'}
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {attentionRequests.length < 2 && recentFeedback && (() => {
+                      const propMatch = hostVisibleProperties.find(p => p.id === recentFeedback.propertyId);
+                      const propLabel = propMatch ? propMatch.title : 'Property';
+                      const isPositive = recentFeedback.sentiment === 'amazing' || recentFeedback.sentiment === 'good';
+                      return (
+                        <div
+                          key={recentFeedback.id}
+                          className={`p-3.5 sm:p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all shadow-sm min-w-0 ${
+                            isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
+                          }`}
+                        >
+                          <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
+                              isPositive
+                                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                            }`}>
+                              <Star className={`w-4 h-4 ${isPositive ? 'fill-emerald-400' : ''}`} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-xs truncate">
+                                  {isPositive
+                                    ? (language === 'ka' ? 'ახალი დადებითი შეფასება' : language === 'ru' ? 'Новый отзыв гостя' : 'Latest Guest Review')
+                                    : (language === 'ka' ? 'სტუმრის შენიშვნა' : language === 'ru' ? 'Замечание гостя' : 'Private Guest Feedback')}
+                                </span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono font-medium shrink-0 border max-w-[140px] truncate ${
+                                  isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
+                                }`}>
+                                  {propLabel}
+                                </span>
+                              </div>
+                              <p className={`text-[11px] line-clamp-1 mt-0.5 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                                {recentFeedback.guestName ? `${recentFeedback.guestName}: ` : ''}
+                                {recentFeedback.comment || recentFeedback.sentiment}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCurrentTab('reviews');
+                              setCurrentRoute('/app/reviews');
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 cursor-pointer shadow-xs transition-colors border self-end sm:self-center ${
+                              isDarkMode 
+                                ? 'bg-zinc-800 hover:bg-zinc-750 text-zinc-100 border-zinc-700' 
+                                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-900 border-zinc-200'
+                            }`}
+                          >
+                            {language === 'ka' ? 'ნახვა' : language === 'ru' ? 'Смотреть' : 'View'}
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* ═══════════════════════════════════════════════════════════════ */}
           {/* 3. TODAY'S ARRIVALS SECTION                                     */}
@@ -607,138 +995,204 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
           <div className={`p-4 sm:p-5 rounded-xl border shadow-sm ${
             isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
           }`}>
-            <div className="flex items-center justify-between mb-3.5">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-zinc-400" />
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Calendar className="w-4 h-4 text-zinc-400 shrink-0" />
                 <h3 className="font-serif font-bold text-sm sm:text-base tracking-tight">
                   {language === 'ka' ? 'დღევანდელი ჩამოსვლები' : language === 'ru' ? 'Сегодняшние заезды' : "Today's Arrivals"}
                 </h3>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-zinc-800 border border-zinc-700 text-zinc-300">
-                  {todayArrivals.length} {language === 'ka' ? 'სტუმარი' : 'guests'}
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold border ${
+                  isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
+                }`}>
+                  {todayArrivals.length} {language === 'ka' ? 'სტუმარი' : language === 'ru' ? 'гостей' : 'guests'}
                 </span>
               </div>
               <span className={`text-xs font-mono ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                {language === 'ka' ? '8 ოქტომბერი, 2026' : 'Oct 8, 2026'}
+                {fullFormattedDate}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {todayArrivals.map((arrival) => (
-                <div
-                  key={arrival.id}
-                  className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between shadow-xs ${
-                    isDarkMode ? 'bg-zinc-950/70 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <span className="font-semibold text-xs sm:text-sm block truncate">{arrival.guestName}</span>
-                        <span className={`text-[11px] block truncate ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                          {arrival.propertyName}
+            {todayArrivals.length === 0 ? (
+              <div className={`p-5 rounded-xl border border-dashed flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                isDarkMode ? 'bg-zinc-950/50 border-zinc-800 text-zinc-300' : 'bg-zinc-50/80 border-zinc-200 text-zinc-700'
+              }`}>
+                <div className="space-y-1 min-w-0">
+                  <p className="text-xs font-semibold">
+                    {language === 'ka'
+                      ? 'დღეს დაგეგმილი ჩამოსვლები არ არის'
+                      : language === 'ru'
+                      ? 'На сегодня заездов не запланировано'
+                      : 'No guest arrivals scheduled for today'}
+                  </p>
+                  <p className={`text-[11px] ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                    {language === 'ka'
+                      ? 'გაუზიარეთ სტუმარს ციფრული გზამკვლევის ბმული ჩამოსვლამდე ან დაბეჭდეთ QR სადგამი.'
+                      : language === 'ru'
+                      ? 'Отправьте гостю ссылку на путеводитель перед заездом или распечатайте QR-стойку.'
+                      : 'Share your property check-in guide link ahead of arrival or print a bedside QR stand.'}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(primaryProperty)}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-colors cursor-pointer ${
+                      isDarkMode
+                        ? 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-100'
+                        : 'bg-white hover:bg-zinc-100 border-zinc-300 text-zinc-800'
+                    }`}
+                  >
+                    <Copy className="w-3.5 h-3.5 shrink-0" />
+                    <span>{language === 'ka' ? 'ბმულის კოპირება' : language === 'ru' ? 'Скопировать ссылку' : 'Copy Guide Link'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedModalProperty(primaryProperty);
+                      setShowPrintModal(true);
+                    }}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                      isDarkMode
+                        ? 'bg-zinc-100 text-zinc-950 hover:bg-white'
+                        : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                    }`}
+                  >
+                    <QrCode className="w-3.5 h-3.5 shrink-0" />
+                    <span>{language === 'ka' ? 'QR ფლაერი' : language === 'ru' ? 'QR-флаер' : 'QR Stand Flyer'}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {todayArrivals.map((arrival) => (
+                  <div
+                    key={arrival.id}
+                    className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between shadow-xs min-w-0 ${
+                      isDarkMode ? 'bg-zinc-950/70 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="font-semibold text-xs sm:text-sm block truncate">{arrival.guestName}</span>
+                          <span className={`text-[11px] block truncate ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                            {arrival.propertyName}
+                          </span>
+                        </div>
+                        <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md shrink-0 border ${
+                          arrival.status === 'checked_in'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                        }`}>
+                          {arrival.status === 'checked_in' 
+                            ? (language === 'ka' ? 'დარეგისტრირდა' : language === 'ru' ? 'Заехал' : 'Checked In') 
+                            : (language === 'ka' ? 'მოლოდინში' : language === 'ru' ? 'Ожидание' : 'Pending')}
                         </span>
                       </div>
-                      <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md shrink-0 border ${
-                        arrival.status === 'checked_in'
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                          : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+
+                      <div className={`mt-3 pt-2.5 border-t flex items-center justify-between gap-2 text-[11px] font-mono ${
+                        isDarkMode ? 'border-zinc-800/80' : 'border-zinc-200'
                       }`}>
-                        {arrival.status === 'checked_in' 
-                          ? (language === 'ka' ? 'დარეგისტრირდა' : 'Checked In') 
-                          : (language === 'ka' ? 'მოლოდინში' : 'Pending')}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex items-center justify-between text-[11px] font-mono">
-                      <div>
-                        <span className="text-[9px] uppercase opacity-60 block">{language === 'ka' ? 'დრო' : 'Time'}</span>
-                        <strong>{arrival.checkInTime || arrival.time}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[9px] uppercase opacity-60 block">{language === 'ka' ? 'სტუმრები' : 'Guests'}</span>
-                        <span>{arrival.guestCount || 2} {language === 'ka' ? 'ადამიანი' : 'guests'}</span>
-                      </div>
-                      <div>
-                        <span className="text-[9px] uppercase opacity-60 block">PIN Code</span>
-                        <strong className="text-zinc-200">{arrival.doorKeypadCode}</strong>
+                        <div>
+                          <span className="text-[9px] uppercase opacity-60 block">{language === 'ka' ? 'დრო' : language === 'ru' ? 'Время' : 'Time'}</span>
+                          <strong>{arrival.checkInTime || arrival.time}</strong>
+                        </div>
+                        <div>
+                          <span className="text-[9px] uppercase opacity-60 block">{language === 'ka' ? 'სტუმრები' : language === 'ru' ? 'Гости' : 'Guests'}</span>
+                          <span>{arrival.guestCount || 2} {language === 'ka' ? 'ადამიანი' : language === 'ru' ? 'чел.' : 'guests'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] uppercase opacity-60 block">PIN Code</span>
+                          <strong className={isDarkMode ? 'text-zinc-200' : 'text-zinc-900'}>{arrival.doorKeypadCode}</strong>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="mt-3 pt-2 flex items-center gap-1.5">
-                    {arrival.status !== 'checked_in' ? (
-                      <button
-                        onClick={() => markArrivalCheckedIn(arrival.id)}
-                        className="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 text-zinc-950 hover:bg-white flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-sm"
-                      >
-                        <Check className="w-3 h-3" />
-                        <span>{language === 'ka' ? 'დარეგისტრირება' : 'Check In'}</span>
-                      </button>
-                    ) : (
-                      <span className="flex-1 py-1.5 text-center text-[11px] text-emerald-400 font-semibold flex items-center justify-center gap-1">
-                        <CheckCheck className="w-3.5 h-3.5" />
-                        <span>{language === 'ka' ? 'დარეგისტრირებულია' : 'Checked In'}</span>
-                      </span>
-                    )}
+                    <div className="mt-3 pt-2 flex items-center gap-1.5">
+                      {arrival.status !== 'checked_in' ? (
+                        <button
+                          onClick={() => markArrivalCheckedIn(arrival.id)}
+                          className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-sm ${
+                            isDarkMode
+                              ? 'bg-zinc-100 text-zinc-950 hover:bg-white'
+                              : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                          }`}
+                        >
+                          <Check className="w-3 h-3" />
+                          <span>{language === 'ka' ? 'დარეგისტრირება' : language === 'ru' ? 'Отметить заезд' : 'Check In'}</span>
+                        </button>
+                      ) : (
+                        <span className="flex-1 py-2 text-center text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center justify-center gap-1">
+                          <CheckCheck className="w-3.5 h-3.5" />
+                          <span>{language === 'ka' ? 'დარეგისტრირებულია' : language === 'ru' ? 'Заселён' : 'Checked In'}</span>
+                        </span>
+                      )}
 
-                    {arrival.phone && (
-                      <a
-                        href={`https://wa.me/${arrival.phone.replace(/[^0-9]/g, '')}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={`p-1.5 rounded-lg border text-zinc-300 hover:text-white transition-colors shadow-xs ${
-                          isDarkMode ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-zinc-300'
-                        }`}
-                        title="WhatsApp Guest"
-                      >
-                        <MessageSquareHeart className="w-3.5 h-3.5" />
-                      </a>
-                    )}
+                      {arrival.phone && (
+                        <a
+                          href={`https://wa.me/${arrival.phone.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={`p-2 rounded-lg border transition-colors shadow-xs ${
+                            isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white' : 'bg-white border-zinc-300 text-zinc-700 hover:text-zinc-950'
+                          }`}
+                          title="WhatsApp Guest"
+                        >
+                          <MessageSquareHeart className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════ */}
           {/* 4. PHYSICAL TOUCHPOINT: BIRCH & ACRYLIC STAND PROMO CARD        */}
           {/* ═══════════════════════════════════════════════════════════════ */}
-          <div className={`p-4 sm:p-5 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all shadow-sm ${
+          <div className={`p-4 sm:p-5 rounded-xl border flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 transition-all shadow-sm min-w-0 ${
             isDarkMode 
               ? 'bg-zinc-900 border-zinc-800' 
               : 'bg-white border-zinc-200'
           }`}>
-            <div className="flex items-center gap-3.5 min-w-0">
+            <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
               <div className="w-11 h-11 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-200 flex items-center justify-center font-bold shrink-0 shadow-sm">
                 <Radio className="w-5 h-5" />
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-serif font-bold text-sm sm:text-base truncate tracking-tight">
-                    {language === 'ka' ? 'ხის & აკრილის QR/NFC მაგიდის სადგამი' : 'Laser-Engraved Birch & Acrylic QR/NFC Table Stand'}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-serif font-bold text-sm sm:text-base break-words leading-snug tracking-tight">
+                    {language === 'ka' ? 'ხის & აკრილის QR/NFC მაგიდის სადგამი' : language === 'ru' ? 'Настольная QR/NFC стойка из берёзы и акрила' : 'Laser-Engraved Birch & Acrylic QR/NFC Table Stand'}
                   </h4>
-                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-semibold uppercase bg-zinc-800 border border-zinc-700 text-zinc-300">
+                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-semibold uppercase bg-zinc-800 border border-zinc-700 text-zinc-300 shrink-0">
                     Physical Touchpoint
                   </span>
                 </div>
-                <p className={`text-xs mt-0.5 truncate ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                <p className={`text-xs mt-1 leading-relaxed break-words ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
                   {language === 'ka'
                     ? 'განათავსეთ საწოლის ტუმბოზე ან შემოსასვლელში: მყისიერი NFC შეხება & კამერით სკანირება.'
+                    : language === 'ru'
+                    ? 'Разместите на тумбочке или у входа: мгновенное касание NFC и сканирование QR-кода.'
                     : 'Place on bedside nightstands or entryway: 1-tap NFC chip and high-contrast camera QR scan.'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto shrink-0">
               <button
                 onClick={() => {
                   setSelectedModalProperty(primaryProperty);
                   setShowPhysicalStandModal(true);
                 }}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-100 text-zinc-950 hover:bg-white flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95 transition-all"
+                className={`flex-1 sm:flex-initial justify-center px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95 transition-all ${
+                  isDarkMode
+                    ? 'bg-zinc-100 text-zinc-950 hover:bg-white'
+                    : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                }`}
               >
-                <Radio className="w-3.5 h-3.5" />
-                <span>{language === 'ka' ? 'სადგამის ნახვა & 3D' : 'View & Customize Stand'}</span>
+                <Radio className="w-3.5 h-3.5 shrink-0" />
+                <span>{language === 'ka' ? 'სადგამის ნახვა & 3D' : language === 'ru' ? '3D предпросмотр' : 'View & Customize Stand'}</span>
               </button>
 
               <button
@@ -746,276 +1200,61 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                   setSelectedModalProperty(primaryProperty);
                   setShowPrintModal(true);
                 }}
-                className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-colors flex items-center gap-1.5 shadow-xs ${
+                className={`flex-1 sm:flex-initial justify-center px-3.5 py-2.5 rounded-xl text-xs font-semibold border transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer ${
                   isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-200 hover:text-white' : 'bg-white border-zinc-300 text-zinc-800 hover:bg-zinc-100'
                 }`}
               >
-                <Printer className="w-3.5 h-3.5" />
-                <span>{language === 'ka' ? 'ფლაერის ბეჭდვა' : 'Print Stand Flyer'}</span>
+                <Printer className="w-3.5 h-3.5 shrink-0" />
+                <span>{language === 'ka' ? 'ფლაერის ბეჭდვა' : language === 'ru' ? 'Печать флаера' : 'Print Stand Flyer'}</span>
               </button>
             </div>
-          </div>
-          
-          {/* PHONE ASYMMETRIC BENTO GRID */}
-          <div className="grid grid-cols-2 md:grid-cols-12 gap-2.5 sm:gap-4">
-            
-            {/* 1. WIDE HERO GUIDE BANNER */}
-            <motion.div 
-              whileHover={{ y: -2 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-              className={`col-span-2 md:col-span-8 p-4 sm:p-6 rounded-xl border transition-all relative overflow-hidden flex flex-col justify-between shadow-sm ${
-                isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 relative z-10">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                  <span className="text-[10px] uppercase font-mono tracking-wider font-semibold text-emerald-400">
-                    {t.hostDashboard.card.published} Stumari Guide
-                  </span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-medium ${
-                    isDarkMode ? 'bg-zinc-800 text-zinc-300 border border-zinc-700' : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
-                  }`}>
-                    {primaryProperty.city}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1.5 self-end sm:self-auto">
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.96 }}
-                    onClick={() => handleCopy(primaryProperty)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-all bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-zinc-700/80 cursor-pointer shadow-xs"
-                  >
-                    {copiedSlug === primaryProperty.slug ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                    <span>{copiedSlug === primaryProperty.slug ? t.common.copied : t.common.share}</span>
-                  </motion.button>
-
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.96 }}
-                    onClick={() => navigateToGuestGuide(primaryProperty.slug)}
-                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 flex items-center gap-1 shadow-sm cursor-pointer transition-colors"
-                  >
-                    <span>{t.guestGuide.liveView}</span>
-                    <ArrowUpRight className="w-3 h-3 opacity-70" />
-                  </motion.button>
-                </div>
-              </div>
-
-              <div className="relative z-10">
-                <h2 className="text-base sm:text-xl font-serif font-bold tracking-tight truncate">
-                  {primaryProperty.title}
-                </h2>
-                <div className="flex items-center gap-3 text-xs mt-1 text-zinc-400">
-                  <span className="flex items-center gap-1 text-amber-400 font-medium">
-                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                    <span>4.98 {t.marketing.stats.ratingLabel}</span>
-                  </span>
-                  <span>·</span>
-                  <span>{t.propertyHub.overview.wifiCard}: <strong className="font-mono text-zinc-300">{primaryProperty.wifiNetwork}</strong></span>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* 2. PAIRED MICRO-BENTO CARD: Active Guides */}
-            <motion.div 
-              whileHover={{ y: -2 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-              className={`col-span-1 md:col-span-4 rounded-xl p-4 sm:p-5 shadow-sm border flex flex-col justify-between h-[120px] sm:h-auto min-h-[120px] cursor-pointer ${
-                isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <span className="font-serif text-3xl sm:text-4xl font-bold leading-none tracking-tight">
-                  {String(properties.length).padStart(2, '0')}
-                </span>
-                <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300">
-                  <Building2 className="w-4 h-4 stroke-[1.8]" />
-                </div>
-              </div>
-              <div>
-                <span className="font-semibold text-xs tracking-tight block leading-tight text-zinc-200">
-                  {t.hostDashboard.metrics.activeGuides}
-                </span>
-                <span className="text-[10px] text-zinc-400 font-mono block mt-0.5">
-                  {publishedCount} {t.hostDashboard.card.published.toLowerCase()}
-                </span>
-              </div>
-            </motion.div>
-
-            {/* 3. PAIRED MICRO-BENTO CARD: Guest Views */}
-            <motion.div 
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-              onClick={() => {
-                setCurrentTab('analytics');
-                setCurrentRoute('/app/analytics');
-              }}
-              className={`col-span-1 md:col-span-4 rounded-xl p-4 sm:p-5 shadow-sm border flex flex-col justify-between h-[120px] sm:h-auto min-h-[120px] cursor-pointer group ${
-                isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100 hover:border-zinc-700' : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-300'
-              }`}
-              title="Click to view full analytics & guest engagement charts"
-            >
-              <div className="flex items-start justify-between">
-                <span className="font-serif text-3xl sm:text-4xl font-bold leading-none tracking-tight">
-                  {primaryProperty.viewsCount || 1420}
-                </span>
-                <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 group-hover:text-zinc-100 transition-colors">
-                  <TrendingUp className="w-4 h-4 stroke-[1.8]" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="font-semibold text-xs tracking-tight block leading-tight text-zinc-200">
-                    {t.hostDashboard.metrics.totalViews}
-                  </span>
-                  <span className="text-[10px] text-zinc-400 font-mono block mt-0.5">
-                    {t.hostDashboard.metrics.thisMonth}
-                  </span>
-                </div>
-                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 group-hover:bg-zinc-700 transition-colors">
-                  Analytics ↗
-                </span>
-              </div>
-            </motion.div>
-
-            {/* 4. PAIRED QUICK-TOOL MICRO-CARD: 1-Tap Wi-Fi */}
-            <motion.div 
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              onClick={() => handleCopyText(primaryProperty.wifiPassword, 'Wi-Fi Password')}
-              className={`col-span-1 md:col-span-4 p-3.5 sm:p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between shadow-sm ${
-                isDarkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-200 hover:border-zinc-300'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                  <Wifi className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-[9px] font-mono uppercase font-semibold text-emerald-400">
-                  {copiedItem === 'Wi-Fi Password' ? t.common.copied : t.hostDashboard.tapToCopy}
-                </span>
-              </div>
-              <div className="mt-2">
-                <span className={`text-[10px] uppercase font-mono tracking-wider block ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>{t.hostDashboard.wifiPassword}</span>
-                <span className={`text-xs sm:text-sm font-semibold font-mono truncate block ${
-                  isDarkMode ? 'text-zinc-100' : 'text-zinc-950'
-                }`}>
-                  {primaryProperty.wifiPassword}
-                </span>
-              </div>
-            </motion.div>
-
-            {/* 5. PAIRED QUICK-TOOL MICRO-CARD: Door Keypad */}
-            <motion.div 
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              onClick={() => handleCopyText(primaryProperty.doorKeypadCode, 'Keypad Code')}
-              className={`col-span-1 md:col-span-4 p-3.5 sm:p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between shadow-sm ${
-                isDarkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-200 hover:border-zinc-300'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
-                  <KeyRound className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-[9px] font-mono uppercase font-semibold text-amber-400">
-                  {copiedItem === 'Keypad Code' ? t.common.copied : t.hostDashboard.tapToCopy}
-                </span>
-              </div>
-              <div className="mt-2">
-                <span className={`text-[10px] uppercase font-mono tracking-wider block ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>{t.hostDashboard.frontDoorCode}</span>
-                <span className={`text-xs sm:text-sm font-semibold font-mono tracking-wider truncate block ${
-                  isDarkMode ? 'text-zinc-100' : 'text-zinc-950'
-                }`}>
-                  {primaryProperty.doorKeypadCode}
-                </span>
-              </div>
-            </motion.div>
-
-            {/* 6. PAIRED QUICK-TOOL MICRO-CARD: Review Engine Interceptor */}
-            <motion.div 
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              onClick={() => {
-                setCurrentTab('reviews');
-              }}
-              className={`col-span-1 md:col-span-4 p-3.5 sm:p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between shadow-sm ${
-                isDarkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-200 hover:border-zinc-300'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center">
-                  <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                </div>
-                <span className="text-[9px] font-mono uppercase font-semibold text-emerald-400">
-                  100% Rating
-                </span>
-              </div>
-              <div className="mt-2">
-                <span className={`text-[10px] uppercase font-mono tracking-wider block ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>Guest Review Firewall</span>
-                <span className={`text-xs sm:text-sm font-semibold truncate block ${
-                  isDarkMode ? 'text-zinc-100' : 'text-zinc-950'
-                }`}>
-                  {feedbacks.length} Feedback Records ↗
-                </span>
-              </div>
-            </motion.div>
-
-            {/* 7. WIDE PRINT FLYER ACTION BANNER */}
-            <motion.div 
-              whileHover={{ y: -2 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              onClick={() => {
-                setSelectedModalProperty(primaryProperty);
-                setShowPrintModal(true);
-              }}
-              className={`col-span-2 md:col-span-12 p-4 sm:p-5 rounded-xl border cursor-pointer transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm ${
-                isDarkMode 
-                  ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' 
-                  : 'bg-white border-zinc-200 hover:border-zinc-300'
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-200 flex items-center justify-center shrink-0">
-                  <Printer className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <span className={`font-semibold text-xs sm:text-sm block truncate ${
-                    isDarkMode ? 'text-zinc-100' : 'text-zinc-950'
-                  }`}>
-                    Print Bedside Stand & Table-Talker Flyer
-                  </span>
-                  <span className={`text-[11px] block truncate ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                    Pre-formatted for 5x7 bedside frames and acrylic stands with instant camera QR scan
-                  </span>
-                </div>
-              </div>
-              <button className="px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs shrink-0 shadow-sm transition-colors">
-                Print Stand Flyer ↗
-              </button>
-            </motion.div>
-
           </div>
 
         </div>
       )}
 
-      {/* SECTION 2: YOUR PROPERTIES (With 3-Way Mobile Mode Switcher & City Filter) */}
+      {/* SECTION 2: YOUR PROPERTIES (With Portfolio/Templates Toggle, 3-Way Mobile Mode Switcher & City Filter) */}
       {(currentTab === 'overview' || currentTab === 'properties') && (
         <div className="space-y-3.5 pt-2">
           
           {/* Header & Controls */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-3 flex-wrap">
               <h2 className={`text-xs font-mono uppercase font-bold tracking-widest ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>
-                {t.hostDashboard.yourProperties} ({properties.length})
+                {t.hostDashboard.yourProperties} ({hostVisibleProperties.length})
               </h2>
+
+              {/* Portfolio vs Reusable Templates Sub-Switcher when in Properties tab */}
+              {currentTab === 'properties' && (
+                <div className={`inline-flex items-center p-0.5 rounded-xl border text-xs ${
+                  isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-100 border-zinc-200'
+                }`}>
+                  <button
+                    onClick={() => {
+                      setCurrentTab('properties');
+                      setCurrentRoute('/app/properties');
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      isDarkMode ? 'bg-zinc-800 text-zinc-100 shadow-xs border border-zinc-700/60' : 'bg-white text-zinc-900 shadow-xs'
+                    }`}
+                  >
+                    <Layers className="w-3 h-3 text-[#F55A51]" />
+                    <span>{language === 'ka' ? 'ობიექტები' : 'Properties'} ({hostVisibleProperties.length})</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCurrentTab('templates');
+                      setCurrentRoute('/app/templates');
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                      isDarkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    <Grid2x2 className="w-3 h-3" />
+                    <span>{language === 'ka' ? 'შაბლონები' : 'Templates'} ({templates.length})</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -1058,10 +1297,13 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                 </button>
               </div>
 
-              {!isFullList && properties.length > 2 && (
+              {currentTab === 'overview' && (
                 <button
-                  onClick={() => setCurrentRoute('/app/properties')}
-                  className={`text-xs font-semibold hidden sm:flex items-center gap-1 transition-colors ${
+                  onClick={() => {
+                    setCurrentTab('properties');
+                    setCurrentRoute('/app/properties');
+                  }}
+                  className={`text-xs font-semibold hidden sm:flex items-center gap-1 transition-colors cursor-pointer ${
                     isDarkMode ? 'text-zinc-300 hover:text-white' : 'text-zinc-800 hover:text-zinc-950'
                   }`}
                 >
@@ -1099,19 +1341,24 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
 
             {/* City Filter Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
-              {['all', 'Tbilisi', 'Batumi', 'Kazbegi'].map((city) => (
-                <button
-                  key={city}
-                  onClick={() => setSelectedCityFilter(city)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 cursor-pointer shadow-xs ${
-                    selectedCityFilter === city
-                      ? isDarkMode ? 'bg-zinc-100 text-zinc-950 font-semibold' : 'bg-zinc-900 text-white font-semibold'
-                      : isDarkMode ? 'bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800' : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
-                  }`}
-                >
-                  {city === 'all' ? 'All Cities' : city}
-                </button>
-              ))}
+              {cityFilterOptions.map((city) => {
+                const isSelected = activeCityFilter.toLowerCase() === city.toLowerCase();
+                const allCitiesLabel =
+                  language === 'ka' ? 'ყველა ქალაქი' : language === 'ru' ? 'Все города' : 'All Cities';
+                return (
+                  <button
+                    key={city}
+                    onClick={() => setSelectedCityFilter(city)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 cursor-pointer shadow-xs ${
+                      isSelected
+                        ? isDarkMode ? 'bg-zinc-100 text-zinc-950 font-semibold' : 'bg-zinc-900 text-white font-semibold'
+                        : isDarkMode ? 'bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-zinc-800' : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
+                    }`}
+                  >
+                    {city === 'all' ? allCitiesLabel : city}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -1125,17 +1372,17 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
               </div>
               <div>
                 <h4 className="font-serif font-bold text-base sm:text-lg tracking-tight">
-                  {propertySearchQuery || selectedCityFilter !== 'all' 
+                  {propertySearchQuery || activeCityFilter !== 'all' 
                     ? (language === 'ka' ? 'ობიექტები ვერ მოიძებნა' : language === 'ru' ? 'Жильё не найдено' : 'No matching properties found')
                     : (language === 'ka' ? 'ობიექტები არ არის' : language === 'ru' ? 'Нет добавленных объектов' : 'No properties yet')}
                 </h4>
                 <p className="text-xs text-zinc-400 max-w-md mx-auto mt-1">
-                  {propertySearchQuery || selectedCityFilter !== 'all'
+                  {propertySearchQuery || activeCityFilter !== 'all'
                     ? (language === 'ka' 
-                        ? `ვერ მოიძებნა ობიექტები ფილტრით "${propertySearchQuery || selectedCityFilter}". სცადეთ ფილტრის გასუფთავება.` 
+                        ? `ვერ მოიძებნა ობიექტები ფილტრით "${propertySearchQuery || activeCityFilter}". სცადეთ ფილტრის გასუფთავება.` 
                         : language === 'ru'
-                        ? `Не найдено объектов по фильтру "${propertySearchQuery || selectedCityFilter}". Попробуйте сбросить фильтры.`
-                        : `We couldn't find any properties matching "${propertySearchQuery || selectedCityFilter}". Try adjusting your filters.`)
+                        ? `Не найдено объектов по фильтру "${propertySearchQuery || activeCityFilter}". Попробуйте сбросить фильтры.`
+                        : `We couldn't find any properties matching "${propertySearchQuery || activeCityFilter}". Try adjusting your filters.`)
                     : (language === 'ka'
                         ? 'შექმენით თქვენი პირველი ციფრული მეგზური Wi-Fi-ით, კარის კოდით და რეკომენდაციებით.'
                         : language === 'ru'
@@ -1143,8 +1390,8 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                         : 'Create your first digital guest guide to welcome guests with 1-tap Wi-Fi, door codes, and curated local gems.')}
                 </p>
               </div>
-              <div className="flex items-center justify-center gap-2 pt-2">
-                {propertySearchQuery || selectedCityFilter !== 'all' ? (
+              <div className="flex items-center justify-center gap-2 flex-wrap pt-2">
+                {propertySearchQuery || activeCityFilter !== 'all' ? (
                   <button
                     onClick={() => {
                       setPropertySearchQuery('');
@@ -1155,22 +1402,35 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                     {language === 'ka' ? 'ფილტრის გასუფთავება' : language === 'ru' ? 'Сбросить фильтры' : 'Reset Filters'}
                   </button>
                 ) : (
-                  <button
-                    onClick={() => setCurrentRoute('/onboarding')}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-100 text-zinc-950 cursor-pointer hover:bg-white flex items-center gap-1.5 shadow-sm"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{language === 'ka' ? 'პირველი ობიექტის დამატება' : language === 'ru' ? 'Добавить жильё' : 'Create First Property'}</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => openAddPropertyModal()}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#B85D3B] hover:bg-[#A35132] text-white cursor-pointer flex items-center gap-1.5 shadow-sm transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{language === 'ka' ? 'პირველი ობიექტის დამატება' : language === 'ru' ? 'Добавить жильё' : 'Create First Property'}</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentRoute('/demo')}
+                      className={`px-4 py-2 rounded-xl text-xs font-semibold border cursor-pointer flex items-center gap-1.5 transition-colors ${
+                        isDarkMode
+                          ? 'bg-zinc-800 border-zinc-700 text-zinc-200 hover:bg-zinc-750'
+                          : 'bg-zinc-100 border-zinc-200 text-zinc-800 hover:bg-zinc-200'
+                      }`}
+                    >
+                      <Smartphone className="w-3.5 h-3.5" />
+                      <span>{language === 'ka' ? 'დემო გიდების ნახვა' : language === 'ru' ? 'Смотреть демо-гиды' : 'Explore Demo Guides'}</span>
+                    </button>
+                  </>
                 )}
               </div>
             </div>
           ) : (
             <>
-              {/* VIEW MODE 1: BENTO PEEK SWIPE CAROUSEL (Horizontal with Dots) */}
+              {/* VIEW MODE 1: RESPONSIVE BENTO CARDS (Clean vertical stack on phone, 2-3 col grid on tablet/desktop) */}
               {mobileView === 'cards' && (
             <div className="space-y-2">
-              <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-3 px-3 md:mx-0 md:px-0 pb-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
                 {filteredProperties.map((p, index) => {
                   return (
                     <motion.div
@@ -1179,8 +1439,11 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.35, delay: index * 0.07 }}
                       whileHover={{ y: -3 }}
-                      onClick={() => setActivePropertyIndex(index)}
-                      className={`w-[82vw] max-w-[320px] md:w-auto shrink-0 snap-center rounded-xl p-4 sm:p-5 shadow-sm flex flex-col justify-between space-y-3.5 sm:space-y-4 relative overflow-hidden cursor-pointer border transition-all ${
+                      onClick={() => {
+                        setActivePropertyIndex(index);
+                        navigateToPropertyHub(p.id, 'overview');
+                      }}
+                      className={`w-full min-w-0 rounded-xl p-4 sm:p-5 shadow-sm flex flex-col justify-between space-y-3.5 sm:space-y-4 relative overflow-hidden cursor-pointer border transition-all ${
                         isDarkMode
                           ? 'bg-zinc-900 border-zinc-800 text-zinc-100 hover:border-zinc-700'
                           : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-300'
@@ -1188,11 +1451,11 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                     >
                       <div>
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <h3 className={`font-serif text-base sm:text-lg font-bold tracking-tight leading-tight truncate ${isDarkMode ? 'text-zinc-100' : 'text-zinc-950'}`}>
+                          <div className="min-w-0 flex-1">
+                            <h3 className={`font-serif text-base sm:text-lg font-bold tracking-tight leading-snug break-words line-clamp-2 ${isDarkMode ? 'text-zinc-100' : 'text-zinc-950'}`}>
                               {p.title}
                             </h3>
-                            <div className={`flex items-center gap-1.5 text-xs mt-0.5 font-medium ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                            <div className={`flex items-center flex-wrap gap-1.5 text-xs mt-1 font-medium ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
                               <MapPin className="w-3 h-3 shrink-0 opacity-70" />
                               <span className="truncate">{p.city}</span>
                               <span>·</span>
@@ -1202,8 +1465,8 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
 
                           <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold font-mono flex items-center gap-1 shrink-0 border ${
                             p.status === 'published'
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                              : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                              : isDarkMode ? 'bg-zinc-800 text-zinc-400 border-zinc-700' : 'bg-zinc-100 text-zinc-600 border-zinc-200'
                           }`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${p.status === 'published' ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`} />
                             <span>{p.status === 'published' ? t.hostDashboard.live : t.hostDashboard.draft}</span>
@@ -1211,31 +1474,31 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                         </div>
 
                         {/* Quick Essentials Chips */}
-                        <div className="grid grid-cols-2 gap-2 mt-3">
-                          <div className={`p-2 rounded-lg flex items-center gap-2 border shadow-xs ${
+                        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2 mt-3">
+                          <div className={`p-2.5 rounded-lg flex items-center gap-2 border shadow-xs min-w-0 ${
                             isDarkMode ? 'bg-zinc-950/70 text-zinc-200 border-zinc-800' : 'bg-zinc-50 text-zinc-800 border-zinc-200'
                           }`}>
-                            <Wifi className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
-                            <div className="min-w-0">
+                            <Wifi className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
+                            <div className="min-w-0 flex-1">
                               <span className="text-[8px] uppercase font-mono block opacity-60">Wi-Fi</span>
-                              <span className="font-semibold text-[11px] truncate block">{p.wifiNetwork}</span>
+                              <span className="font-semibold text-[11px] truncate block">{p.wifiNetwork || '—'}</span>
                             </div>
                           </div>
 
-                          <div className={`p-2 rounded-lg flex items-center gap-2 border shadow-xs ${
+                          <div className={`p-2.5 rounded-lg flex items-center gap-2 border shadow-xs min-w-0 ${
                             isDarkMode ? 'bg-zinc-950/70 text-zinc-200 border-zinc-800' : 'bg-zinc-50 text-zinc-800 border-zinc-200'
                           }`}>
-                            <KeyRound className="w-3.5 h-3.5 shrink-0 text-amber-400" />
-                            <div className="min-w-0">
+                            <KeyRound className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                            <div className="min-w-0 flex-1">
                               <span className="text-[8px] uppercase font-mono block opacity-60">{t.hostDashboard.keypadCode}</span>
-                              <span className="font-mono font-semibold text-[11px] truncate block">{p.doorKeypadCode}</span>
+                              <span className="font-mono font-semibold text-[11px] truncate block">{p.doorKeypadCode || '—'}</span>
                             </div>
                           </div>
                         </div>
                       </div>
 
                       {/* Action Buttons */}
-                      <div className={`pt-2.5 flex items-center justify-between gap-2 border-t ${
+                      <div className={`pt-2.5 flex flex-wrap items-center justify-between gap-2 border-t ${
                         isDarkMode ? 'border-zinc-800' : 'border-zinc-200'
                       }`}>
                         <div className="flex items-center gap-1.5">
@@ -1244,7 +1507,11 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                               e.stopPropagation();
                               navigateToPropertyHub(p.id, 'guide');
                             }}
-                            className="px-3 py-1.5 rounded-lg font-semibold text-xs flex items-center gap-1 active:scale-95 bg-zinc-100 hover:bg-white text-zinc-950 shadow-sm transition-colors cursor-pointer"
+                            className={`px-3 py-1.5 rounded-lg font-semibold text-xs flex items-center gap-1 active:scale-95 shadow-sm transition-colors cursor-pointer ${
+                              isDarkMode
+                                ? 'bg-zinc-100 hover:bg-white text-zinc-950'
+                                : 'bg-zinc-900 hover:bg-zinc-800 text-white'
+                            }`}
                           >
                             <Edit3 className="w-3 h-3" />
                             <span>{t.common.edit}</span>
@@ -1271,12 +1538,12 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                               setSelectedModalProperty(p);
                               setShowAccessModal(true);
                             }}
-                            className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-colors ${
+                            className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${
                               isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-300' : 'bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-700'
                             }`}
                             title="Quick Wi-Fi & Keypad Modal"
                           >
-                            <Wifi className="w-3.5 h-3.5 text-emerald-400" />
+                            <Wifi className="w-3.5 h-3.5 text-emerald-500" />
                           </button>
 
                           <button
@@ -1285,12 +1552,12 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                               setSelectedModalProperty(p);
                               setShowPhysicalStandModal(true);
                             }}
-                            className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-colors ${
+                            className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${
                               isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-300' : 'bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-700'
                             }`}
                             title="Physical QR & NFC Stand"
                           >
-                            <Radio className="w-3.5 h-3.5 text-zinc-200" />
+                            <Radio className="w-3.5 h-3.5" />
                           </button>
 
                           <button
@@ -1299,7 +1566,7 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                               setSelectedModalProperty(p);
                               setShowPrintModal(true);
                             }}
-                            className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-colors ${
+                            className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${
                               isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-300' : 'bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-700'
                             }`}
                             title="Print Table Stand Flyer"
@@ -1312,12 +1579,12 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                               e.stopPropagation();
                               handleCopy(p);
                             }}
-                            className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-colors ${
+                            className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${
                               isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-300' : 'bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-700'
                             }`}
                             title={t.common.copy}
                           >
-                            {copiedSlug === p.slug ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                            {copiedSlug === p.slug ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                           </button>
 
                           <button
@@ -1325,7 +1592,7 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                               e.stopPropagation();
                               navigateToPropertyHub(p.id, 'overview');
                             }}
-                            className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-colors ${
+                            className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${
                               isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-300' : 'bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-700'
                             }`}
                             title={t.hostDashboard.propertyHub}
@@ -1339,58 +1606,55 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                   );
                 })}
               </div>
-
-              {/* Mobile Swipe Indicators */}
-              <div className="flex md:hidden items-center justify-between text-[11px] text-zinc-400 font-mono px-1">
-                <div className="flex items-center gap-1">
-                  {filteredProperties.map((_, i) => (
-                    <span 
-                      key={i} 
-                      className={`h-1 rounded-full transition-all ${
-                        activePropertyIndex === i ? 'w-4 bg-zinc-200' : 'w-1.5 bg-zinc-700'
-                      }`} 
-                    />
-                  ))}
-                </div>
-                <span>{t.hostDashboard.swipeCards} →</span>
-              </div>
             </div>
           )}
 
-          {/* VIEW MODE 2: 2-COLUMN MICRO-CARDS GRID (Side-by-Side on Phone!) */}
+          {/* VIEW MODE 2: COMPACT PHOTO GRID (1-col on small phone, 2-col on sm+, 3-col on md+) */}
           {mobileView === 'grid' && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
               {filteredProperties.map((p) => (
                 <div
                   key={p.id}
                   onClick={() => navigateToPropertyHub(p.id, 'overview')}
-                  className={`p-3 rounded-xl border transition-all cursor-pointer hover:-translate-y-0.5 flex flex-col justify-between shadow-sm ${
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer hover:-translate-y-0.5 flex flex-col justify-between shadow-sm min-w-0 ${
                     isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100 hover:border-zinc-700' : 'bg-white border-zinc-200 text-zinc-900 shadow-xs hover:border-zinc-300'
                   }`}
                 >
                   <div>
-                    <div className="h-20 sm:h-28 rounded-lg overflow-hidden mb-2 relative">
-                      <img src={p.coverImage} alt={p.title} className="w-full h-full object-cover" />
-                      <span className={`absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[8px] font-mono font-semibold border ${
+                    <div className={`h-28 rounded-lg overflow-hidden mb-2.5 relative flex items-center justify-center ${
+                      isDarkMode ? 'bg-zinc-800/60' : 'bg-zinc-100'
+                    }`}>
+                      {(p.coverImage || p.photos?.[0]?.url) ? (
+                        <img src={p.coverImage || p.photos?.[0]?.url} alt={p.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <Building2 className="w-6 h-6 text-zinc-500 opacity-50" />
+                      )}
+                      <span className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[9px] font-mono font-semibold border ${
                         p.status === 'published' ? 'bg-emerald-500/90 text-white border-emerald-400' : 'bg-zinc-900/90 text-zinc-300 border-zinc-700'
                       }`}>
                         {p.status === 'published' ? t.hostDashboard.live : t.hostDashboard.draft}
                       </span>
                     </div>
 
-                    <h4 className="font-serif font-bold text-xs sm:text-sm truncate leading-snug tracking-tight">
+                    <h4 className="font-serif font-bold text-sm truncate leading-snug tracking-tight">
                       {p.title}
                     </h4>
-                    <span className="text-[10px] text-zinc-400 truncate block mt-0.5">{p.city}</span>
+                    <span className={`text-xs truncate block mt-0.5 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>{p.city}</span>
                   </div>
 
-                  <div className="pt-2 mt-2 border-t border-zinc-800/80 flex items-center justify-between">
+                  <div className={`pt-2.5 mt-2.5 border-t flex items-center justify-between gap-2 ${
+                    isDarkMode ? 'border-zinc-800/80' : 'border-zinc-200'
+                  }`}>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         navigateToPropertyHub(p.id, 'guide');
                       }}
-                      className="px-2.5 py-1 rounded-md text-[10px] font-semibold bg-zinc-100 hover:bg-white text-zinc-950 shadow-xs cursor-pointer transition-colors"
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs cursor-pointer transition-colors ${
+                        isDarkMode
+                          ? 'bg-zinc-100 hover:bg-white text-zinc-950'
+                          : 'bg-zinc-900 hover:bg-zinc-800 text-white'
+                      }`}
                     >
                       {t.common.edit}
                     </button>
@@ -1402,10 +1666,12 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                           setSelectedModalProperty(p);
                           setShowAccessModal(true);
                         }}
-                        className="p-1 rounded-md text-zinc-400 hover:text-white transition-colors"
+                        className={`p-1.5 rounded-md transition-colors ${
+                          isDarkMode ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-zinc-950'
+                        }`}
                         title="Wi-Fi"
                       >
-                        <Wifi className="w-3 h-3 text-emerald-400" />
+                        <Wifi className="w-3.5 h-3.5 text-emerald-500" />
                       </button>
                       <button
                         onClick={(e) => {
@@ -1413,10 +1679,12 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                           setSelectedModalProperty(p);
                           setShowPhysicalStandModal(true);
                         }}
-                        className="p-1 rounded-md text-zinc-400 hover:text-white transition-colors"
+                        className={`p-1.5 rounded-md transition-colors ${
+                          isDarkMode ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-zinc-950'
+                        }`}
                         title="Laser QR & NFC Stand"
                       >
-                        <Radio className="w-3 h-3 text-zinc-300" />
+                        <Radio className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={(e) => {
@@ -1424,19 +1692,24 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                           setSelectedModalProperty(p);
                           setShowPrintModal(true);
                         }}
-                        className="p-1 rounded-md text-zinc-400 hover:text-white transition-colors"
+                        className={`p-1.5 rounded-md transition-colors ${
+                          isDarkMode ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-zinc-950'
+                        }`}
                         title="Print Stand Flyer"
                       >
-                        <Printer className="w-3 h-3" />
+                        <Printer className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           navigateToGuestGuide(p.slug);
                         }}
-                        className="text-[10px] text-zinc-300 font-semibold flex items-center gap-0.5 hover:text-white transition-colors"
+                        className={`p-1.5 rounded-md font-semibold flex items-center gap-0.5 transition-colors ${
+                          isDarkMode ? 'text-zinc-300 hover:text-white' : 'text-zinc-700 hover:text-zinc-950'
+                        }`}
+                        title="Open Live Guide"
                       >
-                        <ArrowUpRight className="w-2.5 h-2.5 opacity-70" />
+                        <ArrowUpRight className="w-3.5 h-3.5 opacity-80" />
                       </button>
                     </div>
                   </div>
@@ -1447,82 +1720,108 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
 
           {/* VIEW MODE 3: COMPACT LIST VIEW */}
           {mobileView === 'list' && (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {filteredProperties.map((p) => (
                 <div
                   key={p.id}
-                  className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-2.5 shadow-sm ${
-                    isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900 shadow-xs'
+                  onClick={() => navigateToPropertyHub(p.id, 'overview')}
+                  className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm cursor-pointer ${
+                    isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100 hover:border-zinc-700' : 'bg-white border-zinc-200 text-zinc-900 shadow-xs hover:border-zinc-300'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-zinc-800">
-                      <img src={p.coverImage} alt={p.title} className="w-full h-full object-cover" />
+                    <div className={`w-10 h-10 rounded-lg overflow-hidden shrink-0 border flex items-center justify-center ${
+                      isDarkMode ? 'border-zinc-800 bg-zinc-800/60' : 'border-zinc-200 bg-zinc-100'
+                    }`}>
+                      {(p.coverImage || p.photos?.[0]?.url) ? (
+                        <img src={p.coverImage || p.photos?.[0]?.url} alt={p.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <Building2 className="w-4 h-4 text-zinc-500 opacity-60" />
+                      )}
                     </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-serif font-bold text-xs sm:text-sm truncate block tracking-tight">{p.title}</span>
                         <span className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-semibold shrink-0 border ${
-                          p.status === 'published' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                          p.status === 'published'
+                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                            : isDarkMode ? 'bg-zinc-800 text-zinc-400 border-zinc-700' : 'bg-zinc-100 text-zinc-600 border-zinc-200'
                         }`}>
                           {p.status === 'published' ? t.hostDashboard.live : t.hostDashboard.draft}
                         </span>
                       </div>
-                      <span className={`text-[10px] truncate block ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                        {p.city} · Wi-Fi: <strong className="font-mono text-zinc-300">{p.wifiNetwork}</strong>
+                      <span className={`text-[10px] truncate block mt-0.5 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                        {p.city} · Wi-Fi: <strong className={`font-mono ${isDarkMode ? 'text-zinc-300' : 'text-zinc-800'}`}>{p.wifiNetwork || '—'}</strong>
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className={`flex items-center justify-between sm:justify-end gap-1.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 ${
+                    isDarkMode ? 'border-zinc-800/80' : 'border-zinc-100'
+                  }`}>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedModalProperty(p);
+                          setShowAccessModal(true);
+                        }}
+                        className={`p-1.5 rounded-lg border transition-colors ${
+                          isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white' : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+                        }`}
+                        title="Wi-Fi Credentials"
+                      >
+                        <Wifi className="w-3.5 h-3.5 text-emerald-500" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedModalProperty(p);
+                          setShowPhysicalStandModal(true);
+                        }}
+                        className={`p-1.5 rounded-lg border transition-colors ${
+                          isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white' : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+                        }`}
+                        title="Laser QR & NFC Stand"
+                      >
+                        <Radio className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedModalProperty(p);
+                          setShowPrintModal(true);
+                        }}
+                        className={`p-1.5 rounded-lg border transition-colors ${
+                          isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white' : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+                        }`}
+                        title="Print Flyer"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopy(p);
+                        }}
+                        className={`p-1.5 rounded-lg border transition-colors ${
+                          isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white' : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+                        }`}
+                        title={t.common.copy}
+                      >
+                        {copiedSlug === p.slug ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                     <button
-                      onClick={() => {
-                        setSelectedModalProperty(p);
-                        setShowAccessModal(true);
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigateToPropertyHub(p.id, 'guide');
                       }}
-                      className={`p-1.5 rounded-lg border transition-colors ${
-                        isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white' : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50'
+                      className={`px-3 py-1.5 rounded-lg font-semibold text-xs active:scale-95 shadow-sm transition-colors cursor-pointer ${
+                        isDarkMode
+                          ? 'bg-zinc-100 hover:bg-white text-zinc-950'
+                          : 'bg-zinc-900 hover:bg-zinc-800 text-white'
                       }`}
-                      title="Wi-Fi Credentials"
-                    >
-                      <Wifi className="w-3 h-3 text-emerald-400" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedModalProperty(p);
-                        setShowPhysicalStandModal(true);
-                      }}
-                      className={`p-1.5 rounded-lg border transition-colors ${
-                        isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white' : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50'
-                      }`}
-                      title="Laser QR & NFC Stand"
-                    >
-                      <Radio className="w-3 h-3 text-zinc-200" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedModalProperty(p);
-                        setShowPrintModal(true);
-                      }}
-                      className={`p-1.5 rounded-lg border transition-colors ${
-                        isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white' : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50'
-                      }`}
-                      title="Print Flyer"
-                    >
-                      <Printer className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => handleCopy(p)}
-                      className={`p-1.5 rounded-lg border transition-colors ${
-                        isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white' : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50'
-                      }`}
-                      title={t.common.copy}
-                    >
-                      {copiedSlug === p.slug ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                    </button>
-                    <button
-                      onClick={() => navigateToPropertyHub(p.id, 'guide')}
-                      className="px-2.5 py-1 rounded-lg font-semibold text-xs bg-zinc-100 hover:bg-white text-zinc-950 active:scale-95 shadow-sm transition-colors cursor-pointer"
                     >
                       {t.common.edit}
                     </button>
@@ -1542,12 +1841,16 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
         isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-200 text-zinc-700'
       }`}>
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-zinc-300" />
-          <span className="text-xs font-medium text-zinc-200">{t.hostDashboard.wantAnotherGuide}</span>
+          <Sparkles className="w-4 h-4 text-[#B85D3B] shrink-0" />
+          <span className={`text-xs font-medium ${isDarkMode ? 'text-zinc-200' : 'text-zinc-800'}`}>{t.hostDashboard.wantAnotherGuide}</span>
         </div>
         <button
-          onClick={() => setCurrentRoute('/onboarding')}
-          className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 flex items-center gap-1 active:scale-95 shadow-sm cursor-pointer transition-colors"
+          onClick={() => openAddPropertyModal()}
+          className={`w-full sm:w-auto justify-center px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 active:scale-95 shadow-sm cursor-pointer transition-colors ${
+            isDarkMode
+              ? 'bg-zinc-100 hover:bg-white text-zinc-950'
+              : 'bg-zinc-900 hover:bg-zinc-800 text-white'
+          }`}
         >
           <Plus className="w-3.5 h-3.5" />
           <span>{t.hostDashboard.addProperty}</span>
@@ -1577,13 +1880,15 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                 isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
               }`}
             >
-              <div className="flex items-center justify-between border-b pb-3 border-zinc-800">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 flex items-center justify-center">
-                    <Wifi className="w-4 h-4 text-emerald-400" />
+              <div className={`flex items-center justify-between border-b pb-3 ${isDarkMode ? 'border-zinc-800' : 'border-zinc-200'}`}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${
+                    isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-200' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
+                  }`}>
+                    <Wifi className="w-4 h-4 text-emerald-500" />
                   </div>
-                  <div>
-                    <h3 className={`font-serif font-bold text-sm leading-tight ${isDarkMode ? 'text-zinc-100' : 'text-zinc-950'}`}>{selectedModalProperty.title}</h3>
+                  <div className="min-w-0">
+                    <h3 className={`font-serif font-bold text-sm leading-tight truncate ${isDarkMode ? 'text-zinc-100' : 'text-zinc-950'}`}>{selectedModalProperty.title}</h3>
                     <span className={`text-[10px] ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>Host Quick Access Card</span>
                   </div>
                 </div>
@@ -1606,14 +1911,14 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                     <span className={`text-[10px] font-mono uppercase ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>Network (SSID)</span>
                     <span className="text-[9px] font-mono text-emerald-500 font-semibold">Tap to copy</span>
                   </div>
-                  <span className={`font-semibold text-sm block mt-0.5 ${isDarkMode ? 'text-zinc-100' : 'text-zinc-950'}`}>{selectedModalProperty.wifiNetwork}</span>
+                  <span className={`font-semibold text-sm block mt-0.5 break-all ${isDarkMode ? 'text-zinc-100' : 'text-zinc-950'}`}>{selectedModalProperty.wifiNetwork}</span>
                   
                   <div className={`mt-2.5 pt-2 border-t flex items-center justify-between ${isDarkMode ? 'border-zinc-800' : 'border-zinc-200'}`}>
-                    <div>
+                    <div className="min-w-0 pr-2">
                       <span className={`text-[9px] font-mono uppercase block ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>Password</span>
-                      <span className={`font-mono font-semibold text-sm tracking-wide ${isDarkMode ? 'text-zinc-100' : 'text-zinc-950'}`}>{selectedModalProperty.wifiPassword}</span>
+                      <span className={`font-mono font-semibold text-sm tracking-wide break-all ${isDarkMode ? 'text-zinc-100' : 'text-zinc-950'}`}>{selectedModalProperty.wifiPassword}</span>
                     </div>
-                    <Copy className={`w-3.5 h-3.5 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`} />
+                    <Copy className={`w-3.5 h-3.5 shrink-0 ${isDarkMode ? 'text-zinc-400' : 'text-zinc-500'}`} />
                   </div>
                 </div>
 
@@ -1641,7 +1946,11 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
                     setSelectedModalProperty(selectedModalProperty);
                     setShowPrintModal(true);
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-colors cursor-pointer"
+                  className={`flex-1 py-2.5 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-colors cursor-pointer ${
+                    isDarkMode
+                      ? 'bg-zinc-100 hover:bg-white text-zinc-950'
+                      : 'bg-zinc-900 hover:bg-zinc-800 text-white'
+                  }`}
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>Print Stand Flyer</span>
@@ -1655,7 +1964,7 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
       {/* Printable Bedside Stand & Flyer Modal */}
       <AnimatePresence>
         {showPrintModal && selectedModalProperty && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1671,15 +1980,15 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
               className="relative w-full max-w-4xl bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-xl p-4 sm:p-6 my-auto shadow-sm z-10 max-h-[92vh] overflow-y-auto no-scrollbar tracking-tight"
             >
               <div className="flex justify-between items-center mb-3 pb-2 border-b border-zinc-800">
-                <div className="flex items-center gap-2">
-                  <Printer className="w-5 h-5 text-zinc-200" />
-                  <span className="font-serif font-bold text-base sm:text-lg text-zinc-100">
-                    Printable Guest Stand & Table-Talker · {selectedModalProperty.title}
+                <div className="flex items-center gap-2 min-w-0">
+                  <Printer className="w-5 h-5 text-zinc-200 shrink-0" />
+                  <span className="font-serif font-bold text-sm sm:text-lg text-zinc-100 truncate">
+                    Printable Guest Stand · {selectedModalProperty.title}
                   </span>
                 </div>
                 <button
                   onClick={() => setShowPrintModal(false)}
-                  className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors shrink-0"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1700,18 +2009,22 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
       )}
 
       {/* Responsive Host Mobile Bottom Dock (Floating on phone for instant switching) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800 py-1.5 px-3 flex items-center justify-around shadow-sm">
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl border-t py-1.5 px-2 pb-[max(0.375rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-sm ${
+        isDarkMode ? 'bg-zinc-950/95 border-zinc-800' : 'bg-white/95 border-zinc-200'
+      }`}>
         <button
           onClick={() => {
             setCurrentTab('overview');
             setCurrentRoute('/app');
           }}
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all cursor-pointer ${
-            currentTab === 'overview' ? 'text-zinc-100 font-semibold' : 'text-zinc-400'
+          className={`flex flex-col items-center justify-center gap-0.5 min-h-[44px] px-2 rounded-xl transition-all cursor-pointer ${
+            currentTab === 'overview'
+              ? isDarkMode ? 'text-zinc-100 font-semibold' : 'text-zinc-950 font-semibold'
+              : isDarkMode ? 'text-zinc-400' : 'text-zinc-500'
           }`}
         >
           <Building2 className="w-4 h-4" />
-          <span className="text-[9px]">Overview</span>
+          <span className="text-[10px] leading-tight">{language === 'ka' ? 'ცენტრი' : language === 'ru' ? 'Центр' : 'Home'}</span>
         </button>
 
         <button
@@ -1719,17 +2032,19 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
             setCurrentTab('properties');
             setCurrentRoute('/app/properties');
           }}
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all cursor-pointer ${
-            currentTab === 'properties' ? 'text-zinc-100 font-semibold' : 'text-zinc-400'
+          className={`flex flex-col items-center justify-center gap-0.5 min-h-[44px] px-2 rounded-xl transition-all cursor-pointer ${
+            currentTab === 'properties' || currentTab === 'templates'
+              ? isDarkMode ? 'text-zinc-100 font-semibold' : 'text-zinc-950 font-semibold'
+              : isDarkMode ? 'text-zinc-400' : 'text-zinc-500'
           }`}
         >
           <Layers className="w-4 h-4" />
-          <span className="text-[9px]">Properties</span>
+          <span className="text-[10px] leading-tight">{language === 'ka' ? 'ობიექტები' : language === 'ru' ? 'Объекты' : 'Properties'}</span>
         </button>
 
         <button
-          onClick={() => setCurrentRoute('/onboarding')}
-          className="w-10 h-10 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 flex items-center justify-center -mt-5 shadow-sm active:scale-95 border border-zinc-800 cursor-pointer transition-colors"
+          onClick={() => openAddPropertyModal()}
+          className="w-11 h-11 rounded-xl bg-[#B85D3B] hover:bg-[#A35132] text-white flex items-center justify-center -mt-4 shadow-md active:scale-95 cursor-pointer transition-colors shrink-0"
           title="Add Property"
         >
           <Plus className="w-5 h-5 stroke-[2.5]" />
@@ -1737,28 +2052,32 @@ export const HostDashboardSimple: React.FC<HostDashboardSimpleProps> = ({
 
         <button
           onClick={() => {
-            setCurrentTab('analytics');
-            setCurrentRoute('/app/analytics');
+            setCurrentTab('requests');
+            setCurrentRoute('/app/requests');
           }}
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all cursor-pointer ${
-            currentTab === 'analytics' ? 'text-zinc-100 font-semibold' : 'text-zinc-400'
+          className={`flex flex-col items-center justify-center gap-0.5 min-h-[44px] px-2 rounded-xl transition-all cursor-pointer ${
+            currentTab === 'requests' || currentTab === 'reviews'
+              ? isDarkMode ? 'text-zinc-100 font-semibold' : 'text-zinc-950 font-semibold'
+              : isDarkMode ? 'text-zinc-400' : 'text-zinc-500'
           }`}
         >
-          <TrendingUp className="w-4 h-4" />
-          <span className="text-[9px]">Analytics</span>
+          <MessageSquareHeart className="w-4 h-4" />
+          <span className="text-[10px] leading-tight">{language === 'ka' ? 'შემოსული' : language === 'ru' ? 'Входящие' : 'Inbox'}</span>
         </button>
 
         <button
           onClick={() => {
-            setCurrentTab('reviews');
-            setCurrentRoute('/app/reviews');
+            setCurrentTab('analytics');
+            setCurrentRoute('/app/analytics');
           }}
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all cursor-pointer ${
-            currentTab === 'reviews' ? 'text-zinc-100 font-semibold' : 'text-zinc-400'
+          className={`flex flex-col items-center justify-center gap-0.5 min-h-[44px] px-2 rounded-xl transition-all cursor-pointer ${
+            currentTab === 'analytics'
+              ? isDarkMode ? 'text-zinc-100 font-semibold' : 'text-zinc-950 font-semibold'
+              : isDarkMode ? 'text-zinc-400' : 'text-zinc-500'
           }`}
         >
-          <MessageSquareHeart className="w-4 h-4" />
-          <span className="text-[9px]">Reviews</span>
+          <TrendingUp className="w-4 h-4" />
+          <span className="text-[10px] leading-tight">{language === 'ka' ? 'ანალიტიკა' : language === 'ru' ? 'Аналитика' : 'Analytics'}</span>
         </button>
       </div>
 

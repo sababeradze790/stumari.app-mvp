@@ -1,304 +1,471 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  KeyRound, 
-  Wifi, 
-  Copy, 
-  Check, 
-  MapPin, 
-  Clock, 
-  ChevronRight, 
-  ExternalLink 
+import {
+  KeyRound,
+  Wifi,
+  MapPin,
+  Copy,
+  Check,
+  Navigation,
+  ChevronRight,
+  Clock,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import { Property } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { TbilisiBalconySketch, TbilisiTowerSketch } from './GuestGuideIllustrations';
+import { safeCopyToClipboard } from '../../utils/clipboard';
 
 interface ArrivalBoardingPassProps {
   property: Property;
+  language: 'en' | 'ka' | 'ru';
   onOpenCheckinInstructions: () => void;
   onOpenWifiModal: () => void;
 }
 
 export const ArrivalBoardingPass: React.FC<ArrivalBoardingPassProps> = ({
   property,
+  language,
   onOpenCheckinInstructions,
-  onOpenWifiModal
+  onOpenWifiModal,
 }) => {
-  const { theme, language, showToast } = useApp();
-  const isDark = theme === 'dark';
+  const { isPropertyAccessUnlocked } = useApp();
+  const [copiedField, setCopiedField] = useState<'door' | 'wifi' | 'address' | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const [doorCopied, setDoorCopied] = useState(false);
-  const [wifiCopied, setWifiCopied] = useState(false);
+  const isAccessUnlocked = isPropertyAccessUnlocked(property);
+  const doorCode = isAccessUnlocked ? property.doorKeypadCode || property.lockboxCode || '' : '';
+  const hasWifiCredentials = Boolean(
+    isAccessUnlocked && (property.wifiNetwork || property.wifiPassword)
+  );
+  const hasExactAddress = Boolean(isAccessUnlocked && property.address);
 
-  const triggerHaptic = () => {
-    try {
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        navigator.vibrate(10);
-      }
-    } catch {}
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2600);
   };
 
-  const copyDoorCode = (e: React.MouseEvent) => {
+  const copyDoorCode = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    triggerHaptic();
-    navigator.clipboard.writeText(property.doorKeypadCode);
-    setDoorCopied(true);
-    setTimeout(() => setDoorCopied(false), 2000);
-    showToast(language === 'ka' ? 'კარის კოდი დაკოპირდა!' : language === 'ru' ? 'Код от двери скопирован!' : 'Door code copied to clipboard!');
+    if (!doorCode) {
+      onOpenCheckinInstructions();
+      return;
+    }
+    const ok = await safeCopyToClipboard(doorCode);
+    if (ok) {
+      setCopiedField('door');
+      showToast(
+        language === 'ka'
+          ? 'კარის კოდი დაკოპირებულია'
+          : language === 'ru'
+          ? 'Код двери скопирован'
+          : 'Door code copied to clipboard'
+      );
+      setTimeout(() => setCopiedField(null), 2000);
+    } else {
+      showToast(
+        language === 'ka'
+          ? 'ავტომატური კოპირება ვერ მოხერხდა'
+          : language === 'ru'
+          ? 'Не удалось скопировать автоматически'
+          : 'Could not copy code automatically'
+      );
+    }
   };
 
-  const copyWifi = (e: React.MouseEvent) => {
+  const copyWifi = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    triggerHaptic();
-    navigator.clipboard.writeText(property.wifiPassword || property.wifiNetwork);
-    setWifiCopied(true);
-    setTimeout(() => setWifiCopied(false), 2000);
-    showToast(language === 'ka' ? 'Wi-Fi დაკოპირდა!' : language === 'ru' ? 'Wi-Fi скопирован!' : 'Wi-Fi copied to clipboard!');
+    if (!property.wifiPassword) {
+      onOpenWifiModal();
+      return;
+    }
+    const ok = await safeCopyToClipboard(property.wifiPassword);
+    if (ok) {
+      setCopiedField('wifi');
+      showToast(
+        language === 'ka'
+          ? 'Wi-Fi პაროლი დაკოპირებულია'
+          : language === 'ru'
+          ? 'Пароль Wi-Fi скопирован'
+          : `Wi-Fi password copied (${property.wifiNetwork || 'Network'})`
+      );
+      setTimeout(() => setCopiedField(null), 2000);
+    } else {
+      showToast(
+        language === 'ka'
+          ? 'ავტომატური კოპირება ვერ მოხერხდა'
+          : language === 'ru'
+          ? 'Не удалось скопировать автоматически'
+          : 'Could not copy Wi-Fi password automatically'
+      );
+    }
   };
+
+  const copyAddress = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!hasExactAddress) {
+      onOpenCheckinInstructions();
+      return;
+    }
+    const ok = await safeCopyToClipboard(property.address);
+    if (ok) {
+      setCopiedField('address');
+      showToast(
+        language === 'ka'
+          ? 'მისამართი დაკოპირებულია'
+          : language === 'ru'
+          ? 'Адрес скопирован'
+          : 'Address copied to clipboard'
+      );
+      setTimeout(() => setCopiedField(null), 2000);
+    } else {
+      showToast(
+        language === 'ka'
+          ? 'ავტომატური კოპირება ვერ მოხერხდა'
+          : language === 'ru'
+          ? 'Не удалось скопировать автоматически'
+          : 'Could not copy address automatically'
+      );
+    }
+  };
+
+  const mapsDestination = hasExactAddress
+    ? property.latitude && property.longitude
+      ? `${property.latitude},${property.longitude}`
+      : encodeURIComponent(property.address)
+    : encodeURIComponent(`${property.city || 'Tbilisi'}, ${property.country || 'Georgia'}`);
 
   return (
-    <div className="w-full space-y-3 select-none">
-      
-      {/* 1. Live Check-in Status Banner (Boutique Boarding Pass Header) */}
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className={`px-4 py-3 rounded-2xl border flex items-center justify-between transition-all duration-300 shadow-warm-sm ${
-          isDark 
-            ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
-            : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
-        }`}
-      >
-        <div className="flex items-center gap-2.5">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <span className="text-xs font-semibold tracking-tight">
-            {language === 'ka' ? 'ბინა მზადაა შემოსასვლელად' : language === 'ru' ? 'Готово к заселению' : 'Ready for Check-in'}
-          </span>
+    <div className="relative">
+      {/* Floating Copy Feedback Toast */}
+      {toastMessage && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] text-xs font-bold shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-3 duration-200">
+          <Check className="w-3.5 h-3.5 text-[#F55A51]" />
+          {toastMessage}
         </div>
+      )}
 
-        <div className={`flex items-center gap-2 text-xs font-mono font-medium ${
-          isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
-        }`}>
-          <div className="flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5 text-[#748C96]" />
-            <span>In: {property.checkInTime}</span>
-          </div>
-          <span className="opacity-40">·</span>
-          <span>Out: {property.checkOutTime}</span>
-        </div>
-      </motion.div>
-
-      {/* 2. Access Codes Bento Grid: Front Door Code + Wi-Fi */}
-      <div className="grid grid-cols-2 gap-3">
-        
-        {/* Card 1: Front Door Code (Golden Yellow Theme) */}
-        <motion.div 
-          onClick={copyDoorCode}
-          whileHover={{ y: -3, scale: 1.01 }}
-          whileTap={{ scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-          className={`p-4 rounded-2xl relative overflow-hidden cursor-pointer group flex flex-col justify-between h-[148px] border shadow-warm-sm hover:shadow-warm-md transition-all duration-300 ${
-            isDark 
-              ? 'bg-[#1C1A14] border-[#FFC757]/30 hover:border-[#FFC757]/60 text-[#F7F5F0]' 
-              : 'bg-gradient-to-b from-[#FFFDF8] to-[#FFF9EC] border-[#FFC757]/45 hover:border-[#FFC757]/80 text-[#1C1B1A]'
-          }`}
-        >
-          {/* Background Architectural Watermark */}
-          <div className="absolute -right-2 -bottom-2 pointer-events-none opacity-5 dark:opacity-10 text-[#FFC757]">
-            <TbilisiBalconySketch className="w-28 h-28" isDark={isDark} />
-          </div>
-
-          <div className="relative z-10">
-            {/* Top row */}
-            <div className="flex items-center justify-between mb-2">
-              <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-2xs ${
-                isDark 
-                  ? 'bg-[#FFC757]/15 border-[#FFC757]/30 text-[#FFC757]' 
-                  : 'bg-[#FFC757]/25 border-[#FFC757]/40 text-[#996F00]'
-              }`}>
-                <KeyRound className="w-4 h-4" />
-              </div>
-              <AnimatePresence mode="wait">
-                {doorCopied ? (
-                  <motion.span 
-                    key="copied"
-                    initial={{ scale: 0.7, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.7, opacity: 0 }}
-                    className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shadow-2xs"
-                  >
-                    <Check className="w-3 h-3 stroke-[2.5]" />
-                    <span>{language === 'ka' ? 'კოპირებულია' : 'Copied'}</span>
-                  </motion.span>
-                ) : (
-                  <span key="uncopied" className={`text-[10px] font-mono uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ${
-                    isDark ? 'text-[#FFC757] bg-[#FFC757]/10' : 'text-[#8A6300] bg-[#FFC757]/20'
-                  }`}>
-                    {language === 'ka' ? 'კოდი' : 'KEYPAD'}
-                  </span>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Label */}
-            <span className={`text-[11px] font-medium block tracking-tight ${
-              isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
-            }`}>
-              {language === 'ka' ? 'კარის კოდი' : language === 'ru' ? 'Код двери' : 'Front Door Code'}
-            </span>
-
-            {/* Code */}
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`font-mono text-2xl sm:text-3xl font-extrabold tracking-tight leading-none ${
-                isDark ? 'text-[#FFE8A3]' : 'text-[#1C1B1A]'
-              }`}>
-                {property.doorKeypadCode}
+      {/* Tier 1: High-Contrast Utility Boarding Pass */}
+      <div className="rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] shadow-[0_14px_38px_-14px_rgba(28,27,26,0.09)] dark:shadow-none overflow-hidden">
+        {/* Top Schedule & Access Strip (honest schedule & lock state, no fake live status) */}
+        <div className="px-5 py-3.5 bg-[#FAF8F5] dark:bg-[#141312]/80 border-b border-[#EBE6DF] dark:border-[#2B2926] flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {isAccessUnlocked ? (
+              <span className="w-5 h-5 rounded-full bg-[#2E7D32]/15 text-[#2E7D32] flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-3.5 h-3.5" />
               </span>
-              <Copy className={`w-3.5 h-3.5 transition-colors ${
-                isDark ? 'text-[#ACA79F] group-hover:text-[#FFC757]' : 'text-[#8A857D] group-hover:text-[#1C1B1A]'
-              }`} />
-            </div>
-          </div>
-
-          {/* Bottom helper */}
-          <div className={`relative z-10 flex items-center gap-1 text-[10px] font-medium ${
-            isDark ? 'text-[#FFC757]/80' : 'text-[#8A6300]'
-          }`}>
-            <span className="tracking-tight">{language === 'ka' ? 'დააჭირეთ დასაკოპირებლად' : 'Tap to copy code'}</span>
-          </div>
-        </motion.div>
-
-        {/* Card 2: Wi-Fi Network (Slate Blue Theme) */}
-        <motion.div 
-          onClick={copyWifi}
-          whileHover={{ y: -3, scale: 1.01 }}
-          whileTap={{ scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-          className={`p-4 rounded-2xl relative overflow-hidden cursor-pointer group flex flex-col justify-between h-[148px] border shadow-warm-sm hover:shadow-warm-md transition-all duration-300 ${
-            isDark 
-              ? 'bg-[#13191D] border-[#748C96]/35 hover:border-[#748C96]/70 text-[#F7F5F0]' 
-              : 'bg-gradient-to-b from-[#FAFDFE] to-[#F0F5F7] border-[#748C96]/35 hover:border-[#748C96]/70 text-[#1C1B1A]'
-          }`}
-        >
-          {/* Background Architectural Watermark */}
-          <div className="absolute -right-1 -bottom-1 pointer-events-none opacity-5 dark:opacity-10 text-[#748C96]">
-            <TbilisiTowerSketch className="w-28 h-28" isDark={isDark} />
-          </div>
-
-          <div className="relative z-10">
-            {/* Top row */}
-            <div className="flex items-center justify-between mb-2">
-              <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-2xs ${
-                isDark 
-                  ? 'bg-[#748C96]/20 border-[#748C96]/35 text-[#98B1BC]' 
-                  : 'bg-[#748C96]/20 border-[#748C96]/35 text-[#47606B]'
-              }`}>
-                <Wifi className="w-4 h-4" />
-              </div>
-              <AnimatePresence mode="wait">
-                {wifiCopied ? (
-                  <motion.span 
-                    key="copied"
-                    initial={{ scale: 0.7, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.7, opacity: 0 }}
-                    className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shadow-2xs"
-                  >
-                    <Check className="w-3 h-3 stroke-[2.5]" />
-                    <span>{language === 'ka' ? 'კოპირებულია' : 'Copied'}</span>
-                  </motion.span>
-                ) : (
-                  <span key="uncopied" className={`text-[10px] font-mono uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ${
-                    isDark ? 'text-[#98B1BC] bg-[#748C96]/15' : 'text-[#47606B] bg-[#748C96]/20'
-                  }`}>
-                    {language === 'ka' ? 'ვაიფაი' : 'WI-FI'}
-                  </span>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Label */}
-            <span className={`text-[11px] font-medium block truncate tracking-tight ${
-              isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
-            }`}>
-              {language === 'ka' ? 'Wi-Fi ქსელი' : language === 'ru' ? 'Сеть Wi-Fi' : 'Wi-Fi Network'}
-            </span>
-
-            {/* SSID */}
-            <div className="flex items-center gap-1.5 mt-1 min-w-0">
-              <span className="font-mono text-sm sm:text-base font-bold tracking-tight leading-none truncate">
-                {property.wifiNetwork || 'OldTbilisi_5G'}
+            ) : (
+              <span className="w-5 h-5 rounded-full bg-[#748C96]/15 text-[#748C96] flex items-center justify-center shrink-0">
+                <Lock className="w-3 h-3" />
               </span>
-              <Copy className={`w-3.5 h-3.5 shrink-0 transition-colors ${
-                isDark ? 'text-[#ACA79F] group-hover:text-[#98B1BC]' : 'text-[#8A857D] group-hover:text-[#47606B]'
-              }`} />
-            </div>
-          </div>
-
-          {/* Password info */}
-          <div className={`relative z-10 flex items-center gap-1 text-[11px] font-mono truncate font-semibold tracking-tight ${
-            isDark ? 'text-[#98B1BC]' : 'text-[#47606B]'
-          }`}>
-            <span>Pass: {property.wifiPassword}</span>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* 3. Address Bar Card with Maps & Steps (Tactile Concierge Card) */}
-      <div className={`p-3.5 sm:p-4 rounded-2xl border flex items-center justify-between gap-3 transition-all duration-300 shadow-warm-sm hover:shadow-warm-md ${
-        isDark 
-          ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
-          : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
-      }`}>
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-2xs ${
-            isDark ? 'bg-[#272522] border-[#3B3833] text-[#ACA79F]' : 'bg-[#F3EFE9] border-[#EBE6DF] text-[#5C5853]'
-          }`}>
-            <MapPin className="w-4.5 h-4.5 text-[#F55A51]" />
-          </div>
-          <div className="min-w-0">
-            <span className={`text-xs sm:text-sm font-semibold block truncate tracking-tight ${isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'}`}>
-              {property.address || '14 Lado Asatiani St.'}
+            )}
+            <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#1C1B1A] dark:text-[#F7F5F0]">
+              {language === 'ka'
+                ? 'ჩამოსვლის ბარათი'
+                : language === 'ru'
+                ? 'Карта заселения'
+                : 'Arrival Essentials'}
             </span>
-            <span className={`text-[11px] sm:text-xs block truncate font-medium tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
-              {property.city}, {property.country}
-            </span>
+          </div>
+          <div className="flex items-center gap-2.5 text-xs font-semibold text-[#5C5852] dark:text-[#A39E93]">
+            {property.checkInTime && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926]">
+                <Clock className="w-3.5 h-3.5 text-[#F55A51]" />
+                {language === 'ka'
+                  ? `შესვლა: ${property.checkInTime}`
+                  : language === 'ru'
+                  ? `Заезд: ${property.checkInTime}`
+                  : `In ${property.checkInTime}`}
+              </span>
+            )}
+            {property.checkOutTime && (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926]">
+                {language === 'ka'
+                  ? `გასვლა: ${property.checkOutTime}`
+                  : language === 'ru'
+                  ? `Выезд: ${property.checkOutTime}`
+                  : `Out ${property.checkOutTime}`}
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <a
-            href={`https://maps.google.com/?q=${encodeURIComponent(property.address + ', ' + property.city)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs border cursor-pointer ${
-              isDark 
-                ? 'bg-[#272522] hover:bg-[#322F2B] text-[#F7F5F0] border-[#3B3833]' 
-                : 'bg-[#F3EFE9] hover:bg-[#EAE4DC] text-[#1C1B1A] border-[#EBE6DF]'
-            }`}
-          >
-            <span>{language === 'ka' ? 'რუკა' : language === 'ru' ? 'Карта' : 'Maps'}</span>
-            <ExternalLink className="w-3 h-3 text-[#748C96]" />
-          </a>
-
-          <button
-            onClick={() => {
-              triggerHaptic();
-              onOpenCheckinInstructions();
+        {/* Main 2-Column Essential Credentials: Door Code & Wi-Fi */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-[#EBE6DF] dark:divide-[#2B2926]">
+          {/* Door / Lockbox Code */}
+          <div
+            onClick={onOpenCheckinInstructions}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpenCheckinInstructions();
+              }
             }}
-            className="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all active:scale-95 shadow-xs bg-[#F55A51] hover:bg-[#E04840] text-white cursor-pointer"
+            className="p-5 text-left hover:bg-[#FAF8F5]/75 dark:hover:bg-[#141312]/40 transition-colors flex flex-col justify-between gap-3.5 group cursor-pointer"
           >
-            <span>{language === 'ka' ? 'ინსტრუქცია' : language === 'ru' ? 'Шаги' : 'Guide'}</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-[#F55A51]/10 text-[#F55A51] flex items-center justify-center shrink-0">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#7A756D] dark:text-[#A39E93]">
+                    {property.doorKeypadCode
+                      ? language === 'ka'
+                        ? 'კარის კოდი'
+                        : language === 'ru'
+                        ? 'Код двери'
+                        : 'Door Code'
+                      : property.lockboxCode
+                      ? language === 'ka'
+                        ? 'სეიფის კოდი'
+                        : language === 'ru'
+                        ? 'Код сейфа'
+                        : 'Lockbox Code'
+                      : language === 'ka'
+                      ? 'შესვლის ინსტრუქცია'
+                      : language === 'ru'
+                      ? 'Инструкция по входу'
+                      : 'Check-In Access'}
+                  </p>
+                </div>
+              </div>
+              {doorCode ? (
+                <button
+                  type="button"
+                  onClick={copyDoorCode}
+                  className="px-3 py-2 rounded-xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] text-xs font-bold text-[#1C1B1A] dark:text-[#F7F5F0] hover:border-[#F55A51]/50 flex items-center gap-1.5 transition-colors min-h-[38px] shrink-0"
+                >
+                  {copiedField === 'door' ? (
+                    <Check className="w-3.5 h-3.5 text-[#2E7D32]" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5 text-[#7A756D]" />
+                  )}
+                  {copiedField === 'door'
+                    ? language === 'ka'
+                      ? 'დაკოპირდა'
+                      : language === 'ru'
+                      ? 'Скопировано'
+                      : 'Copied'
+                    : language === 'ka'
+                    ? 'კოპირება'
+                    : language === 'ru'
+                    ? 'Копировать'
+                    : 'Copy'}
+                </button>
+              ) : (
+                <ChevronRight className="w-4 h-4 text-[#7A756D] group-hover:translate-x-0.5 transition-transform shrink-0" />
+              )}
+            </div>
+
+            <div>
+              {doorCode ? (
+                <div className="space-y-1.5">
+                  <p className="font-mono text-xl sm:text-2xl font-bold tracking-wider text-[#1C1B1A] dark:text-[#F7F5F0] truncate">
+                    {doorCode}
+                  </p>
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-[#F55A51] group-hover:underline">
+                    {language === 'ka'
+                      ? 'შესვლის სრული ინსტრუქცია'
+                      : language === 'ru'
+                      ? 'Пошаговая инструкция входа'
+                      : 'Step-by-step entry guide'}
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+              ) : (
+                <p className="text-sm font-bold text-[#F55A51] flex items-center gap-1">
+                  {isAccessUnlocked
+                    ? language === 'ka'
+                      ? 'შესვლის ნაბიჯების ნახვა'
+                      : language === 'ru'
+                      ? 'Открыть инструкцию входа'
+                      : 'Open Entry Instructions'
+                    : language === 'ka'
+                    ? 'შესვლის კოდის გახსნა'
+                    : language === 'ru'
+                    ? 'Разблокировать код входа'
+                    : 'Unlock with Check-In Key'}
+                  <ChevronRight className="w-4 h-4" />
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Instant Wi-Fi Copy */}
+          <div
+            onClick={onOpenWifiModal}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpenWifiModal();
+              }
+            }}
+            className="p-5 text-left hover:bg-[#FAF8F5]/75 dark:hover:bg-[#141312]/40 transition-colors flex flex-col justify-between gap-3.5 group cursor-pointer"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-[#748C96]/15 text-[#748C96] flex items-center justify-center shrink-0">
+                  <Wifi className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#7A756D] dark:text-[#A39E93]">
+                    {language === 'ka' ? 'Wi-Fi ქსელი' : language === 'ru' ? 'Сеть Wi-Fi' : 'Wi-Fi Network'}
+                  </p>
+                  {hasWifiCredentials && (
+                    <p className="text-xs font-bold text-[#1C1B1A] dark:text-[#F7F5F0] truncate">
+                      {property.wifiNetwork || 'Property Wi-Fi'}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {hasWifiCredentials && property.wifiPassword ? (
+                <button
+                  type="button"
+                  onClick={copyWifi}
+                  className="px-3 py-2 rounded-xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] text-xs font-bold text-[#1C1B1A] dark:text-[#F7F5F0] hover:border-[#F55A51]/50 flex items-center gap-1.5 transition-colors min-h-[38px] shrink-0"
+                >
+                  {copiedField === 'wifi' ? (
+                    <Check className="w-3.5 h-3.5 text-[#2E7D32]" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5 text-[#7A756D]" />
+                  )}
+                  {copiedField === 'wifi'
+                    ? language === 'ka'
+                      ? 'დაკოპირდა'
+                      : language === 'ru'
+                      ? 'Скопировано'
+                      : 'Copied'
+                    : language === 'ka'
+                    ? 'პაროლი'
+                    : language === 'ru'
+                    ? 'Пароль'
+                    : 'Copy Pass'}
+                </button>
+              ) : (
+                <ChevronRight className="w-4 h-4 text-[#7A756D] group-hover:translate-x-0.5 transition-transform shrink-0" />
+              )}
+            </div>
+
+            <div>
+              {hasWifiCredentials ? (
+                <div className="space-y-1.5">
+                  {property.wifiPassword ? (
+                    <p className="font-mono text-base sm:text-lg font-bold tracking-wide text-[#1C1B1A] dark:text-[#F7F5F0] truncate">
+                      {property.wifiPassword}
+                    </p>
+                  ) : (
+                    <p className="text-sm font-bold text-[#1C1B1A] dark:text-[#F7F5F0]">
+                      {property.wifiNetwork}
+                    </p>
+                  )}
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-[#748C96] group-hover:underline">
+                    {language === 'ka'
+                      ? 'კავშირის დეტალები'
+                      : language === 'ru'
+                      ? 'Детали подключения'
+                      : 'Connection details'}
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+              ) : (
+                <p className="text-sm font-bold text-[#748C96] flex items-center gap-1">
+                  {isAccessUnlocked
+                    ? language === 'ka'
+                      ? 'დეტალების ნახვა'
+                      : language === 'ru'
+                      ? 'Показать детали'
+                      : 'View Wi-Fi Info'
+                    : language === 'ka'
+                    ? 'პაროლის გახსნა'
+                    : language === 'ru'
+                    ? 'Разблокировать Wi-Fi'
+                    : 'Unlock Wi-Fi Credentials'}
+                  <ChevronRight className="w-4 h-4" />
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Perforated Boarding-Pass Divider */}
+        <div className="relative flex items-center justify-between px-2">
+          <div className="w-4 h-4 rounded-full bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] -ml-4" />
+          <div className="flex-1 border-t border-dashed border-[#EBE6DF] dark:border-[#2B2926] mx-2" />
+          <div className="w-4 h-4 rounded-full bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] -mr-4" />
+        </div>
+
+        {/* Bottom Strip: Address + Copy + Maps Navigation */}
+        <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 bg-[#FAF8F5]/60 dark:bg-[#141312]/40">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[#FFC757]/20 text-[#1C1B1A] dark:text-[#FFC757] flex items-center justify-center shrink-0 mt-0.5">
+              <MapPin className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#7A756D] dark:text-[#A39E93]">
+                {language === 'ka'
+                  ? 'საცხოვრებლის მისამართი'
+                  : language === 'ru'
+                  ? 'Адрес проживания'
+                  : 'Property Location'}
+              </p>
+              <p className="text-sm font-bold text-[#1C1B1A] dark:text-[#F7F5F0] break-words mt-0.5">
+                {hasExactAddress
+                  ? property.address
+                  : `${property.city || 'Tbilisi'}, ${property.country || 'Georgia'}`}
+              </p>
+              {!hasExactAddress && (
+                <p className="text-[11px] text-[#7A756D] dark:text-[#A39E93] mt-0.5">
+                  {language === 'ka'
+                    ? 'ზუსტი მისამართი ჩანს წვდომის კოდის გახსნის შემდეგ'
+                    : language === 'ru'
+                    ? 'Точный адрес доступен после ввода ключа доступа'
+                    : 'Exact street address unlocks with your check-in key'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {hasExactAddress && (
+              <button
+                type="button"
+                onClick={copyAddress}
+                className="px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] text-[#1C1B1A] dark:text-[#F7F5F0] text-xs font-bold flex items-center gap-1.5 hover:border-[#F55A51]/40 transition-colors min-h-[42px] cursor-pointer"
+              >
+                {copiedField === 'address' ? (
+                  <Check className="w-3.5 h-3.5 text-[#2E7D32]" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 text-[#7A756D]" />
+                )}
+                {copiedField === 'address'
+                  ? language === 'ka'
+                    ? 'დაკოპირდა'
+                    : language === 'ru'
+                    ? 'Скопировано'
+                    : 'Copied'
+                  : language === 'ka'
+                  ? 'კოპირება'
+                  : language === 'ru'
+                  ? 'Копировать'
+                  : 'Copy'}
+              </button>
+            )}
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${mapsDestination}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2.5 rounded-xl bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-opacity min-h-[42px]"
+            >
+              <Navigation className="w-3.5 h-3.5 text-[#F55A51]" />
+              {language === 'ka' ? 'რუკა' : language === 'ru' ? 'Маршрут' : 'Directions'}
+            </a>
+          </div>
         </div>
       </div>
-
     </div>
   );
 };

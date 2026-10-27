@@ -1,220 +1,452 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, 
-  Send, 
-  CheckCircle2, 
-  Sparkles, 
-  Clock, 
-  Thermometer, 
-  KeyRound, 
-  Wifi, 
-  Shirt, 
-  HelpCircle 
+import {
+  Clock,
+  Sparkles,
+  Car,
+  BedDouble,
+  MessageSquare,
+  Send,
+  CheckCircle2,
+  MessageCircle,
+  Wifi,
+  Thermometer,
 } from 'lucide-react';
+import { MobileBottomSheet } from './MobileBottomSheet';
+import { GuestRequest, Property, RequestCategory } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { RequestCategory } from '../../types';
 
-interface GuestRequestModalProps {
+export interface GuestRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
+  language?: 'en' | 'ka' | 'ru';
+  property?: Property;
 }
 
-const CATEGORIES: { id: RequestCategory; label: string; icon: React.ReactNode }[] = [
-  { id: 'cleaning', label: 'Towels & Linens', icon: <Shirt className="w-4 h-4" /> },
-  { id: 'climate', label: 'Heating / AC', icon: <Thermometer className="w-4 h-4" /> },
-  { id: 'access', label: 'Door / Access', icon: <KeyRound className="w-4 h-4" /> },
-  { id: 'wifi', label: 'Wi-Fi Support', icon: <Wifi className="w-4 h-4" /> },
-  { id: 'other', label: 'General Inquiry', icon: <HelpCircle className="w-4 h-4" /> }
+const REQUEST_OPTIONS: {
+  id: string;
+  category: RequestCategory;
+  label: { en: string; ka: string; ru: string };
+  desc: { en: string; ka: string; ru: string };
+  icon: React.FC<{ className?: string }>;
+}[] = [
+  {
+    id: 'late_checkout',
+    category: 'other',
+    label: { en: 'Late Check-Out', ka: 'გვიანი გასვლა', ru: 'Поздний выезд' },
+    desc: {
+      en: 'Request extra time before departure',
+      ka: 'დამატებითი დრო გასვლამდე',
+      ru: 'Дополнительное время перед выездом',
+    },
+    icon: Clock,
+  },
+  {
+    id: 'extra_towels',
+    category: 'cleaning',
+    label: {
+      en: 'Fresh Linens & Towels',
+      ka: 'დამატებითი პირსახოცები',
+      ru: 'Свежие полотенца и бельё',
+    },
+    desc: {
+      en: 'Extra towels, pillows, or blankets',
+      ka: 'პირსახოცი, ბალიში ან პლედი',
+      ru: 'Полотенца, подушки или одеяла',
+    },
+    icon: BedDouble,
+  },
+  {
+    id: 'climate_help',
+    category: 'climate',
+    label: {
+      en: 'Heating / AC Help',
+      ka: 'გათბობა / კონდიცირება',
+      ru: 'Отопление и климат',
+    },
+    desc: {
+      en: 'Assistance with boiler or temperature',
+      ka: 'დახმარება ქვაბთან ან ტემპერატურასთან',
+      ru: 'Помощь с котлом или кондиционером',
+    },
+    icon: Thermometer,
+  },
+  {
+    id: 'wifi_help',
+    category: 'wifi',
+    label: {
+      en: 'Wi-Fi / TV Support',
+      ka: 'Wi-Fi / ტელევიზია',
+      ru: 'Помощь с Wi-Fi / ТВ',
+    },
+    desc: {
+      en: 'Connection or smart TV assistance',
+      ka: 'ინტერნეტის ან ტელევიზორის დახმარება',
+      ru: 'Помощь с интернетом или ТВ',
+    },
+    icon: Wifi,
+  },
+  {
+    id: 'airport_transfer',
+    category: 'other',
+    label: { en: 'Airport Transfer', ka: 'აეროპორტის ტრანსფერი', ru: 'Трансфер в аэропорт' },
+    desc: {
+      en: 'Arrange a pickup or drop-off',
+      ka: 'ტაქსის ან დახვედრის ორგანიზება',
+      ru: 'Заказать встречу или поездку',
+    },
+    icon: Car,
+  },
+  {
+    id: 'custom',
+    category: 'other',
+    label: { en: 'Something Else', ka: 'სხვა მოთხოვნა', ru: 'Другой вопрос' },
+    desc: {
+      en: 'Ask your host anything',
+      ka: 'ნებისმიერი კითხვა მასპინძელს',
+      ru: 'Любой вопрос хозяину',
+    },
+    icon: MessageSquare,
+  },
 ];
 
-export const GuestRequestModal: React.FC<GuestRequestModalProps> = ({ isOpen, onClose }) => {
-  const { currentProperty, addGuestRequest, showToast, theme } = useApp();
-  const isDark = theme === 'dark';
+export const GuestRequestModal: React.FC<GuestRequestModalProps> = ({
+  isOpen,
+  onClose,
+  language: propLanguage,
+  property,
+}) => {
+  const {
+    currentProperty,
+    requests,
+    addGuestRequest,
+    isPropertyAccessUnlocked,
+    language: ctxLanguage,
+  } = useApp();
 
-  const [category, setCategory] = useState<RequestCategory>('cleaning');
+  const resolvedProperty = property || currentProperty;
+  const language = propLanguage || ctxLanguage;
+
+  const [selectedOptionId, setSelectedOptionId] = useState<string>('late_checkout');
   const [guestName, setGuestName] = useState('');
-  const [details, setDetails] = useState('');
   const [urgency, setUrgency] = useState<'low' | 'medium' | 'high'>('medium');
-  const [submitted, setSubmitted] = useState(false);
+  const [message, setMessage] = useState('');
+  const [submittedRequest, setSubmittedRequest] = useState<GuestRequest | null>(null);
 
-  if (!isOpen) return null;
+  const isAccessUnlocked = isPropertyAccessUnlocked(resolvedProperty);
+  const cleanHostWhatsApp = resolvedProperty.hostWhatsApp
+    ? resolvedProperty.hostWhatsApp.replace(/[^0-9]/g, '')
+    : '';
+  const canUseDirectWhatsApp = Boolean(isAccessUnlocked && cleanHostWhatsApp);
+
+  const propertyRequests = requests.filter(r => r.propertyId === resolvedProperty.id);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!details.trim()) return;
+    const option =
+      REQUEST_OPTIONS.find(o => o.id === selectedOptionId) || REQUEST_OPTIONS[0];
 
-    addGuestRequest({
-      propertyId: currentProperty.id,
-      propertyName: currentProperty.title,
-      guestName: guestName.trim() || 'Guest',
-      category,
-      title: `${CATEGORIES.find(c => c.id === category)?.label || 'Inquiry'} request`,
-      description: details.trim(),
-      urgency
+    const newReq: Omit<GuestRequest, 'id' | 'createdAt' | 'status'> = {
+      propertyId: resolvedProperty.id,
+      hostId: resolvedProperty.ownerId,
+      propertyName: resolvedProperty.title,
+      guestName:
+        guestName.trim() ||
+        (language === 'ka'
+          ? 'სტუმარი'
+          : language === 'ru'
+          ? 'Гость'
+          : 'Current Guest'),
+      category: option.category,
+      title: option.label[language],
+      description: message.trim() || option.desc[language],
+      urgency,
+    };
+
+    addGuestRequest(newReq);
+    setSubmittedRequest({
+      ...newReq,
+      id: `req-${Date.now()}`,
+      status: 'new',
+      createdAt:
+        language === 'ka' ? 'ახლახანს' : language === 'ru' ? 'Только что' : 'Just now',
     });
+  };
 
-    setSubmitted(true);
-    showToast('Your request has been dispatched to the host!');
-    setTimeout(() => {
-      setSubmitted(false);
-      setDetails('');
-      onClose();
-    }, 2200);
+  const getWhatsAppForwardUrl = (req: GuestRequest) => {
+    const text = `Hi ${resolvedProperty.hostName}! I'm staying at ${resolvedProperty.title} (${req.guestName}). Request: ${req.title}${
+      req.description ? ` — ${req.description}` : ''
+    }`;
+    return `https://wa.me/${cleanHostWhatsApp}?text=${encodeURIComponent(text)}`;
+  };
+
+  const resetAndClose = () => {
+    setSubmittedRequest(null);
+    setMessage('');
+    onClose();
   };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-black/60 backdrop-blur-xs"
-        />
-
-        {/* Modal Card */}
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0, y: 16 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: 16 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-          className={`relative w-full max-w-md rounded-2xl border p-5 sm:p-6 shadow-2xl z-10 transition-colors ${
-            isDark 
-              ? 'bg-[#18191E] border-stone-800 text-stone-100 shadow-stone-950/80' 
-              : 'bg-white border-stone-200 text-stone-900 shadow-xl'
-          }`}
-        >
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className={`absolute top-4 right-4 p-1.5 rounded-lg border transition-colors ${
-              isDark 
-                ? 'border-stone-800 text-stone-400 hover:text-white hover:bg-stone-800' 
-                : 'border-stone-200 text-stone-500 hover:text-stone-900 hover:bg-stone-100'
-            }`}
-          >
-            <X className="w-4 h-4" />
-          </button>
-
-          {submitted ? (
-            <div className="text-center py-8 space-y-3">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 flex items-center justify-center mx-auto shadow-xs">
-                <CheckCircle2 className="w-7 h-7" />
-              </div>
-              <h3 className="font-serif text-xl font-bold tracking-tight">Request Received</h3>
-              <p className={`text-xs max-w-xs mx-auto leading-relaxed ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>
-                Host {currentProperty.hostName} and the property team have been notified. We will attend to your request promptly.
+    <MobileBottomSheet
+      isOpen={isOpen}
+      onClose={resetAndClose}
+      title={
+        language === 'ka'
+          ? 'მოთხოვნა მასპინძელთან'
+          : language === 'ru'
+          ? 'Запрос хозяину'
+          : `Request for ${resolvedProperty.hostName}`
+      }
+    >
+      <div className="space-y-5 pb-4">
+        {submittedRequest ? (
+          <div className="py-5 text-center space-y-4">
+            <div className="w-14 h-14 rounded-full bg-[#2E7D32]/15 text-[#2E7D32] flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-7 h-7" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-serif text-xl font-bold text-[#1C1B1A] dark:text-[#F7F5F0]">
+                {language === 'ka'
+                  ? 'მოთხოვნა მომზადებულია'
+                  : language === 'ru'
+                  ? 'Запрос сформирован'
+                  : 'Request Prepared'}
+              </h4>
+              <p className="text-xs text-[#7A756D] dark:text-[#A39E93] max-w-sm mx-auto leading-relaxed">
+                {canUseDirectWhatsApp
+                  ? language === 'ka'
+                    ? `თქვენი მოთხოვნა შენახულია. სწრაფი პასუხისთვის გაუგზავნეთ პირდაპირ ${resolvedProperty.hostName}-ს WhatsApp-ში.`
+                    : language === 'ru'
+                    ? `Ваш запрос сохранён. Для мгновенного ответа отправьте его ${resolvedProperty.hostName} в WhatsApp.`
+                    : `Your request is saved below. For the fastest response, send it directly to ${resolvedProperty.hostName} on WhatsApp.`
+                  : language === 'ka'
+                  ? `თქვენი მოთხოვნა ჩაწერილია ${resolvedProperty.hostName}-ისთვის.`
+                  : language === 'ru'
+                  ? `Ваш запрос записан для ${resolvedProperty.hostName}.`
+                  : `Your request has been logged for ${resolvedProperty.hostName}.`}
               </p>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider font-semibold text-[#748C96] block mb-1">
-                  Direct Host Service
-                </span>
-                <h3 className="font-serif text-xl font-bold tracking-tight">How can we assist you?</h3>
-                <p className={`text-xs mt-0.5 ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>
-                  Need extra amenities, luggage assistance, or quick help? Let host {currentProperty.hostName} know.
-                </p>
-              </div>
 
-              {/* Category selection */}
-              <div>
-                <label className="text-xs font-semibold block mb-2">Category</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                  {CATEGORIES.map((cat) => (
+            {canUseDirectWhatsApp && (
+              <a
+                href={getWhatsAppForwardUrl(submittedRequest)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3.5 px-4 rounded-2xl bg-[#25D366] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm hover:opacity-95 transition-opacity min-h-[46px]"
+              >
+                <MessageCircle className="w-4 h-4" />
+                {language === 'ka'
+                  ? `გაგზავნა ${resolvedProperty.hostName}-თან WhatsApp-ში`
+                  : language === 'ru'
+                  ? `Отправить ${resolvedProperty.hostName} в WhatsApp`
+                  : `Send to ${resolvedProperty.hostName} via WhatsApp`}
+              </a>
+            )}
+
+            <button
+              type="button"
+              onClick={resetAndClose}
+              className="w-full py-3 rounded-2xl bg-[#FAF8F5] dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] text-xs font-bold text-[#1C1B1A] dark:text-[#F7F5F0] cursor-pointer"
+            >
+              {language === 'ka' ? 'დახურვა' : language === 'ru' ? 'Закрыть' : 'Close'}
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Request Type Selector */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-[#7A756D] dark:text-[#A39E93] block">
+                {language === 'ka'
+                  ? 'რისი მოთხოვნა გსურთ?'
+                  : language === 'ru'
+                  ? 'Чем может помочь хозяин?'
+                  : 'How can your host help?'}
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {REQUEST_OPTIONS.map(opt => {
+                  const Icon = opt.icon;
+                  const active = selectedOptionId === opt.id;
+                  return (
                     <button
-                      key={cat.id}
+                      key={opt.id}
                       type="button"
-                      onClick={() => setCategory(cat.id)}
-                      className={`px-2.5 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all text-left border ${
-                        category === cat.id
-                          ? 'bg-[#F55A51] border-[#F55A51] text-white shadow-xs'
-                          : isDark
-                            ? 'bg-stone-900 border-stone-800 text-stone-300 hover:border-stone-700'
-                            : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100'
+                      onClick={() => setSelectedOptionId(opt.id)}
+                      className={`p-3.5 rounded-2xl border text-left transition-all flex items-start gap-3 cursor-pointer ${
+                        active
+                          ? 'bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] border-[#1C1B1A] dark:border-[#F7F5F0] shadow-sm'
+                          : 'bg-white dark:bg-[#1F1E1C] text-[#1C1B1A] dark:text-[#F7F5F0] border-[#EBE6DF] dark:border-[#2B2926] hover:border-[#F55A51]/40'
                       }`}
                     >
-                      {cat.icon}
-                      <span className="truncate">{cat.label}</span>
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          active
+                            ? 'bg-[#F55A51] text-white'
+                            : 'bg-[#FAF8F5] dark:bg-[#141312] text-[#F55A51]'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs">{opt.label[language]}</p>
+                        <p
+                          className={`text-[11px] mt-0.5 line-clamp-1 ${
+                            active
+                              ? 'text-[#F7F5F0]/75 dark:text-[#1C1B1A]/75'
+                              : 'text-[#7A756D] dark:text-[#A39E93]'
+                          }`}
+                        >
+                          {opt.desc[language]}
+                        </p>
+                      </div>
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
+            </div>
 
-              {/* Guest name */}
+            {/* Guest Name & Priority */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold block mb-1">Your Name (optional)</label>
+                <label className="text-[11px] font-bold text-[#7A756D] dark:text-[#A39E93] block mb-1">
+                  {language === 'ka'
+                    ? 'თქვენი სახელი'
+                    : language === 'ru'
+                    ? 'Ваше имя'
+                    : 'Your Name'}
+                </label>
                 <input
                   type="text"
                   value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  placeholder="e.g. Maria"
-                  className={`w-full px-3 py-2 text-xs rounded-lg border outline-hidden transition-colors ${
-                    isDark 
-                      ? 'bg-stone-900 border-stone-800 text-stone-100 placeholder-stone-500 focus:border-[#F55A51]' 
-                      : 'bg-stone-50 border-stone-200 text-stone-900 placeholder-stone-400 focus:border-[#F55A51]'
-                  }`}
+                  onChange={e => setGuestName(e.target.value)}
+                  placeholder={
+                    language === 'ka' ? 'სახელი' : language === 'ru' ? 'Имя' : 'e.g. Alex'
+                  }
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] text-xs text-[#1C1B1A] dark:text-[#F7F5F0] focus:outline-none focus:border-[#F55A51]"
                 />
               </div>
 
-              {/* Details */}
               <div>
-                <label className="text-xs font-semibold block mb-1">Details</label>
-                <textarea
-                  required
-                  rows={3}
-                  value={details}
-                  onChange={(e) => setDetails(e.target.value)}
-                  placeholder="e.g. Could we please request two extra bath towels and fresh pillowcases?"
-                  className={`w-full px-3 py-2 text-xs rounded-lg border outline-hidden transition-colors resize-none ${
-                    isDark 
-                      ? 'bg-stone-900 border-stone-800 text-stone-100 placeholder-stone-500 focus:border-[#F55A51]' 
-                      : 'bg-stone-50 border-stone-200 text-stone-900 placeholder-stone-400 focus:border-[#F55A51]'
-                  }`}
-                />
+                <label className="text-[11px] font-bold text-[#7A756D] dark:text-[#A39E93] block mb-1">
+                  {language === 'ka'
+                    ? 'პრიორიტეტი'
+                    : language === 'ru'
+                    ? 'Срочность'
+                    : 'Urgency'}
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(['low', 'medium', 'high'] as const).map(level => {
+                    const labelMap = {
+                      low: { en: 'Low', ka: 'დაბალი', ru: 'Низкая' },
+                      medium: { en: 'Medium', ka: 'საშუალო', ru: 'Средняя' },
+                      high: { en: 'High', ka: 'მაღალი', ru: 'Высокая' },
+                    };
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => setUrgency(level)}
+                        className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                          urgency === level
+                            ? 'bg-[#F55A51] text-white border-[#F55A51]'
+                            : 'bg-white dark:bg-[#1F1E1C] text-[#7A756D] dark:text-[#A39E93] border-[#EBE6DF] dark:border-[#2B2926]'
+                        }`}
+                      >
+                        {labelMap[level][language]}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+            </div>
 
-              {/* Urgency */}
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs font-semibold">Priority</span>
-                <div className="flex items-center gap-1.5">
-                  {(['low', 'medium', 'high'] as const).map((lvl) => (
-                    <button
-                      key={lvl}
-                      type="button"
-                      onClick={() => setUrgency(lvl)}
-                      className={`px-2.5 py-1 text-[11px] rounded-md font-medium capitalize border transition-all ${
-                        urgency === lvl
-                          ? lvl === 'high' 
-                            ? 'bg-[#F55A51] border-[#F55A51] text-white' 
-                            : 'bg-[#748C96] border-[#748C96] text-white'
-                          : isDark
-                            ? 'bg-stone-900 border-stone-800 text-stone-400'
-                            : 'bg-stone-100 border-stone-200 text-stone-600'
-                      }`}
+            {/* Notes */}
+            <div>
+              <label className="text-[11px] font-bold text-[#7A756D] dark:text-[#A39E93] block mb-1">
+                {language === 'ka'
+                  ? 'დამატებითი დეტალები'
+                  : language === 'ru'
+                  ? 'Дополнительные детали'
+                  : 'Additional Details'}
+              </label>
+              <textarea
+                rows={3}
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                placeholder={
+                  language === 'ka'
+                    ? `მიწერეთ დეტალები ${resolvedProperty.hostName}-ს...`
+                    : language === 'ru'
+                    ? `Напишите детали для ${resolvedProperty.hostName}...`
+                    : `Add preferred time or helpful details for ${resolvedProperty.hostName}...`
+                }
+                className="w-full p-3.5 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] text-xs text-[#1C1B1A] dark:text-[#F7F5F0] focus:outline-none focus:border-[#F55A51]"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3.5 rounded-2xl bg-[#F55A51] hover:bg-[#E04840] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-colors min-h-[46px] cursor-pointer"
+            >
+              <Send className="w-4 h-4" />
+              {language === 'ka'
+                ? 'მოთხოვნის გაგზავნა'
+                : language === 'ru'
+                ? 'Отправить запрос'
+                : `Send Request to ${resolvedProperty.hostName}`}
+            </button>
+
+            {/* Recent Session Requests */}
+            {propertyRequests.length > 0 && (
+              <div className="pt-4 border-t border-[#EBE6DF] dark:border-[#2B2926] space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#7A756D] dark:text-[#A39E93] block">
+                  {language === 'ka'
+                    ? 'ამ სესიაზე გაგზავნილი მოთხოვნები'
+                    : language === 'ru'
+                    ? 'Запросы в этой сессии'
+                    : 'Recent Requests in This Session'}
+                </span>
+                <div className="space-y-2">
+                  {propertyRequests.slice(0, 3).map(req => (
+                    <div
+                      key={req.id}
+                      className="p-3 rounded-xl bg-[#FAF8F5] dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex items-center justify-between gap-2 text-xs"
                     >
-                      {lvl}
-                    </button>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-[#1C1B1A] dark:text-[#F7F5F0] truncate">
+                          {req.title}
+                        </p>
+                        {req.description && (
+                          <p className="text-[11px] text-[#7A756D] dark:text-[#A39E93] truncate">
+                            {req.description}
+                          </p>
+                        )}
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-[#FFC757]/20 text-[#1C1B1A] dark:text-[#FFC757] text-[10px] font-bold shrink-0">
+                        {req.status === 'resolved'
+                          ? language === 'ka'
+                            ? 'შესრულდა'
+                            : language === 'ru'
+                            ? 'Выполнено'
+                            : 'Resolved'
+                          : req.status === 'in_progress'
+                          ? language === 'ka'
+                            ? 'მუშავდება'
+                            : language === 'ru'
+                            ? 'В работе'
+                            : 'In Progress'
+                          : language === 'ka'
+                          ? 'ახალი'
+                          : language === 'ru'
+                          ? 'Новый'
+                          : 'New'}
+                      </span>
+                    </div>
                   ))}
                 </div>
               </div>
-
-              {/* Submit CTA */}
-              <button
-                type="submit"
-                className="w-full mt-2 py-2.5 rounded-lg font-bold text-xs bg-[#F55A51] hover:bg-[#e04a41] text-white shadow-xs transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Send Request to Host</span>
-              </button>
-            </form>
-          )}
-        </motion.div>
+            )}
+          </form>
+        )}
       </div>
-    </AnimatePresence>
+    </MobileBottomSheet>
   );
 };

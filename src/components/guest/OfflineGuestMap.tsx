@@ -1,708 +1,743 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { 
-  Home, 
-  MapPin, 
-  Navigation, 
-  Compass as CompassIcon, 
-  Crosshair, 
-  Plus, 
-  Minus, 
-  Copy, 
-  Check, 
-  ExternalLink, 
-  Coffee, 
-  Utensils, 
-  Wine, 
-  ShoppingBag, 
-  Eye, 
-  Footprints, 
-  X, 
-  Wifi, 
-  CheckCircle2, 
+import React, { useState, useMemo } from 'react';
+import {
+  MapPin,
+  Navigation,
+  Coffee,
+  Utensils,
+  Wine,
+  ShoppingBag,
+  Compass,
+  Heart,
+  Home,
+  Copy,
+  Check,
+  Footprints,
+  ExternalLink,
   Sparkles,
-  ArrowUpRight,
-  Heart
+  Lock,
 } from 'lucide-react';
-import { Property, Recommendation } from '../../types';
+import { Property, StumariGem } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { safeCopyToClipboard } from '../../utils/clipboard';
 
-interface OfflineGuestMapProps {
-  property: Property;
-  onClose?: () => void;
-  isCompact?: boolean;
+export interface OfflineGuestMapProps {
+  property?: Property;
+  language?: 'en' | 'ka' | 'ru';
+  favoriteIds?: string[];
+  onToggleFavorite?: (id: string, title?: string) => void;
+  propertyGems?: StumariGem[];
+}
+
+type CategoryFilter = 'all' | 'coffee' | 'food' | 'nightlife' | 'groceries' | 'explore';
+
+interface UnifiedPlaceItem {
+  id: string;
+  name: string;
+  category: Exclude<CategoryFilter, 'all'>;
+  description: string;
+  hostTip?: string;
+  address?: string;
+  subCategory?: string;
+  distanceLabel?: string;
+  priceLevel?: string;
+  whatToOrder?: string;
+  bestTime?: string;
+  imageUrl?: string;
+  mapsUrl?: string;
+  latitude?: number;
+  longitude?: number;
+  source: 'gem' | 'recommendation';
 }
 
 export const OfflineGuestMap: React.FC<OfflineGuestMapProps> = ({
-  property,
-  onClose,
-  isCompact = false
+  property: propProperty,
+  language: propLanguage,
+  favoriteIds: propFavoriteIds,
+  onToggleFavorite: propOnToggleFavorite,
+  propertyGems = [],
 }) => {
-  const { theme, t, showToast, language, isGuestFavorite, toggleGuestFavorite } = useApp();
-  const isDark = theme === 'dark';
+  const {
+    currentProperty,
+    language: ctxLanguage,
+    guestFavorites,
+    toggleGuestFavorite,
+    isPropertyAccessUnlocked,
+  } = useApp();
 
-  // Base coordinates for property (defaults to Old Tbilisi coordinates if not explicitly set)
-  const propLat = property.latitude ?? 41.6914;
-  const propLng = property.longitude ?? 44.7992;
+  const property = propProperty || currentProperty;
+  const language = propLanguage || ctxLanguage;
+  const favoriteIds = propFavoriteIds ?? guestFavorites;
+  const onToggleFavorite = propOnToggleFavorite ?? toggleGuestFavorite;
 
-  // Selected Recommendation
+  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [copiedAddress, setCopiedAddress] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Map Pan and Zoom State
-  const [zoom, setZoom] = useState<number>(1);
-  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const isAccessUnlocked = isPropertyAccessUnlocked(property);
+  const canShowExactPropertyLocation = Boolean(isAccessUnlocked && property.address);
 
-  // Enriched Recommendations with deterministic coordinates around property if missing
-  const spots = useMemo(() => {
-    return property.recommendations.map((rec, index) => {
-      // Deterministic spread around property if exact lat/lng is missing
-      const angles = [0.8, 2.3, 3.8, 5.1, 1.4, 4.4, 3.1, 0.2];
-      const radii = [0.0028, 0.0019, 0.0039, 0.0024, 0.0048, 0.0032, 0.0055, 0.0021];
-      
-      const angle = angles[index % angles.length];
-      const radius = radii[index % radii.length];
-      
-      const spotLat = rec.latitude ?? (propLat + Math.sin(angle) * radius);
-      const spotLng = rec.longitude ?? (propLng + Math.cos(angle) * (radius * 1.3));
+  // Unify curated StumariGems and property.recommendations without fabricating coordinates or distances
+  const unifiedPlaces: UnifiedPlaceItem[] = useMemo(() => {
+    const items: UnifiedPlaceItem[] = [];
+    const seenIds = new Set<string>();
 
-      // Calculate approximate distance in meters
-      const dLat = (spotLat - propLat) * 111000;
-      const dLng = (spotLng - propLng) * 111000 * Math.cos((propLat * Math.PI) / 180);
-      const distMeters = Math.round(Math.sqrt(dLat * dLat + dLng * dLng));
-      const walkMinutes = Math.max(1, Math.round(distMeters / 75)); // ~4.5 km/h walk speed
+    propertyGems.forEach(gem => {
+      seenIds.add(gem.id);
+      const mappedCat: Exclude<CategoryFilter, 'all'> =
+        gem.experience === 'eat'
+          ? 'food'
+          : gem.experience === 'drink'
+          ? gem.moods?.includes('coffee')
+            ? 'coffee'
+            : 'nightlife'
+          : gem.experience === 'local_life'
+          ? 'groceries'
+          : 'explore';
 
-      return {
-        ...rec,
-        spotLat,
-        spotLng,
-        distMeters,
-        walkMinutes: rec.walkingTimeMinutes ?? walkMinutes,
-        dx: dLng, // relative east/west meters
-        dy: -dLat // relative north/south meters (SVG y is down)
-      };
+      items.push({
+        id: gem.id,
+        name: gem.title,
+        category: mappedCat,
+        description: gem.whyWeRecommend || gem.subtitle,
+        hostTip: gem.localTip || gem.hostQuote,
+        address: gem.address,
+        subCategory: gem.subCategory,
+        distanceLabel: gem.distance,
+        priceLevel: gem.priceLevel,
+        whatToOrder:
+          gem.whatToTry && gem.whatToTry.length > 0 ? gem.whatToTry.join(' · ') : undefined,
+        bestTime: gem.bestTime,
+        imageUrl: gem.image,
+        mapsUrl: gem.mapsUrl,
+        source: 'gem',
+      });
     });
-  }, [property.recommendations, propLat, propLng]);
 
-  const filteredSpots = useMemo(() => {
-    if (activeCategory === 'all') return spots;
-    return spots.filter(s => s.category === activeCategory);
-  }, [spots, activeCategory]);
+    (property.recommendations || []).forEach(rec => {
+      if (seenIds.has(rec.id)) return;
+      seenIds.add(rec.id);
+      const mappedCat: Exclude<CategoryFilter, 'all'> =
+        rec.category === 'coffee'
+          ? 'coffee'
+          : rec.category === 'food'
+          ? 'food'
+          : rec.category === 'nightlife'
+          ? 'nightlife'
+          : rec.category === 'groceries'
+          ? 'groceries'
+          : 'explore';
 
-  const selectedSpot = useMemo(() => {
-    if (!selectedSpotId) return null;
-    return spots.find(s => s.id === selectedSpotId) || null;
-  }, [spots, selectedSpotId]);
-
-  // Center on property
-  const handleCenterProperty = () => {
-    setPan({ x: 0, y: 0 });
-    setZoom(1);
-    setSelectedSpotId(null);
-  };
-
-  // Select Spot & Pan smoothly toward it
-  const handleSelectSpot = (spot: typeof spots[0]) => {
-    setSelectedSpotId(spot.id);
-    // Pan slightly towards the spot while keeping it in comfortable view
-    setPan({
-      x: -spot.dx * 0.45 * zoom,
-      y: -spot.dy * 0.45 * zoom
+      items.push({
+        id: rec.id,
+        name: rec.name,
+        category: mappedCat,
+        description: rec.description,
+        hostTip: rec.hostTip,
+        address: rec.address,
+        distanceLabel:
+          rec.distance ||
+          (typeof rec.walkingTimeMinutes === 'number'
+            ? `${rec.walkingTimeMinutes} min walk`
+            : undefined),
+        mapsUrl: rec.mapsUrl,
+        latitude: typeof rec.latitude === 'number' ? rec.latitude : undefined,
+        longitude: typeof rec.longitude === 'number' ? rec.longitude : undefined,
+        source: 'recommendation',
+      });
     });
-  };
 
-  // Copy address handler
-  const handleCopyAddress = (addr: string) => {
-    navigator.clipboard.writeText(addr);
-    setCopiedAddress(true);
-    showToast(t.guestGuide.map.addressCopied);
-    setTimeout(() => setCopiedAddress(false), 2000);
-  };
+    return items;
+  }, [propertyGems, property.recommendations]);
 
-  // Drag pan handlers (Mouse & Touch)
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-  };
+  const filteredPlaces = useMemo(() => {
+    if (selectedCategory === 'all') return unifiedPlaces;
+    return unifiedPlaces.filter(place => place.category === selectedCategory);
+  }, [unifiedPlaces, selectedCategory]);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    setPan({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
-    });
-  };
+  // Only plot places that actually have real numeric coordinates
+  const geocodedPlaces = useMemo(
+    () =>
+      filteredPlaces.filter(
+        p =>
+          typeof p.latitude === 'number' &&
+          typeof p.longitude === 'number' &&
+          !Number.isNaN(p.latitude) &&
+          !Number.isNaN(p.longitude)
+      ),
+    [filteredPlaces]
+  );
 
-  const handleMouseUp = () => setIsDragging(false);
+  // Project real coordinates onto a normalized 16%..84% bounding canvas if at least 2 points exist
+  const mapPositions = useMemo(() => {
+    const points: Array<{ id: string; lat: number; lng: number }> = geocodedPlaces.map(p => ({
+      id: p.id,
+      lat: p.latitude!,
+      lng: p.longitude!,
+    }));
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 1) {
-      setIsDragging(true);
-      setDragStart({
-        x: e.touches[0].clientX - pan.x,
-        y: e.touches[0].clientY - pan.y
+    const hasPropertyCoords =
+      isAccessUnlocked &&
+      typeof property.latitude === 'number' &&
+      typeof property.longitude === 'number';
+
+    if (hasPropertyCoords) {
+      points.push({
+        id: '__property__',
+        lat: property.latitude!,
+        lng: property.longitude!,
       });
     }
-  };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || e.touches.length !== 1) return;
-    setPan({
-      x: e.touches[0].clientX - dragStart.x,
-      y: e.touches[0].clientY - dragStart.y
+    if (points.length < 2) return null;
+
+    const lats = points.map(p => p.lat);
+    const lngs = points.map(p => p.lng);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+
+    const latSpan = Math.max(maxLat - minLat, 0.004);
+    const lngSpan = Math.max(maxLng - minLng, 0.004);
+
+    const coordsMap: Record<string, { x: number; y: number }> = {};
+    points.forEach(pt => {
+      const normX = (pt.lng - minLng) / lngSpan;
+      const normY = 1 - (pt.lat - minLat) / latSpan;
+      coordsMap[pt.id] = {
+        x: Math.round(16 + normX * 68),
+        y: Math.round(18 + normY * 64),
+      };
     });
-  };
 
-  const handleTouchEnd = () => setIsDragging(false);
+    return coordsMap;
+  }, [geocodedPlaces, isAccessUnlocked, property.latitude, property.longitude]);
 
-  // Zoom controls (clamped between 0.7x and 2.2x)
-  const handleZoomIn = () => setZoom(z => Math.min(2.2, z + 0.25));
-  const handleZoomOut = () => setZoom(z => Math.max(0.7, z - 0.25));
+  const selectedPlace =
+    filteredPlaces.find(p => p.id === selectedSpotId) || filteredPlaces[0] || null;
 
-  // Category Icon helper
-  const getCategoryIcon = (category: string, className = 'w-3.5 h-3.5') => {
-    switch (category) {
-      case 'coffee': return <Coffee className={className} />;
-      case 'food': return <Utensils className={className} />;
-      case 'nightlife': return <Wine className={className} />;
-      case 'groceries': return <ShoppingBag className={className} />;
-      default: return <Eye className={className} />;
+  const getCategoryIcon = (cat: string) => {
+    switch (cat) {
+      case 'coffee':
+        return Coffee;
+      case 'food':
+        return Utensils;
+      case 'nightlife':
+        return Wine;
+      case 'groceries':
+        return ShoppingBag;
+      default:
+        return Compass;
     }
   };
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'coffee': return { bg: 'bg-amber-500', text: 'text-amber-500', border: 'border-amber-400', fill: '#f59e0b' };
-      case 'food': return { bg: 'bg-emerald-500', text: 'text-emerald-500', border: 'border-emerald-400', fill: '#10b981' };
-      case 'nightlife': return { bg: 'bg-purple-500', text: 'text-purple-400', border: 'border-purple-400', fill: '#a855f7' };
-      case 'groceries': return { bg: 'bg-blue-500', text: 'text-blue-400', border: 'border-blue-400', fill: '#3b82f6' };
-      default: return { bg: 'bg-rose-500', text: 'text-rose-400', border: 'border-rose-400', fill: '#f43f5e' };
+  const getCategoryColor = (cat: string) => {
+    switch (cat) {
+      case 'coffee':
+        return 'bg-[#C87D4B] text-white';
+      case 'food':
+        return 'bg-[#F55A51] text-white';
+      case 'nightlife':
+        return 'bg-[#8C3B4A] text-white';
+      case 'groceries':
+        return 'bg-[#2E7D32] text-white';
+      default:
+        return 'bg-[#748C96] text-white';
     }
   };
 
-  // Convert meters to pixel scale on canvas (approx 1 meter = 0.65 pixel at 1x zoom)
-  const scale = 0.68 * zoom;
-  const cx = 200 + pan.x;
-  const cy = 200 + pan.y;
+  const getPlaceNavigationUrl = (place: UnifiedPlaceItem) => {
+    if (place.mapsUrl) return place.mapsUrl;
+    if (typeof place.latitude === 'number' && typeof place.longitude === 'number') {
+      return `https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}`;
+    }
+    const query = [place.name, place.address, property.city].filter(Boolean).join(', ');
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  };
 
-  // Bearing angle to selected spot
-  const bearingAngle = useMemo(() => {
-    if (!selectedSpot) return 0;
-    const rad = Math.atan2(selectedSpot.dx, -selectedSpot.dy);
-    return Math.round((rad * 180) / Math.PI);
-  }, [selectedSpot]);
+  const handleCopyPlaceAddress = async (place: UnifiedPlaceItem) => {
+    const textToCopy = place.address ? `${place.name}, ${place.address}` : place.name;
+    const ok = await safeCopyToClipboard(textToCopy);
+    if (ok) {
+      setCopiedId(place.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
+  };
+
+  const categories: {
+    id: CategoryFilter;
+    label: { en: string; ka: string; ru: string };
+    icon: React.FC<{ className?: string }>;
+  }[] = [
+    { id: 'all', label: { en: 'All Places', ka: 'ყველა', ru: 'Все' }, icon: Compass },
+    { id: 'coffee', label: { en: 'Coffee', ka: 'ყავა', ru: 'Кофе' }, icon: Coffee },
+    { id: 'food', label: { en: 'Dining', ka: 'კვება', ru: 'Еда' }, icon: Utensils },
+    { id: 'nightlife', label: { en: 'Wine & Bars', ka: 'ღვინო', ru: 'Вино и бары' }, icon: Wine },
+    {
+      id: 'groceries',
+      label: { en: 'Markets', ka: 'მარკეტი', ru: 'Магазины' },
+      icon: ShoppingBag,
+    },
+    { id: 'explore', label: { en: 'Sights', ka: 'ღირსშესანიშნაობა', ru: 'Места' }, icon: MapPin },
+  ];
+
+  const propertyMapsDestination = canShowExactPropertyLocation
+    ? property.latitude && property.longitude
+      ? `${property.latitude},${property.longitude}`
+      : encodeURIComponent(property.address)
+    : encodeURIComponent(`${property.city || 'Tbilisi'}, ${property.country || 'Georgia'}`);
+
+  const [copiedHomeAddress, setCopiedHomeAddress] = useState(false);
+
+  const handleCopyHomeAddress = async () => {
+    if (!canShowExactPropertyLocation || !property.address) return;
+    const ok = await safeCopyToClipboard(property.address);
+    if (ok) {
+      setCopiedHomeAddress(true);
+      setTimeout(() => setCopiedHomeAddress(false), 2000);
+    }
+  };
 
   return (
-    <div className={`w-full flex flex-col font-sans select-none overflow-hidden ${
-      isCompact ? 'rounded-2xl border' : 'h-full flex-1'
-    } ${isDark ? 'bg-[#0A0E11] text-stone-100 border-stone-800' : 'bg-stone-50 text-stone-900 border-stone-200'}`}>
-
-      {/* 1. TOP HEADER & FILTER BAR */}
-      <div className={`p-3.5 border-b shrink-0 flex flex-col gap-2.5 z-20 backdrop-blur-md ${
-        isDark ? 'bg-[#0E1317]/95 border-stone-800/90' : 'bg-white/95 border-stone-200/90'
-      }`}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
-              <MapPin className="w-4 h-4 fill-current" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h4 className="font-serif font-bold text-sm truncate leading-tight">
-                  {t.guestGuide.map.title}
-                </h4>
-                {/* Offline Ready Badge */}
-                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>{t.guestGuide.map.offlineReady}</span>
-                </span>
-              </div>
-              <p className={`text-[10px] truncate ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                {property.title} · {property.address}
-              </p>
-            </div>
+    <div className="space-y-5">
+      {/* Tier 1: Property Home Base Utility Banner (Respects Access Lock) */}
+      <div className="p-5 rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_10px_30px_-14px_rgba(28,27,26,0.07)] dark:shadow-none">
+        <div className="flex items-start gap-3.5 min-w-0">
+          <div className="w-11 h-11 rounded-2xl bg-[#F55A51]/10 text-[#F55A51] flex items-center justify-center shrink-0">
+            {canShowExactPropertyLocation ? (
+              <Home className="w-5 h-5" />
+            ) : (
+              <Lock className="w-5 h-5" />
+            )}
           </div>
-
-          {onClose && (
-            <button
-              onClick={onClose}
-              className={`p-1.5 rounded-full shrink-0 transition-colors ${
-                isDark ? 'bg-stone-800 text-stone-300 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-              }`}
-              title="Close Map"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+          <div className="min-w-0">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#7A756D] dark:text-[#A39E93] block">
+              {language === 'ka'
+                ? 'თქვენი საცხოვრებელი ბაზა'
+                : language === 'ru'
+                ? 'Ваша база проживания'
+                : 'Your Home Base'}
+            </span>
+            <h3 className="font-serif font-bold text-base sm:text-lg text-[#1C1B1A] dark:text-[#F7F5F0] break-words">
+              {canShowExactPropertyLocation
+                ? property.address
+                : `${property.city || 'Tbilisi'}, ${property.country || 'Georgia'}`}
+            </h3>
+            {!canShowExactPropertyLocation && (
+              <p className="text-xs text-[#7A756D] dark:text-[#A39E93] mt-0.5">
+                {language === 'ka'
+                  ? 'ზუსტი მისამართი დაცულია წვდომის გასაღებით'
+                  : language === 'ru'
+                  ? 'Точный адрес защищён ключом доступа гостя'
+                  : 'Exact street address is protected until unlocked with your check-in key'}
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Category Filter Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-          {[
-            { id: 'all', label: t.guestGuide.map.categories.all, icon: <Sparkles className="w-3 h-3" /> },
-            { id: 'coffee', label: t.guestGuide.map.categories.coffee, icon: <Coffee className="w-3 h-3" /> },
-            { id: 'food', label: t.guestGuide.map.categories.food, icon: <Utensils className="w-3 h-3" /> },
-            { id: 'nightlife', label: t.guestGuide.map.categories.nightlife, icon: <Wine className="w-3 h-3" /> },
-            { id: 'groceries', label: t.guestGuide.map.categories.groceries, icon: <ShoppingBag className="w-3 h-3" /> }
-          ].map(cat => {
-            const count = cat.id === 'all' ? spots.length : spots.filter(s => s.category === cat.id).length;
-            const isActive = activeCategory === cat.id;
-
-            return (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  setActiveCategory(cat.id);
-                  setSelectedSpotId(null);
-                }}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 shadow-2xs ${
-                  isActive
-                    ? isDark 
-                      ? 'bg-amber-600 text-white font-black shadow-xs' 
-                      : 'bg-stone-950 text-white font-black shadow-xs'
-                    : isDark 
-                      ? 'bg-stone-900 text-stone-200 border border-stone-700/80 hover:bg-stone-800 hover:text-white' 
-                      : 'bg-white text-stone-900 border border-stone-300 hover:bg-stone-100'
-                }`}
-              >
-                <span>{cat.icon}</span>
-                <span>{cat.label}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  isActive ? 'bg-black/20 text-inherit' : 'bg-black/10 dark:bg-white/10 opacity-90'
-                }`}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+        <div className="flex items-center gap-2 shrink-0">
+          {canShowExactPropertyLocation && (
+            <button
+              type="button"
+              onClick={handleCopyHomeAddress}
+              className="px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] text-[#1C1B1A] dark:text-[#F7F5F0] text-xs font-bold inline-flex items-center justify-center gap-1.5 hover:border-[#F55A51]/40 transition-colors min-h-[42px] cursor-pointer"
+            >
+              {copiedHomeAddress ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-[#2E7D32]" />
+                  {language === 'ka'
+                    ? 'დაკოპირდა'
+                    : language === 'ru'
+                    ? 'Скопировано'
+                    : 'Copied'}
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-[#7A756D]" />
+                  {language === 'ka'
+                    ? 'კოპირება'
+                    : language === 'ru'
+                    ? 'Копировать'
+                    : 'Copy'}
+                </>
+              )}
+            </button>
+          )}
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${propertyMapsDestination}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2.5 rounded-xl bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] text-xs font-bold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shrink-0 min-h-[42px]"
+          >
+            <Navigation className="w-3.5 h-3.5 text-[#F55A51]" />
+            {language === 'ka'
+              ? 'მარშრუტი სახლამდე'
+              : language === 'ru'
+              ? 'Маршрут домой'
+              : 'Directions to Stay'}
+          </a>
         </div>
       </div>
 
-      {/* 2. INTERACTIVE MAP VIEWPORT */}
-      <div 
-        ref={mapContainerRef}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className={`relative w-full overflow-hidden flex-1 cursor-grab active:cursor-grabbing touch-none ${
-          isCompact ? 'h-[360px]' : 'min-h-[420px] sm:min-h-[480px]'
-        } ${isDark ? 'bg-[#090D10]' : 'bg-[#F2F5F3]'}`}
-      >
-        {/* Offline Map Geometric SVG Canvas */}
-        <svg 
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            {/* Grid Pattern for Neighborhood Blocks */}
-            <pattern id="offline-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path 
-                d="M 40 0 L 0 0 0 40" 
-                fill="none" 
-                stroke={isDark ? '#141C22' : '#E2E8E5'} 
-                strokeWidth="1" 
-              />
-            </pattern>
-            {/* Subtle Diagonal Blocks Pattern */}
-            <pattern id="city-blocks" width="80" height="80" patternUnits="userSpaceOnUse">
-              <rect x="8" y="8" width="64" height="64" rx="8" fill={isDark ? '#0F161C' : '#EBF0ED'} opacity="0.6" />
-            </pattern>
-            {/* Glowing Beacon Filter */}
-            <filter id="beacon-glow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="6" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-          </defs>
+      {/* Category Filter Pills */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        {categories.map(cat => {
+          const Icon = cat.icon;
+          const active = selectedCategory === cat.id;
+          const count =
+            cat.id === 'all'
+              ? unifiedPlaces.length
+              : unifiedPlaces.filter(p => p.category === cat.id).length;
 
-          {/* Background Street Texture Grid */}
-          <rect width="100%" height="100%" fill="url(#offline-grid)" />
-          <rect width="100%" height="100%" fill="url(#city-blocks)" />
+          if (cat.id !== 'all' && count === 0) return null;
 
-          {/* Natural Landmark Curves (e.g. Mtkvari River in Tbilisi / Black Sea curve) */}
-          <g transform={`translate(${cx}, ${cy})`}>
-            {/* Stylized River Curve flowing through town */}
-            <path
-              d="M -600 280 C -250 200, -80 320, 140 240 C 320 180, 520 220, 700 160"
-              fill="none"
-              stroke={isDark ? '#132838' : '#D0E3F0'}
-              strokeWidth="24"
-              strokeLinecap="round"
-              opacity="0.85"
-            />
-            {/* River Label */}
-            <text
-              x="260"
-              y="225"
-              fill={isDark ? '#3D617D' : '#88B2D4'}
-              fontSize="9"
-              fontFamily="monospace"
-              letterSpacing="3"
-              transform="rotate(-12, 260, 225)"
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all border min-h-[42px] cursor-pointer ${
+                active
+                  ? 'bg-[#F55A51] text-white border-[#F55A51] shadow-sm'
+                  : 'bg-white dark:bg-[#1F1E1C] text-[#7A756D] dark:text-[#A39E93] border-[#EBE6DF] dark:border-[#2B2926] hover:text-[#1C1B1A] dark:hover:text-[#F7F5F0]'
+              }`}
             >
-              MTKVARI RIVER
-            </text>
+              <Icon className="w-3.5 h-3.5" />
+              {cat.label[language]}
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                  active
+                    ? 'bg-white/20 text-white'
+                    : 'bg-[#FAF8F5] dark:bg-[#141312] text-[#7A756D] dark:text-[#A39E93]'
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
-            {/* Distance Radius Radar Rings centered at Property */}
-            {[
-              { r: 200 * scale, label: t.guestGuide.map.radiusRings.r200 },
-              { r: 500 * scale, label: t.guestGuide.map.radiusRings.r500 },
-              { r: 1000 * scale, label: t.guestGuide.map.radiusRings.r1k }
-            ].map((ring, idx) => (
-              <g key={idx}>
-                <circle
-                  cx="0"
-                  cy="0"
-                  r={ring.r}
-                  fill="none"
-                  stroke={isDark ? '#1F2C33' : '#D6DFDB'}
-                  strokeWidth="1.2"
-                  strokeDasharray="4 4"
-                  opacity={idx === 0 ? '0.9' : idx === 1 ? '0.7' : '0.5'}
-                />
-                <text
-                  x={ring.r - 28}
-                  y="-6"
-                  fill={isDark ? '#4E616C' : '#93A49E'}
-                  fontSize="9"
-                  fontFamily="monospace"
-                  fontWeight="600"
-                >
-                  {ring.label}
-                </text>
-              </g>
-            ))}
+      {/* Unified Coordinate Pin Map + Active Pin Tray (Only rendered when real numeric coordinates exist on places) */}
+      {mapPositions && geocodedPlaces.length >= 2 && (
+        <div className="rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] overflow-hidden shadow-[0_10px_30px_-14px_rgba(28,27,26,0.07)] dark:shadow-none">
+          <div className="px-5 py-3.5 border-b border-[#EBE6DF] dark:border-[#2B2926] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-[#F55A51]" />
+              <span className="text-xs font-bold text-[#1C1B1A] dark:text-[#F7F5F0]">
+                {language === 'ka'
+                  ? 'კოორდინატების რუკა'
+                  : language === 'ru'
+                  ? 'Карта мест поблизости'
+                  : 'Neighborhood Pin Map'}
+              </span>
+            </div>
+            <span className="text-[11px] text-[#7A756D] dark:text-[#A39E93]">
+              {language === 'ka'
+                ? 'დააჭირეთ ქინძისთავს დეტალებისთვის'
+                : language === 'ru'
+                ? 'Нажмите на метку для деталей'
+                : 'Tap any pin to inspect'}
+            </span>
+          </div>
 
-            {/* Walking Path Line to Selected Spot */}
-            {selectedSpot && (
-              <g>
-                {/* Walking route vector from Property (0,0) to Spot (dx * scale, dy * scale) */}
-                <line
-                  x1="0"
-                  y1="0"
-                  x2={selectedSpot.dx * scale}
-                  y2={selectedSpot.dy * scale}
-                  stroke={isDark ? '#F55A51' : '#0C1510'}
-                  strokeWidth="3"
-                  strokeDasharray="6 6"
-                  strokeLinecap="round"
-                  className="animate-pulse"
-                />
+          <div className="relative h-60 sm:h-68 w-full select-none overflow-hidden bg-[#FAF8F5] dark:bg-[#141312]">
+            {/* Subtle Coordinate Grid */}
+            <div
+              className="absolute inset-0 opacity-25 dark:opacity-15"
+              style={{
+                backgroundImage:
+                  'radial-gradient(circle, #748C96 1px, transparent 1px), linear-gradient(to right, rgba(116,140,150,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(116,140,150,0.12) 1px, transparent 1px)',
+                backgroundSize: '24px 24px, 48px 48px, 48px 48px',
+              }}
+            />
 
-                {/* Midpoint Distance Badge */}
-                <g transform={`translate(${(selectedSpot.dx * scale) / 2}, ${(selectedSpot.dy * scale) / 2})`}>
-                  <rect
-                    x="-42"
-                    y="-11"
-                    width="84"
-                    height="22"
-                    rx="11"
-                    fill={isDark ? '#0C1510' : '#FFFFFF'}
-                    stroke={isDark ? '#F55A51' : '#0C1510'}
-                    strokeWidth="1.5"
-                  />
-                  <text
-                    x="0"
-                    y="3.5"
-                    textAnchor="middle"
-                    fill={isDark ? '#F55A51' : '#0C1510'}
-                    fontSize="9"
-                    fontFamily="monospace"
-                    fontWeight="bold"
-                  >
-                    {selectedSpot.distMeters}m · {selectedSpot.walkMinutes} min
-                  </text>
-                </g>
-              </g>
+            {/* Home Pin (only when unlocked & geocoded) */}
+            {mapPositions['__property__'] && (
+              <div
+                style={{
+                  left: `${mapPositions['__property__'].x}%`,
+                  top: `${mapPositions['__property__'].y}%`,
+                }}
+                className="absolute -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] border-2 border-[#F55A51] shadow-lg flex items-center justify-center">
+                  <Home className="w-4 h-4 text-[#F55A51]" />
+                </div>
+                <span className="mt-1 px-2 py-0.5 rounded-full bg-[#1C1B1A] text-white text-[9px] font-bold uppercase tracking-wider shadow">
+                  {language === 'ka' ? 'სახლი' : language === 'ru' ? 'Дом' : 'Stay'}
+                </span>
+              </div>
             )}
 
-            {/* Pulsing Beacon Radar Ring for Property */}
-            <circle
-              cx="0"
-              cy="0"
-              r="22"
-              fill={isDark ? '#F55A51' : '#0C1510'}
-              opacity="0.15"
-              className="animate-ping"
-            />
-            <circle
-              cx="0"
-              cy="0"
-              r="12"
-              fill={isDark ? '#F55A51' : '#0C1510'}
-              opacity="0.25"
-            />
-          </g>
-        </svg>
+            {/* Real Geocoded Place Pins */}
+            {geocodedPlaces.map(place => {
+              const pos = mapPositions[place.id];
+              if (!pos) return null;
+              const Icon = getCategoryIcon(place.category);
+              const isSelected = selectedPlace?.id === place.id;
+              const isFav = favoriteIds.includes(place.id);
 
-        {/* 3. HTML INTERACTIVE MARKERS LAYER */}
-        <div 
-          className="absolute inset-0 pointer-events-none"
-          style={{ transform: `translate(${cx}px, ${cy}px)` }}
-        >
-          {/* PROPERTY MARKER BEACON */}
-          <div 
-            onClick={handleCenterProperty}
-            className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer group z-30"
-          >
-            <div className="flex flex-col items-center">
-              {/* Home Icon Pin */}
-              <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 active:scale-95 border-2 ${
-                isDark 
-                  ? 'bg-amber-600 text-white border-white/80 shadow-amber-950/40' 
-                  : 'bg-stone-900 text-white border-white shadow-stone-900/30'
-              }`}>
-                <Home className="w-5 h-5 fill-current" />
-              </div>
-
-              {/* Tag Label */}
-              <div className={`mt-1 px-2.5 py-0.5 rounded-full shadow-md text-[10px] font-bold font-mono whitespace-nowrap border ${
-                isDark 
-                  ? 'bg-stone-900/95 text-amber-400 border-stone-700' 
-                  : 'bg-white/95 text-stone-900 border-stone-200'
-              }`}>
-                📍 {t.guestGuide.map.youAreHere}
-              </div>
-            </div>
+              return (
+                <button
+                  key={place.id}
+                  type="button"
+                  onClick={() => setSelectedSpotId(place.id)}
+                  style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-200 flex flex-col items-center cursor-pointer ${
+                    isSelected ? 'z-30 scale-115' : 'z-10 hover:scale-105'
+                  }`}
+                >
+                  <div
+                    className={`w-9 h-9 rounded-2xl flex items-center justify-center shadow-md border-2 ${
+                      isSelected
+                        ? 'bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] border-[#F55A51]'
+                        : `${getCategoryColor(place.category)} border-white dark:border-[#141312]`
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {isFav && (
+                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#F55A51] text-white flex items-center justify-center">
+                        <Heart className="w-2 h-2 fill-current" />
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className={`mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold max-w-[115px] truncate shadow-sm ${
+                      isSelected
+                        ? 'bg-[#F55A51] text-white'
+                        : 'bg-white/95 dark:bg-[#1F1E1C]/95 text-[#1C1B1A] dark:text-[#F7F5F0]'
+                    }`}
+                  >
+                    {place.name}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* POINT OF INTEREST MARKERS */}
-          {filteredSpots.map((spot) => {
-            const isSelected = spot.id === selectedSpotId;
-            const themeCfg = getCategoryColor(spot.category);
-            const x = spot.dx * scale;
-            const y = spot.dy * scale;
-
-            return (
-              <div
-                key={spot.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSelectSpot(spot);
-                }}
-                style={{ transform: `translate(${x}px, ${y}px)` }}
-                className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer z-20 group"
-              >
-                <div className="flex flex-col items-center">
-                  {/* Pin Circle */}
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white shadow-md transition-all active:scale-90 ${
-                    themeCfg.bg
-                  } ${
-                    isSelected 
-                      ? 'ring-4 ring-white dark:ring-stone-900 scale-125 z-40' 
-                      : 'hover:scale-110 border border-white/80'
-                  }`}>
-                    {getCategoryIcon(spot.category, 'w-3.5 h-3.5 sm:w-4 sm:h-4 text-white')}
-                  </div>
-
-                  {/* Spot Mini Label */}
-                  <div className={`mt-0.5 px-2 py-0.5 rounded-md text-[9px] font-bold whitespace-nowrap shadow-xs border transition-all max-w-[110px] truncate ${
-                    isSelected
-                      ? isDark 
-                        ? 'bg-amber-600 text-white border-transparent font-extrabold' 
-                        : 'bg-stone-900 text-white border-transparent font-extrabold'
-                      : isDark
-                        ? 'bg-stone-900/90 text-stone-200 border-stone-800'
-                        : 'bg-white/90 text-stone-800 border-stone-200'
-                  }`}>
-                    {spot.name}
-                  </div>
+          {/* Coupled Selected Pin Tray inside Map Card */}
+          {selectedPlace && (
+            <div className="p-4 sm:p-5 border-t border-[#EBE6DF] dark:border-[#2B2926] bg-white dark:bg-[#1F1E1C] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#F55A51]">
+                    {selectedPlace.subCategory || selectedPlace.category}
+                  </span>
+                  {selectedPlace.distanceLabel && (
+                    <span className="text-[11px] font-semibold text-[#7A756D] dark:text-[#A39E93] flex items-center gap-1">
+                      · <Footprints className="w-3 h-3 text-[#F55A51]" />
+                      {selectedPlace.distanceLabel}
+                    </span>
+                  )}
                 </div>
+                <h4 className="font-serif font-bold text-base text-[#1C1B1A] dark:text-[#F7F5F0] truncate">
+                  {selectedPlace.name}
+                </h4>
+                {selectedPlace.address && (
+                  <p className="text-xs text-[#7A756D] dark:text-[#A39E93] truncate">
+                    {selectedPlace.address}
+                  </p>
+                )}
               </div>
-            );
-          })}
-        </div>
 
-        {/* 4. FLOATING MAP CONTROLS (ZOOM, COMPASS, RECENTER) */}
-        <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-20 pointer-events-auto">
-          {/* Compass & Bearing Rose */}
-          <div 
-            className={`w-9 h-9 rounded-2xl border shadow-md flex items-center justify-center transition-transform ${
-              isDark ? 'bg-stone-900/95 border-stone-800 text-stone-200' : 'bg-white/95 border-stone-200 text-stone-800'
-            }`}
-            title={`Compass North · Bearing: ${bearingAngle}°`}
-          >
-            <CompassIcon 
-              className="w-4 h-4 text-rose-500 transition-transform duration-300"
-              style={{ transform: `rotate(${-bearingAngle}deg)` }}
-            />
-          </div>
-
-          {/* Zoom In */}
-          <button
-            onClick={handleZoomIn}
-            className={`w-9 h-9 rounded-2xl border shadow-md flex items-center justify-center transition-all active:scale-95 ${
-              isDark ? 'bg-stone-900/95 hover:bg-stone-850 border-stone-800 text-stone-200' : 'bg-white/95 hover:bg-stone-50 border-stone-200 text-stone-800'
-            }`}
-            title={t.guestGuide.map.interactiveMap}
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-
-          {/* Zoom Out */}
-          <button
-            onClick={handleZoomOut}
-            className={`w-9 h-9 rounded-2xl border shadow-md flex items-center justify-center transition-all active:scale-95 ${
-              isDark ? 'bg-stone-900/95 hover:bg-stone-850 border-stone-800 text-stone-200' : 'bg-white/95 hover:bg-stone-50 border-stone-200 text-stone-800'
-            }`}
-            title="Zoom out"
-          >
-            <Minus className="w-4 h-4" />
-          </button>
-
-          {/* Re-center on Property */}
-          <button
-            onClick={handleCenterProperty}
-            className={`w-9 h-9 rounded-2xl border shadow-md flex items-center justify-center transition-all active:scale-95 ${
-              isDark 
-                ? 'bg-stone-900/95 hover:bg-stone-850 border-stone-800 text-amber-400' 
-                : 'bg-white/95 hover:bg-stone-50 border-stone-200 text-amber-600'
-            }`}
-            title={t.guestGuide.map.centerOnProperty}
-          >
-            <Crosshair className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* 5. OFFLINE STATUS CHIP IN BOTTOM CORNER */}
-        <div className="absolute top-3 left-3 z-20 pointer-events-auto">
-          <div className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold flex items-center gap-1.5 border shadow-sm backdrop-blur-md ${
-            isDark 
-              ? 'bg-stone-900/90 border-stone-800 text-stone-300' 
-              : 'bg-white/90 border-stone-200 text-stone-700'
-          }`}>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>{t.guestGuide.map.offlineReady}</span>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 6. SELECTED SPOT BOTTOM DRAWER / FLOATING CARD */}
-      {selectedSpot ? (
-        <div className={`p-4 border-t shrink-0 z-30 transition-all animate-in slide-in-from-bottom-4 ${
-          isDark ? 'bg-[#0E1317] border-stone-800 text-stone-100' : 'bg-white border-stone-200 text-stone-900 shadow-xl'
-        }`}>
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0 ${
-                getCategoryColor(selectedSpot.category).bg
-              }`}>
-                {getCategoryIcon(selectedSpot.category, 'w-4 h-4 text-white')}
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={getPlaceNavigationUrl(selectedPlace)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 rounded-xl bg-[#F55A51] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-[#E04840] transition-colors min-h-[38px]"
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  {language === 'ka'
+                    ? 'Google Maps'
+                    : language === 'ru'
+                    ? 'Открыть карту'
+                    : 'Open in Maps'}
+                  <ExternalLink className="w-3 h-3 opacity-80" />
+                </a>
               </div>
-              <div className="min-w-0">
-                <h5 className="font-serif font-bold text-sm sm:text-base truncate leading-tight text-stone-950 dark:text-white">
-                  {selectedSpot.name}
-                </h5>
-                <span className={`text-xs block truncate font-semibold ${isDark ? 'text-stone-300' : 'text-stone-800'}`}>
-                  {selectedSpot.address}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  toggleGuestFavorite(selectedSpot.id, selectedSpot.name);
-                }}
-                className={`p-1.5 rounded-full transition-all active:scale-75 cursor-pointer ${
-                  isGuestFavorite(selectedSpot.id)
-                    ? 'bg-rose-500 text-white shadow-xs'
-                    : isDark
-                    ? 'bg-stone-800 text-stone-300 hover:text-white'
-                    : 'bg-stone-100 text-stone-700 hover:text-stone-950'
-                }`}
-                title={isGuestFavorite(selectedSpot.id) ? "Saved to favorites" : "Save to favorites"}
-                aria-label="Save to favorites"
-              >
-                <Heart className={`w-4 h-4 ${isGuestFavorite(selectedSpot.id) ? 'fill-white' : ''}`} />
-              </button>
-
-              <button
-                onClick={() => setSelectedSpotId(null)}
-                className={`p-1.5 rounded-full shrink-0 transition-colors cursor-pointer ${
-                  isDark ? 'bg-stone-800 text-stone-300 hover:text-white' : 'bg-stone-100 text-stone-700 hover:text-stone-950'
-                }`}
-                aria-label="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Description & Distance Bar */}
-          <p className={`text-xs sm:text-sm leading-relaxed mb-2.5 font-medium ${isDark ? 'text-stone-200' : 'text-stone-950'}`}>
-            {selectedSpot.description}
-          </p>
-
-          {/* Walking Time + Distance Pill */}
-          <div className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 mb-2.5 ${
-            isDark ? 'bg-[#080B0D] border-stone-800' : 'bg-stone-50 border-stone-200'
-          }`}>
-            <div className="flex items-center gap-1.5 text-xs font-black text-stone-950 dark:text-stone-100">
-              <Footprints className="w-4 h-4 text-emerald-500" />
-              <span>{selectedSpot.distMeters} m · ~{selectedSpot.walkMinutes} {t.guestGuide.map.walkTime}</span>
-            </div>
-            <div className={`text-xs font-mono font-bold ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
-              {bearingAngle > 0 ? `${bearingAngle}° NE` : `${Math.abs(bearingAngle)}° SW`}
-            </div>
-          </div>
-
-          {/* Host Insider Tip */}
-          {selectedSpot.hostTip && (
-            <div className={`p-2.5 rounded-xl text-xs mb-3 border font-semibold ${
-              isDark ? 'bg-amber-950/35 border-amber-800/60 text-amber-100' : 'bg-amber-50 border-amber-300 text-stone-950'
-            }`}>
-              <strong className="font-black text-amber-700 dark:text-amber-400">{t.guestGuide.cards.ourTip} </strong>
-              <span>{selectedSpot.hostTip}</span>
             </div>
           )}
-
-          {/* Action Buttons: Copy Address & Navigation */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleCopyAddress(selectedSpot.address)}
-              className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-semibold border flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
-                isDark 
-                  ? 'bg-stone-900 hover:bg-stone-850 border-stone-800 text-stone-200' 
-                  : 'bg-stone-100 hover:bg-stone-200 border-stone-200 text-stone-900'
-              }`}
-            >
-              {copiedAddress ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedAddress ? t.common.copied : t.guestGuide.map.copyAddress}</span>
-            </button>
-
-            <a
-              href={selectedSpot.mapsUrl || `https://maps.google.com/?q=${encodeURIComponent(selectedSpot.name + ' ' + selectedSpot.address)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-850 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 border border-stone-800 shadow-sm"
-            >
-              <span>{t.guestGuide.map.getDirections}</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </a>
-          </div>
-        </div>
-      ) : (
-        /* 7. QUICK INLINE HELPER STRIP */
-        <div className={`px-4 py-3 border-t text-xs font-semibold flex items-center justify-between ${
-          isDark ? 'bg-[#0B0F12] border-stone-800 text-stone-300' : 'bg-stone-100/80 border-stone-200 text-stone-800'
-        }`}>
-          <span className="flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-            <span>{language === 'ka' ? 'დააწკაპუნეთ მარკერზე მანძილისა და რჩევის სანახავად' : language === 'ru' ? 'Нажмите на точку, чтобы увидеть расстояние и совет' : 'Tap any spot to see walking distance & host advice'}</span>
-          </span>
-          <span className="font-mono text-xs font-bold opacity-80">{filteredSpots.length} {language === 'ka' ? 'ადგილი' : language === 'ru' ? 'мест' : 'spots'}</span>
         </div>
       )}
 
+      {/* Tier 2 / Tier 3: Categorized Places Directory Cards (Self-contained, no nested sub-boxes) */}
+      {filteredPlaces.length === 0 ? (
+        <div className="p-8 rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] text-center space-y-2">
+          <Sparkles className="w-6 h-6 text-[#F55A51] mx-auto" />
+          <p className="text-sm font-semibold text-[#1C1B1A] dark:text-[#F7F5F0]">
+            {language === 'ka'
+              ? 'ამ კატეგორიაში ადგილები ჯერ არ არის დამატებული'
+              : language === 'ru'
+              ? 'В этой категории пока нет добавленных мест'
+              : 'No places added in this category yet'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredPlaces.map(place => {
+            const Icon = getCategoryIcon(place.category);
+            const isSelected = selectedPlace?.id === place.id;
+            const isFav = favoriteIds.includes(place.id);
+
+            return (
+              <article
+                key={place.id}
+                onClick={() => setSelectedSpotId(place.id)}
+                className={`p-5 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between gap-4 ${
+                  isSelected
+                    ? 'bg-white dark:bg-[#1F1E1C] border-[#F55A51]/60 shadow-[0_10px_28px_-14px_rgba(245,90,81,0.18)]'
+                    : 'bg-white dark:bg-[#1F1E1C] border-[#EBE6DF] dark:border-[#2B2926] hover:border-[#F55A51]/40 shadow-[0_6px_22px_-12px_rgba(28,27,26,0.06)] dark:shadow-none'
+                }`}
+              >
+                <div className="space-y-3">
+                  {/* Top Row: Thumbnail / Icon + Title + Favorite */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3.5 min-w-0">
+                      {place.imageUrl ? (
+                        <img
+                          src={place.imageUrl}
+                          alt={place.name}
+                          loading="lazy"
+                          className="w-14 h-14 rounded-2xl object-cover shrink-0 border border-[#EBE6DF] dark:border-[#2B2926]"
+                        />
+                      ) : (
+                        <div
+                          className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${getCategoryColor(
+                            place.category
+                          )}`}
+                        >
+                          <Icon className="w-5 h-5" />
+                        </div>
+                      )}
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#F55A51]">
+                            {place.subCategory || place.category}
+                          </span>
+                          {place.distanceLabel && (
+                            <span className="text-[11px] font-semibold text-[#7A756D] dark:text-[#A39E93] inline-flex items-center gap-1">
+                              · <Footprints className="w-3 h-3 text-[#F55A51]" />
+                              {place.distanceLabel}
+                            </span>
+                          )}
+                          {place.priceLevel && (
+                            <span className="text-[11px] font-bold text-[#D99B26] dark:text-[#FFC757]">
+                              · {place.priceLevel}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="font-serif font-bold text-base sm:text-lg text-[#1C1B1A] dark:text-[#F7F5F0] leading-snug mt-0.5 break-words">
+                          {place.name}
+                        </h4>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        onToggleFavorite(place.id, place.name);
+                      }}
+                      aria-label={isFav ? 'Remove from saved' : 'Save place'}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-colors shrink-0 cursor-pointer ${
+                        isFav
+                          ? 'bg-[#F55A51]/10 border-[#F55A51]/30 text-[#F55A51]'
+                          : 'bg-[#FAF8F5] dark:bg-[#141312] border-[#EBE6DF] dark:border-[#2B2926] text-[#7A756D]'
+                      }`}
+                    >
+                      <Heart
+                        className={`w-4 h-4 ${isFav ? 'fill-current text-[#F55A51]' : ''}`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Description */}
+                  {place.description && (
+                    <p className="text-xs sm:text-sm text-[#5C5852] dark:text-[#A39E93] leading-relaxed line-clamp-2">
+                      {place.description}
+                    </p>
+                  )}
+
+                  {/* Unboxed Host Tip / What to Order (No nested box-inside-box) */}
+                  {(place.hostTip || place.whatToOrder) && (
+                    <div className="border-l-2 border-[#F55A51] pl-3 py-0.5 text-xs">
+                      <span className="font-bold text-[#1C1B1A] dark:text-[#F7F5F0]">
+                        {language === 'ka'
+                          ? 'მასპინძლის რჩევა: '
+                          : language === 'ru'
+                          ? 'Совет хозяина: '
+                          : 'Host tip: '}
+                      </span>
+                      <span className="italic text-[#5C5852] dark:text-[#A39E93] line-clamp-2">
+                        “{place.hostTip || place.whatToOrder}”
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Action Footer */}
+                <div className="pt-3 border-t border-[#EBE6DF]/70 dark:border-[#2B2926]/70 flex flex-wrap items-center justify-between gap-2">
+                  {place.address ? (
+                    <span className="text-xs text-[#7A756D] dark:text-[#A39E93] flex items-center gap-1.5 min-w-0 truncate max-w-[180px] sm:max-w-[220px]">
+                      <MapPin className="w-3.5 h-3.5 text-[#F55A51] shrink-0" />
+                      <span className="truncate">{place.address}</span>
+                    </span>
+                  ) : (
+                    <span />
+                  )}
+
+                  <div className="flex items-center gap-2 ml-auto">
+                    {place.address && (
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleCopyPlaceAddress(place);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] text-xs font-bold text-[#1C1B1A] dark:text-[#F7F5F0] flex items-center gap-1.5 min-h-[36px] cursor-pointer"
+                      >
+                        {copiedId === place.id ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-[#2E7D32]" />
+                            {language === 'ka'
+                              ? 'დაკოპირდა'
+                              : language === 'ru'
+                              ? 'Скопировано'
+                              : 'Copied'}
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-[#7A756D]" />
+                            {language === 'ka' ? 'კოპირება' : language === 'ru' ? 'Адрес' : 'Copy'}
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    <a
+                      href={getPlaceNavigationUrl(place)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      className="px-3.5 py-1.5 rounded-xl bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-opacity min-h-[36px]"
+                    >
+                      <Navigation className="w-3.5 h-3.5 text-[#F55A51]" />
+                      {language === 'ka'
+                        ? 'რუკა'
+                        : language === 'ru'
+                        ? 'Карта'
+                        : 'Directions'}
+                    </a>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

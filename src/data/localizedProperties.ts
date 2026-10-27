@@ -1,5 +1,43 @@
 import { Property } from '../types';
 import { Language } from '../i18n/types';
+import { INITIAL_PROPERTIES } from './mockData';
+
+function applyStarterTranslations(property: Property, overrides: Partial<Property>): Property {
+  const initialProp = INITIAL_PROPERTIES.find(
+    p => p.id === property.id || p.slug === property.slug
+  );
+  if (!initialProp) {
+    return property;
+  }
+
+  const result: Property = { ...property };
+  const neverOverrideKeys = new Set<keyof Property>([
+    'id',
+    'slug',
+    'status',
+    'coverImage',
+    'photos',
+    'gemIds',
+    'customGems',
+    'doorKeypadCode',
+    'lockboxCode',
+    'wifiNetwork',
+    'wifiPassword',
+    'checkInMethod'
+  ]);
+
+  (Object.keys(overrides) as (keyof Property)[]).forEach((key) => {
+    if (neverOverrideKeys.has(key)) return;
+    const currentVal = property[key];
+    const initialVal = initialProp[key];
+    // Only apply static starter translation if the field has not been edited by the host
+    if (JSON.stringify(currentVal) === JSON.stringify(initialVal)) {
+      (result as any)[key] = overrides[key];
+    }
+  });
+
+  return result;
+}
 
 export function getLocalizedProperty(property: Property, lang: Language): Property {
   if (!property || lang === 'en') {
@@ -9,7 +47,7 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
   // Localized templates for Georgian
   if (lang === 'ka') {
     if (property.id === 'prop-1' || property.slug.includes('old-tbilisi')) {
-      return {
+      return applyStarterTranslations(property, {
         ...property,
         title: 'ძველი თბილისის აპარტამენტი',
         subtitle: 'მე-19 საუკუნის ისტორიული რეზიდენცია ძველი აივნით',
@@ -115,11 +153,11 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
           'შეამოწმეთ უჯრები და როზეტები, რომ არ დაგრჩეთ დამტენი ან პასპორტი.',
           'მიხურეთ შემოსასვლელი კარი და დააჭირეთ საკეტის ჩამკეტ ღილაკს.'
         ]
-      };
+      });
     }
 
     if (property.id === 'prop-2' || property.slug.includes('sunny-sololaki')) {
-      return {
+      return applyStarterTranslations(property, {
         ...property,
         title: 'მზიანი სოლოლაკი',
         subtitle: 'მყუდრო ნათელი ლოფტი ძველ თბილისში ღია აივნით',
@@ -138,11 +176,11 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
         arrivalDirections: 'შედით ხის ჭიშკრით, აუყევით რკინის კიბეს მე-2 სართულზე, ზურმუხტისფერი კარი მარცხნივ. აკრიფეთ 4820# კოდის საკეტზე.',
         wifiNetwork: 'SunnySololaki_5G',
         wifiPassword: 'SololakiSun2026!'
-      };
+      });
     }
 
     if (property.id === 'prop-3' || property.slug.includes('batumi-sea-view')) {
-      return {
+      return applyStarterTranslations(property, {
         ...property,
         title: 'ბათუმის ზღვის ხედი',
         subtitle: 'პანორამული ხედი შავ ზღვაზე და მზის ჩასვლა',
@@ -160,11 +198,11 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
         taxiInfo: 'ბათუმში საუკეთესოდ მუშაობს Bolt აპლიკაცია.',
         transitInfo: 'ბათუმის ბულვარი და სანაპირო პირდაპირ კორპუსის წინ არის.',
         airportTransit: 'ბათუმის საერთაშორისო აეროპორტამდე 12 წუთია ტაქსით (~15-20 ლარი).'
-      };
+      });
     }
 
     if (property.id === 'prop-4' || property.slug.includes('kazbegi-cabin') || property.slug.includes('mountain-house')) {
-      return {
+      return applyStarterTranslations(property, {
         ...property,
         title: 'ყაზბეგის კოტეჯი',
         subtitle: 'მყინვარწვერის ხედი და მყუდრო ალპური შალე',
@@ -181,11 +219,11 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
         arrivalDirections: 'გადაუხვიეთ გერგეტის შესახვევში ხიდის შემდეგ. კედარის ჭიშკარი აღნიშნულია Stumari #12 ნიშნით. აკრიფეთ 7721#.',
         wifiNetwork: 'Kazbegi_Peak_WiFi',
         wifiPassword: 'MountKazbek2026!'
-      };
+      });
     }
 
     if (property.id === 'prop-5' || property.slug.includes('vake-garden')) {
-      return {
+      return applyStarterTranslations(property, {
         ...property,
         title: 'ვაკის ბაღის სახლი',
         subtitle: 'დახვეწილი ურბანული რეზიდენცია მყუდრო ეზოთი და გამწვანებით',
@@ -202,14 +240,14 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
         arrivalDirections: 'შედით შენობის ჰოლიდან აბაშიძის ქუჩაზე. ლიფტით მე-2 სართულზე, ბინა 6 მარჯვნივაა. აკრიფეთ 5514#.',
         wifiNetwork: 'VakeGarden_Ultra',
         wifiPassword: 'VakeGreen2026!'
-      };
+      });
     }
   }
 
   // Localized templates for Russian
   if (lang === 'ru') {
     if (property.id === 'prop-1' || property.slug.includes('old-tbilisi')) {
-      return {
+      return applyStarterTranslations(property, {
         ...property,
         title: 'Апартаменты в Старом Тбилиси',
         subtitle: 'Историческая резиденция XIX века с резным балконом',
@@ -315,11 +353,11 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
           'Проверьте ящики и розетки на предмет забытых зарядок и документов.',
           'Захлопните входную дверь и нажмите кнопку блокировки на замке.'
         ]
-      };
+      });
     }
 
     if (property.id === 'prop-2' || property.slug.includes('sunny-sololaki')) {
-      return {
+      return applyStarterTranslations(property, {
         ...property,
         title: 'Солнечный Сололаки',
         subtitle: 'Уютный светлый лофт в Старом Тбилиси с открытым балконом',
@@ -338,11 +376,11 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
         arrivalDirections: 'Пройдите через деревянные ворота во двор, поднимитесь по лестнице на 2 этаж, бирюзовая дверь слева. Код замка 4820#.',
         wifiNetwork: 'SunnySololaki_5G',
         wifiPassword: 'SololakiSun2026!'
-      };
+      });
     }
 
     if (property.id === 'prop-3' || property.slug.includes('batumi-sea-view')) {
-      return {
+      return applyStarterTranslations(property, {
         ...property,
         title: 'Апартаменты с видом на море в Батуми',
         subtitle: 'Панорамные закаты над Чёрным морем и высотный балкон',
@@ -362,11 +400,11 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
         taxiInfo: 'В Батуми быстрее и удобнее всего вызывать такси через Bolt.',
         transitInfo: 'Батумский бульвар и пляж расположены прямо перед зданием.',
         airportTransit: 'До аэропорта Батуми 12 минут на такси (~15-20 лари).'
-      };
+      });
     }
 
     if (property.id === 'prop-4' || property.slug.includes('kazbegi-cabin') || property.slug.includes('mountain-house')) {
-      return {
+      return applyStarterTranslations(property, {
         ...property,
         title: 'Шале в Казбеги',
         subtitle: 'Вид на Казбек и уютный альпийский домик',
@@ -383,11 +421,11 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
         arrivalDirections: 'Сверните в переулок Гергети за мостом. Кедровые ворота с табличкой Stumari #12. Код 7721#.',
         wifiNetwork: 'Kazbegi_Peak_WiFi',
         wifiPassword: 'MountKazbek2026!'
-      };
+      });
     }
 
     if (property.id === 'prop-5' || property.slug.includes('vake-garden')) {
-      return {
+      return applyStarterTranslations(property, {
         ...property,
         title: 'Резиденция в Ваке с садом',
         subtitle: 'Изысканные городские апартаменты с приватным зеленым патио',
@@ -404,7 +442,7 @@ export function getLocalizedProperty(property: Property, lang: Language): Proper
         arrivalDirections: 'Вход через лобби с улицы Абашидзе. Лифт на 2-й этаж, квартира 6 справа. Код 5514#.',
         wifiNetwork: 'VakeGarden_Ultra',
         wifiPassword: 'VakeGreen2026!'
-      };
+      });
     }
   }
 

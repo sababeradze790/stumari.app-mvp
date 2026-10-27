@@ -65,14 +65,16 @@ export const PropertyGemsCurator: React.FC<PropertyGemsCuratorProps> = ({ proper
   const [newWhyRecommend, setNewWhyRecommend] = useState('');
   const [newImageUrl, setNewImageUrl] = useState('');
 
-  // Combined gems library
+  // Combined gems library (includes TBILISI_GEMS_LIBRARY, shared appGems, and property-specific customGems)
   const allLibraryGems = useMemo(() => {
     const customList = appGems || [];
+    const propCustomList = property.customGems || [];
     const map = new Map<string, StumariGem>();
     TBILISI_GEMS_LIBRARY.forEach(g => map.set(g.id, g));
     customList.forEach(g => map.set(g.id, g));
+    propCustomList.forEach(g => map.set(g.id, g));
     return Array.from(map.values());
-  }, [appGems]);
+  }, [appGems, property.customGems]);
 
   // Active gems for this specific property
   const activeGemIds = useMemo(() => {
@@ -165,8 +167,7 @@ export const PropertyGemsCurator: React.FC<PropertyGemsCuratorProps> = ({ proper
       rating: 5,
     };
 
-    addCustomGem(newGem);
-    togglePropertyGem(property.id, customId);
+    addCustomGem(newGem, property.id);
     showToast('Created custom recommendation & added to your guide!');
 
     // Reset form
@@ -181,14 +182,14 @@ export const PropertyGemsCurator: React.FC<PropertyGemsCuratorProps> = ({ proper
     setIsAddModalOpen(false);
   };
 
-  const experienceButtons = [
+  const experienceButtons: { id: 'all' | GemExperience; label: string; icon: any }[] = [
     { id: 'all', label: 'All', icon: Sparkles },
     { id: 'eat', label: 'Eat & Dine', icon: Utensils },
-    { id: 'drink', label: 'Wine & Bars', icon: Wine },
-    { id: 'coffee', label: 'Craft Coffee', icon: Coffee },
-    { id: 'see', label: 'Sightseeing', icon: Eye },
-    { id: 'hidden', label: 'Hidden Yards', icon: Compass },
-    { id: 'night', label: 'Nightlife', icon: Moon },
+    { id: 'drink', label: 'Wine & Coffee', icon: Wine },
+    { id: 'explore', label: 'Explore & Courtyards', icon: Compass },
+    { id: 'escape', label: 'Escape & Views', icon: Eye },
+    { id: 'experience', label: 'Experiences & Baths', icon: Star },
+    { id: 'local_life', label: 'Markets & Local Life', icon: Heart },
   ];
 
   return (

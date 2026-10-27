@@ -30,13 +30,13 @@ export const PhysicalStandModal: React.FC<PhysicalStandModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const { language, showToast, theme } = useApp();
+  const { language, showToast, theme, getGuestCheckInUrl } = useApp();
   const [material, setMaterial] = useState<'birch' | 'walnut' | 'black' | 'acrylic'>('birch');
   const [cardSize, setCardSize] = useState<'bedside' | 'table' | 'plaque'>('bedside');
   const [showNfcSim, setShowNfcSim] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const guideUrl = `${window.location.origin}/#/g/${property.slug}`;
+  const guideUrl = getGuestCheckInUrl(property, true);
 
   if (!isOpen) return null;
 

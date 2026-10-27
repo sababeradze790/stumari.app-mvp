@@ -12,6 +12,7 @@ import { DemoPage } from './components/marketing/DemoPage';
 import { HostDashboardSimple } from './components/host/HostDashboardSimple';
 import { PropertyHub } from './components/host/PropertyHub';
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
+import { GuidedOnboardingModal } from './components/onboarding/GuidedOnboardingModal';
 import { GuestGuideSimple } from './components/guest/GuestGuideSimple';
 import { AdminConsole } from './components/admin/AdminConsole';
 
@@ -50,7 +51,9 @@ const MainApp: React.FC = () => {
     properties,
     currentProperty,
     activeGuestSlug,
-    theme 
+    theme,
+    isAddPropertyModalOpen,
+    closeAddPropertyModal
   } = useApp();
 
   // Scroll to top on route change for a clean entrance
@@ -82,6 +85,8 @@ const MainApp: React.FC = () => {
         setCurrentRoute('/onboarding');
       } else if (hash === '#/app/properties' || path === '/app/properties') {
         setCurrentRoute('/app/properties');
+      } else if (hash === '#/app/templates' || path === '/app/templates') {
+        setCurrentRoute('/app/templates');
       } else if (hash === '#/app/analytics' || path === '/app/analytics') {
         setCurrentRoute('/app/analytics');
       } else if (hash === '#/app/reviews' || path === '/app/reviews') {
@@ -155,6 +160,7 @@ const MainApp: React.FC = () => {
             {currentRoute === '/app' && <HostDashboardSimple isFullList={false} activeTab="overview" />}
             {currentRoute === '/app/analytics' && <HostDashboardSimple isFullList={false} activeTab="analytics" />}
             {currentRoute === '/app/properties' && <HostDashboardSimple isFullList={true} activeTab="properties" />}
+            {currentRoute === '/app/templates' && <HostDashboardSimple isFullList={false} activeTab="templates" />}
             {currentRoute === '/app/reviews' && <HostDashboardSimple isFullList={false} activeTab="reviews" />}
             {currentRoute === '/app/requests' && <HostDashboardSimple isFullList={false} activeTab="requests" />}
             {currentRoute === '/app/properties/:id' && <PropertyHub />}
@@ -179,6 +185,18 @@ const MainApp: React.FC = () => {
 
       {/* Firebase Authentication Modal */}
       <AuthModal />
+
+      {/* Unified Add Property Modal */}
+      <GuidedOnboardingModal
+        isOpen={isAddPropertyModalOpen}
+        onClose={closeAddPropertyModal}
+        onCompleted={(newProp) => {
+          closeAddPropertyModal();
+          if (newProp && newProp.id) {
+            navigateToPropertyHub(newProp.id, 'overview');
+          }
+        }}
+      />
     </div>
   );
 };

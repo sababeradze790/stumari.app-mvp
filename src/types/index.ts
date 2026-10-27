@@ -17,16 +17,61 @@ export interface Recommendation {
   walkingDirections?: string;
 }
 
+export interface HowToStep {
+  stepNumber: number;
+  title: string;
+  titleKa?: string;
+  titleRu?: string;
+  description: string;
+  descriptionKa?: string;
+  descriptionRu?: string;
+  mediaType: 'photo' | 'video';
+  mediaUrl?: string;
+  posterUrl?: string;
+}
+
+export interface PropertyPhotoAsset {
+  id: string;
+  url: string;
+  caption?: string;
+  roomCategory: 'living' | 'kitchen' | 'bedroom' | 'bathroom' | 'entrance' | 'balcony' | 'amenity' | 'other';
+  isCover?: boolean;
+  order: number;
+}
+
 export interface ApplianceGuide {
   id: string;
   title: string;
-  icon: 'Thermometer' | 'Coffee' | 'Shirt' | 'Tv' | 'Flame' | 'Sparkles' | 'Utensils' | 'Zap';
+  name?: string;
+  icon: 'Thermometer' | 'Coffee' | 'Shirt' | 'Tv' | 'Flame' | 'Sparkles' | 'Utensils' | 'Zap' | 'KeyRound';
   instructions: string;
   troubleshooting?: string;
+  troubleshootingTip?: string;
   category?: 'climate' | 'kitchen' | 'laundry' | 'entertainment' | 'access' | 'other';
   mediaType?: 'video' | 'photo';
   mediaUrl?: string;
+  videoUrl?: string;
   mediaPoster?: string;
+  videoDurationSeconds?: number;
+  steps?: HowToStep[];
+  stepsText?: string[];
+  isLibraryPreset?: boolean;
+}
+
+export interface PropertyTemplate {
+  id: string;
+  name: string;
+  description: string;
+  propertyType: PropertyType;
+  checkInTime: string;
+  checkOutTime: string;
+  quietHours: string;
+  trashSchedule: string;
+  houseRules: string[];
+  appliances: ApplianceGuide[];
+  departureChecklist?: string[];
+  createdAt: string;
+  updatedAt?: string;
 }
 
 // ==========================================
@@ -54,6 +99,7 @@ export type GemMood =
 
 export interface StumariGem {
   id: string;
+  ownerId?: string;
   title: string;
   subtitle: string;
   type: 'host' | 'stumari'; // 🏠 Host Gem vs ✨ Stumari Gem
@@ -94,6 +140,7 @@ export type StayFeedbackCategory =
 export interface StayFeedback {
   id: string;
   propertyId: string;
+  hostId?: string;
   propertyName?: string;
   createdAt: string;
   guestName?: string;
@@ -113,6 +160,7 @@ export type RequestStatus = 'new' | 'in_progress' | 'resolved';
 export interface GuestRequest {
   id: string;
   propertyId: string;
+  hostId?: string;
   propertyName: string;
   guestName: string;
   category: RequestCategory;
@@ -152,6 +200,20 @@ export type StayMoment =
   | 'before_checkout' // Check-out instructions, luggage, airport transfer
   | 'after_checkout'; // How was your stay? Review engine
 
+export interface PropertyPrivateAccess {
+  wifiNetwork: string;
+  wifiPassword: string;
+  doorKeypadCode: string;
+  lockboxCode: string;
+  arrivalDirections: string;
+  parkingInstructions: string;
+  address?: string;
+  hostPhone?: string;
+  hostWhatsApp?: string;
+  emergencyContact?: string;
+  updatedAt?: string;
+}
+
 export interface Property {
   id: string;
   slug: string;
@@ -164,6 +226,20 @@ export interface Property {
   updatedAt?: string;
   viewsCount: number;
 
+  // Ownership and Demo metadata
+  ownerId?: string;
+  isDemo?: boolean;
+  /**
+   * High-entropy capability token (48 hex chars) held only in memory for the owning host
+   * or authorized guest session. Never written to the public /properties/{propertyId} document.
+   */
+  accessToken?: string;
+  /**
+   * Indicates whether the property has private check-in/Wi-Fi credentials configured
+   * in its protected subcollection.
+   */
+  hasPrivateCredentials?: boolean;
+
   // Source import placeholders (for Airbnb/Booking without breaking V1)
   sourcePlatform?: SourcePlatform;
   sourceUrl?: string;
@@ -175,6 +251,8 @@ export interface Property {
   latitude?: number;
   longitude?: number;
   coverImage: string;
+  photos?: PropertyPhotoAsset[];
+  templateId?: string;
   languages: string[]; // e.g. ['en', 'ka']
 
   // Host Details
@@ -263,6 +341,7 @@ export type AppRoute =
   | '/app'
   | '/app/analytics'
   | '/app/properties'
+  | '/app/templates'
   | '/app/reviews'
   | '/app/requests'
   | '/app/properties/:id'

@@ -55,23 +55,39 @@ export const AuthModal: React.FC = () => {
 
   const isDark = theme === 'dark';
 
+  const isValidEmail = (value: string): boolean => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
+    const normalizedEmail = email.trim();
+
     try {
       if (mode === 'login') {
-        if (!email.trim() || !password) {
+        if (!normalizedEmail || !password) {
           setError('Please provide both email and password.');
           setLoading(false);
           return;
         }
-        await signInWithEmail(email.trim(), password);
+        if (!isValidEmail(normalizedEmail)) {
+          setError('Please enter a valid email address.');
+          setLoading(false);
+          return;
+        }
+        await signInWithEmail(normalizedEmail, password);
         closeAuthModal();
       } else if (mode === 'signup') {
-        if (!email.trim() || !password) {
+        if (!normalizedEmail || !password) {
           setError('Please provide email and password.');
+          setLoading(false);
+          return;
+        }
+        if (!isValidEmail(normalizedEmail)) {
+          setError('Please enter a valid email address.');
           setLoading(false);
           return;
         }
@@ -80,19 +96,23 @@ export const AuthModal: React.FC = () => {
           setLoading(false);
           return;
         }
-        await signUpWithEmail(email.trim(), password, displayName.trim() || 'Host');
+        await signUpWithEmail(normalizedEmail, password, displayName.trim() || 'Host');
         closeAuthModal();
       } else if (mode === 'forgot') {
-        if (!email.trim()) {
+        if (!normalizedEmail) {
           setError('Please enter your email to receive a reset link.');
           setLoading(false);
           return;
         }
-        await resetPassword(email.trim());
+        if (!isValidEmail(normalizedEmail)) {
+          setError('Please enter a valid email address.');
+          setLoading(false);
+          return;
+        }
+        await resetPassword(normalizedEmail);
         setResetSent(true);
       }
     } catch (err: any) {
-      console.error('Auth error:', err);
       let msg = err.message || 'Authentication failed.';
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         msg = 'Invalid email or password. Please check your credentials.';

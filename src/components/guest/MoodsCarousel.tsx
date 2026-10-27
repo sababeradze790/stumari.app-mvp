@@ -1,176 +1,201 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { ChevronRight, Utensils, Coffee } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import React, { useState } from 'react';
+import {
+  Coffee,
+  Utensils,
+  Sparkles,
+  Compass,
+  Heart,
+  DollarSign,
+  Moon,
+  Leaf,
+  Clock,
+  MapPin,
+} from 'lucide-react';
 import { GemMood } from '../../types';
-import { KhinkaliSketch, WineGlassSketch, BinocularsSketch } from './GuestGuideIllustrations';
+import { useApp } from '../../context/AppContext';
 
 interface MoodsCarouselProps {
-  onSelectMood: (mood: GemMood) => void;
-  onViewAllGems: () => void;
+  selectedMood?: GemMood | 'all';
+  onSelectMood?: (mood: GemMood | 'all') => void;
+  language?: 'en' | 'ka' | 'ru';
+  gemCounts?: Record<string, number>;
 }
 
+interface MoodCardConfig {
+  id: GemMood | 'all';
+  label: { en: string; ka: string; ru: string };
+  subtitle: { en: string; ka: string; ru: string };
+  icon: React.FC<{ className?: string }>;
+  accentClass: string;
+}
+
+const MOOD_CARDS: MoodCardConfig[] = [
+  {
+    id: 'all',
+    label: { en: 'All Curated', ka: 'ყველა რჩეული', ru: 'Все места' },
+    subtitle: { en: 'Every host pick', ka: 'მასპინძლის სია', ru: 'Выбор хозяина' },
+    icon: Sparkles,
+    accentClass: 'text-[#F55A51] bg-[#F55A51]/10',
+  },
+  {
+    id: 'hungry',
+    label: { en: "I'm Hungry", ka: 'მშია', ru: 'Хочу поесть' },
+    subtitle: { en: 'Khinkali, supra & dining', ka: 'ხინკალი და სუფრა', ru: 'Хинкали и кухня' },
+    icon: Utensils,
+    accentClass: 'text-[#F55A51] bg-[#F55A51]/12',
+  },
+  {
+    id: 'coffee',
+    label: { en: 'Slow Coffee', ka: 'ყავის დრო', ru: 'Время кофе' },
+    subtitle: { en: 'Roasteries & bakeries', ka: 'ყავა და საცხობი', ru: 'Кофейни и пекарни' },
+    icon: Coffee,
+    accentClass: 'text-[#C87D4B] bg-[#C87D4B]/12',
+  },
+  {
+    id: 'authentic',
+    label: { en: 'Authentic Local', ka: 'ავთენტური', ru: 'Аутентичное' },
+    subtitle: { en: 'True Georgian character', ka: 'ნამდვილი ქართული', ru: 'Грузинский колорит' },
+    icon: Sparkles,
+    accentClass: 'text-[#8C3B4A] bg-[#8C3B4A]/12',
+  },
+  {
+    id: 'explore',
+    label: { en: 'Walk & Explore', ka: 'სასეირნო', ru: 'Прогулка' },
+    subtitle: { en: 'Courtyards & viewpoints', ka: 'ეზოები და ხედები', ru: 'Дворики и виды' },
+    icon: Compass,
+    accentClass: 'text-[#748C96] bg-[#748C96]/15',
+  },
+  {
+    id: 'romantic',
+    label: { en: 'Date Night', ka: 'რომანტიკული', ru: 'Романтика' },
+    subtitle: { en: 'Wine bars & candlelit tables', ka: 'ღვინო და განწყობა', ru: 'Винные бары и уют' },
+    icon: Heart,
+    accentClass: 'text-[#F55A51] bg-[#F55A51]/12',
+  },
+  {
+    id: 'quiet',
+    label: { en: 'Quiet Escape', ka: 'მშვიდი გარემო', ru: 'Тихое место' },
+    subtitle: { en: 'Gardens & calm corners', ka: 'ბაღები და სიმშვიდე', ru: 'Сады и спокойствие' },
+    icon: Leaf,
+    accentClass: 'text-[#2E7D32] bg-[#2E7D32]/12',
+  },
+  {
+    id: 'nightlife',
+    label: { en: 'After Dark', ka: 'ღამის ცხოვრება', ru: 'Вечерний город' },
+    subtitle: { en: 'Cocktails & late spots', ka: 'ბარები და მუსიკა', ru: 'Коктейли и бары' },
+    icon: Moon,
+    accentClass: 'text-[#748C96] bg-[#748C96]/15',
+  },
+  {
+    id: 'cheap',
+    label: { en: 'Great Value', ka: 'ბიუჯეტური', ru: 'Бюджетно' },
+    subtitle: { en: 'Beloved local favorites', ka: 'გემრიელი და ხელმისაწვდომი', ru: 'Вкусно и доступно' },
+    icon: DollarSign,
+    accentClass: 'text-[#2E7D32] bg-[#2E7D32]/12',
+  },
+  {
+    id: 'quick',
+    label: { en: 'Have 1–2 Hours', ka: '1–2 საათში', ru: 'На 1–2 часа' },
+    subtitle: { en: 'Easy stops between plans', ka: 'სწრაფი ვიზიტი', ru: 'Короткая прогулка' },
+    icon: Clock,
+    accentClass: 'text-[#D99B26] bg-[#FFC757]/20',
+  },
+  {
+    id: 'nearby',
+    label: { en: 'Right Nearby', ka: 'სახლთან ახლოს', ru: 'Рядом с домом' },
+    subtitle: { en: 'Short walk from your door', ka: 'ფეხით სავალზე', ru: 'В пешей доступности' },
+    icon: MapPin,
+    accentClass: 'text-[#F55A51] bg-[#F55A51]/12',
+  },
+];
+
 export const MoodsCarousel: React.FC<MoodsCarouselProps> = ({
-  onSelectMood,
-  onViewAllGems
+  selectedMood: propSelectedMood,
+  onSelectMood: propOnSelectMood,
+  language: propLanguage,
+  gemCounts,
 }) => {
-  const { theme, language, activeMood } = useApp();
-  const isDark = theme === 'dark';
-
-  const triggerHaptic = () => {
-    try {
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        navigator.vibrate(8);
-      }
-    } catch {}
-  };
-
-  const moods: { 
-    id: GemMood; 
-    icon: (isDark: boolean) => React.ReactNode; 
-    labelEn: string; 
-    labelKa: string; 
-    labelRu: string;
-    bgLight: string;
-    borderLight: string;
-    textLight: string;
-    bgDark: string;
-    borderDark: string;
-    textDark: string;
-  }[] = [
-    { 
-      id: 'hungry', 
-      icon: (dark) => <Utensils className={`w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2] ${dark ? 'text-emerald-400' : 'text-[#1E3B2B]'}`} />, 
-      labelEn: "I'm hungry", 
-      labelKa: "მშია", 
-      labelRu: "Голоден",
-      bgLight: "bg-[#EAF3ED]",
-      borderLight: "border-[#C9DEC2]",
-      textLight: "text-[#1E3B2B]",
-      bgDark: "bg-[#18231C]",
-      borderDark: "border-emerald-600/35",
-      textDark: "text-[#A7D0B7]"
-    },
-    { 
-      id: 'coffee', 
-      icon: (dark) => <Coffee className={`w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2] ${dark ? 'text-amber-400' : 'text-[#613D1C]'}`} />, 
-      labelEn: "Coffee fix", 
-      labelKa: "ყავა", 
-      labelRu: "Кофе",
-      bgLight: "bg-[#FAF1E4]",
-      borderLight: "border-[#E8D4BA]",
-      textLight: "text-[#613D1C]",
-      bgDark: "bg-[#251E14]",
-      borderDark: "border-amber-600/35",
-      textDark: "text-[#E6CBA3]"
-    },
-    { 
-      id: 'authentic', 
-      icon: (dark) => <KhinkaliSketch className="w-4 h-4 sm:w-5 sm:h-5" isDark={dark} />, 
-      labelEn: "Khinkali", 
-      labelKa: "ხინკალი", 
-      labelRu: "Хинкали",
-      bgLight: "bg-[#FFF9EC]",
-      borderLight: "border-[#F5DEAB]",
-      textLight: "text-[#6B4F0B]",
-      bgDark: "bg-[#252010]",
-      borderDark: "border-[#FFC757]/35",
-      textDark: "text-[#F5D88C]"
-    },
-    { 
-      id: 'romantic', 
-      icon: (dark) => <WineGlassSketch className="w-4 h-4 sm:w-5 sm:h-5" isDark={dark} />, 
-      labelEn: "Wine bars", 
-      labelKa: "ღვინო", 
-      labelRu: "Вино",
-      bgLight: "bg-[#FAEBF0]",
-      borderLight: "border-[#EAC4D1]",
-      textLight: "text-[#611A2E]",
-      bgDark: "bg-[#26131A]",
-      borderDark: "border-rose-600/35",
-      textDark: "text-[#E6AAB9]"
-    },
-    { 
-      id: 'explore', 
-      icon: (dark) => <BinocularsSketch className="w-4 h-4 sm:w-5 sm:h-5" isDark={dark} />, 
-      labelEn: "Secrets", 
-      labelKa: "საიდუმლო", 
-      labelRu: "Секреты",
-      bgLight: "bg-[#EFF4F6]",
-      borderLight: "border-[#CAD9DF]",
-      textLight: "text-[#28414D]",
-      bgDark: "bg-[#142027]",
-      borderDark: "border-[#748C96]/35",
-      textDark: "text-[#A1BDC9]"
-    },
-  ];
-
-  const handleMoodClick = (moodId: GemMood) => {
-    triggerHaptic();
-    onSelectMood(moodId);
-  };
+  const { activeMood, setActiveMood, language: ctxLanguage } = useApp();
+  const resolvedMood = propSelectedMood ?? activeMood;
+  const resolvedOnSelect = propOnSelectMood ?? setActiveMood;
+  const lang = propLanguage ?? ctxLanguage;
 
   return (
-    <div className="w-full space-y-2 select-none">
-      {/* Header with clean typography */}
-      <div className="flex items-center justify-between px-0.5">
-        <span className={`text-[11px] font-sans font-semibold tracking-wider uppercase ${
-          isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'
-        }`}>
-          {language === 'ka' ? 'რისი განწყობა გაქვთ?' : language === 'ru' ? 'Какое настроение?' : 'WHAT ARE YOU IN THE MOOD FOR?'}
-        </span>
-
-        <button
-          onClick={onViewAllGems}
-          className={`text-xs font-medium hover:underline flex items-center gap-0.5 transition-colors cursor-pointer ${
-            isDark ? 'text-[#F7F5F0] hover:text-white' : 'text-[#1C1B1A] hover:text-[#F55A51]'
-          }`}
-        >
-          <span>{language === 'ka' ? 'ყველა' : language === 'ru' ? 'Все' : 'View all'}</span>
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
+    <div className="space-y-2.5">
+      <div className="flex items-baseline justify-between gap-2 px-0.5">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <h3 className="font-serif text-base sm:text-lg font-bold text-[#1C1B1A] dark:text-[#F7F5F0]">
+            {lang === 'ka'
+              ? 'რა განწყობაზე ხართ დღეს?'
+              : lang === 'ru'
+              ? 'Какое у вас сегодня настроение?'
+              : 'What are you in the mood for?'}
+          </h3>
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#F55A51]">
+            {lang === 'ka'
+              ? 'განწყობის მიხედვით'
+              : lang === 'ru'
+              ? 'По настроению'
+              : 'By Mood'}
+          </span>
+        </div>
       </div>
 
-      {/* 5 Tactile Mood Filter Cards */}
-      <div className="grid grid-cols-5 gap-2 pt-0.5 pb-1">
-        {moods.map((m) => {
-          const isSelected = activeMood === m.id;
-          const label = language === 'ka' ? m.labelKa : language === 'ru' ? m.labelRu : m.labelEn;
+      <div className="flex gap-2.5 overflow-x-auto pb-1.5 -mx-1 px-1 no-scrollbar">
+        {MOOD_CARDS.map(card => {
+          const Icon = card.icon;
+          const isSelected = resolvedMood === card.id;
+          const count = gemCounts ? gemCounts[card.id] : undefined;
+
+          if (card.id !== 'all' && typeof count === 'number' && count === 0) {
+            return null;
+          }
 
           return (
-            <motion.button
-              key={m.id}
-              onClick={() => handleMoodClick(m.id)}
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.94 }}
-              transition={{ type: 'spring', stiffness: 450, damping: 26 }}
-              className={`relative py-2 px-1 rounded-xl flex flex-col items-center justify-between transition-all duration-200 text-center cursor-pointer group h-[64px] sm:h-[68px] border select-none ${
+            <button
+              key={card.id}
+              type="button"
+              onClick={() => resolvedOnSelect(card.id)}
+              className={`shrink-0 w-44 p-3 rounded-2xl text-left transition-all border flex items-center gap-3 min-h-[68px] cursor-pointer ${
                 isSelected
-                  ? isDark
-                    ? `${m.bgDark} ${m.borderDark} ${m.textDark} ring-2 ring-[#F55A51] shadow-warm-md`
-                    : `${m.bgLight} ${m.borderLight} ${m.textLight} ring-2 ring-[#F55A51] shadow-warm-md font-bold`
-                  : isDark
-                    ? `${m.bgDark} ${m.borderDark} ${m.textDark} opacity-90 hover:opacity-100 shadow-warm-sm`
-                    : `${m.bgLight} ${m.borderLight} ${m.textLight} opacity-95 hover:opacity-100 shadow-warm-sm`
+                  ? 'bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] border-[#1C1B1A] dark:border-[#F7F5F0] shadow-md'
+                  : 'bg-white dark:bg-[#1F1E1C] text-[#1C1B1A] dark:text-[#F7F5F0] border-[#EBE6DF] dark:border-[#2B2926] hover:border-[#F55A51]/40'
               }`}
             >
-              {/* Sticker Icon */}
-              <div className="flex-1 flex items-center justify-center shrink-0">
-                {m.icon(isDark)}
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  isSelected ? 'bg-[#F55A51] text-white' : card.accentClass
+                }`}
+              >
+                <Icon className="w-4 h-4" />
               </div>
 
-              {/* Sticker Label */}
-              <span className={`text-[10px] sm:text-[11px] font-semibold leading-tight line-clamp-1 truncate w-full px-0.5 tracking-tight ${
-                isDark ? m.textDark : m.textLight
-              }`}>
-                {label}
-              </span>
-
-              {/* Active Indicator Dot */}
-              {isSelected && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#F55A51] border-2 border-white dark:border-[#141312] flex items-center justify-center shadow-xs" />
-              )}
-            </motion.button>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1">
+                  <p className="font-bold text-xs leading-snug truncate">{card.label[lang]}</p>
+                  {typeof count === 'number' && (
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                        isSelected
+                          ? 'bg-white/15 dark:bg-black/10 text-current'
+                          : 'bg-[#FAF8F5] dark:bg-[#141312] text-[#7A756D] dark:text-[#A39E93]'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </div>
+                <p
+                  className={`text-[11px] mt-0.5 line-clamp-1 ${
+                    isSelected
+                      ? 'text-[#F7F5F0]/75 dark:text-[#1C1B1A]/75'
+                      : 'text-[#7A756D] dark:text-[#A39E93]'
+                  }`}
+                >
+                  {card.subtitle[lang]}
+                </p>
+              </div>
+            </button>
           );
         })}
       </div>

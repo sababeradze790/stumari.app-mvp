@@ -52,8 +52,15 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
   propertyIdFilter, 
   onNavigateToProperty 
 }) => {
-  const { properties, theme, language, showToast, navigateToGuestGuide } = useApp();
+  const { properties, theme, language, showToast, navigateToGuestGuide, firebaseUser } = useApp();
   const isDark = theme === 'dark';
+
+  const hostProperties = useMemo(() => {
+    if (firebaseUser) {
+      return properties.filter(p => p.ownerId === firebaseUser.uid && !p.isDemo);
+    }
+    return properties;
+  }, [properties, firebaseUser]);
 
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>(propertyIdFilter || 'all');
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
@@ -61,27 +68,47 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
 
   // Filter properties
   const activeProperty = selectedPropertyId !== 'all' 
-    ? properties.find(p => p.id === selectedPropertyId) || properties[0]
+    ? hostProperties.find(p => p.id === selectedPropertyId) || hostProperties[0] || null
     : null;
+
+  const scopedProperties = useMemo(() => {
+    if (selectedPropertyId !== 'all' && activeProperty) {
+      return [activeProperty];
+    }
+    return hostProperties;
+  }, [selectedPropertyId, activeProperty, hostProperties]);
+
+  const totalRealViews = useMemo(() => {
+    return scopedProperties.reduce((acc, p) => acc + (typeof p.viewsCount === 'number' ? p.viewsCount : 0), 0);
+  }, [scopedProperties]);
+
+  const hasDemoProps = useMemo(() => {
+    return scopedProperties.some(p => p.isDemo);
+  }, [scopedProperties]);
+
+  const hasEngagementData = totalRealViews > 0 || hasDemoProps;
 
   // Multiplier depending on selected property
   const propertyMultiplier = useMemo(() => {
+    if (!hasEngagementData) return 0;
     if (!activeProperty) return 1;
     if (activeProperty.slug === 'old-tbilisi-apartment') return 0.52;
     if (activeProperty.slug === 'batumi-sea-view-suite') return 0.32;
     return 0.16;
-  }, [activeProperty]);
+  }, [activeProperty, hasEngagementData]);
 
   // Multiplier depending on time range
   const rangeFactor = useMemo(() => {
+    if (!hasEngagementData) return 0;
     if (timeRange === '7d') return 0.25;
     if (timeRange === '30d') return 1;
     if (timeRange === '90d') return 2.8;
     return 10.5;
-  }, [timeRange]);
+  }, [timeRange, hasEngagementData]);
 
   // 1. Time Series Data for AreaChart
   const timeSeriesData = useMemo(() => {
+    const scale = !hasEngagementData ? 0 : (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.9);
     if (timeRange === '7d') {
       const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const baseViews = [48, 52, 64, 59, 112, 148, 96];
@@ -90,9 +117,9 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
 
       return days.map((day, idx) => ({
         date: day,
-        views: Math.round(baseViews[idx] * (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.8)),
-        uniqueGuests: Math.round(baseGuests[idx] * (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.8)),
-        interactions: Math.round(baseInteractions[idx] * (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.8)),
+        views: Math.round(baseViews[idx] * scale),
+        uniqueGuests: Math.round(baseGuests[idx] * scale),
+        interactions: Math.round(baseInteractions[idx] * scale),
       }));
     }
 
@@ -107,9 +134,9 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
 
       return dates.map((date, idx) => ({
         date,
-        views: Math.round(baseViews[idx] * (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.9)),
-        uniqueGuests: Math.round(baseGuests[idx] * (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.9)),
-        interactions: Math.round(baseInteractions[idx] * (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.9)),
+        views: Math.round(baseViews[idx] * scale),
+        uniqueGuests: Math.round(baseGuests[idx] * scale),
+        interactions: Math.round(baseInteractions[idx] * scale),
       }));
     }
 
@@ -123,9 +150,9 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
 
       return weeks.map((week, idx) => ({
         date: week,
-        views: Math.round(baseViews[idx] * (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.9)),
-        uniqueGuests: Math.round(baseGuests[idx] * (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.9)),
-        interactions: Math.round(baseInteractions[idx] * (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.9)),
+        views: Math.round(baseViews[idx] * scale),
+        uniqueGuests: Math.round(baseGuests[idx] * scale),
+        interactions: Math.round(baseInteractions[idx] * scale),
       }));
     }
 
@@ -137,39 +164,42 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
 
     return months.map((m, idx) => ({
       date: m,
-      views: Math.round(baseViews[idx] * (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.9)),
-      uniqueGuests: Math.round(baseGuests[idx] * (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.9)),
-      interactions: Math.round(baseInteractions[idx] * (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.9)),
+      views: Math.round(baseViews[idx] * scale),
+      uniqueGuests: Math.round(baseGuests[idx] * scale),
+      interactions: Math.round(baseInteractions[idx] * scale),
     }));
-  }, [timeRange, selectedPropertyId, propertyMultiplier]);
+  }, [timeRange, selectedPropertyId, propertyMultiplier, hasEngagementData]);
 
   // 2. Feature Engagement Breakdown
   const featureEngagementData = useMemo(() => {
-    const mult = selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.8;
+    const mult = !hasEngagementData ? 0 : (selectedPropertyId === 'all' ? 1 : propertyMultiplier * 1.8);
     return [
-      { name: '1-Tap Wi-Fi Copy', taps: Math.round(940 * mult * rangeFactor * 0.35), percentage: 95, icon: '📶', fill: '#F55A51' },
-      { name: 'Keypad / Door Code', taps: Math.round(890 * mult * rangeFactor * 0.35), percentage: 91, icon: '🔑', fill: '#38BDF8' },
-      { name: 'Stumari Local Gems', taps: Math.round(760 * mult * rangeFactor * 0.35), percentage: 78, icon: '✨', fill: '#34D399' },
-      { name: 'Departure Checklist', taps: Math.round(650 * mult * rangeFactor * 0.35), percentage: 68, icon: '🚪', fill: '#F59E0B' },
-      { name: 'Appliance Guides', taps: Math.round(520 * mult * rangeFactor * 0.35), percentage: 54, icon: '⚡', fill: '#A78BFA' },
-      { name: 'Bolt / Transit Info', taps: Math.round(440 * mult * rangeFactor * 0.35), percentage: 46, icon: '🚕', fill: '#FB7185' },
-      { name: 'WhatsApp Host Chat', taps: Math.round(260 * mult * rangeFactor * 0.35), percentage: 27, icon: '💬', fill: '#4ADE80' },
+      { name: 'Wi-Fi Copy', taps: Math.round(940 * mult * rangeFactor * 0.35), percentage: hasEngagementData ? 95 : 0, icon: '📶', fill: '#F55A51' },
+      { name: 'Door Code', taps: Math.round(890 * mult * rangeFactor * 0.35), percentage: hasEngagementData ? 91 : 0, icon: '🔑', fill: '#38BDF8' },
+      { name: 'Local Gems', taps: Math.round(760 * mult * rangeFactor * 0.35), percentage: hasEngagementData ? 78 : 0, icon: '✨', fill: '#34D399' },
+      { name: 'Checkout', taps: Math.round(650 * mult * rangeFactor * 0.35), percentage: hasEngagementData ? 68 : 0, icon: '🚪', fill: '#F59E0B' },
+      { name: 'Appliances', taps: Math.round(520 * mult * rangeFactor * 0.35), percentage: hasEngagementData ? 54 : 0, icon: '⚡', fill: '#A78BFA' },
+      { name: 'Transit Info', taps: Math.round(440 * mult * rangeFactor * 0.35), percentage: hasEngagementData ? 46 : 0, icon: '🚕', fill: '#FB7185' },
+      { name: 'Host Chat', taps: Math.round(260 * mult * rangeFactor * 0.35), percentage: hasEngagementData ? 27 : 0, icon: '💬', fill: '#4ADE80' },
     ];
-  }, [selectedPropertyId, propertyMultiplier, rangeFactor]);
+  }, [selectedPropertyId, propertyMultiplier, rangeFactor, hasEngagementData]);
 
   // 3. Hourly Check-in Arrival Rush
-  const hourlyData = useMemo(() => [
-    { hour: '08:00', scans: 18, checkouts: 42 },
-    { hour: '10:00', scans: 34, checkouts: 88 },
-    { hour: '12:00', scans: 56, checkouts: 32 },
-    { hour: '14:00', scans: 142, checkouts: 12 },
-    { hour: '15:00', scans: 220, checkouts: 8 },  // Check-in Peak
-    { hour: '16:00', scans: 285, checkouts: 5 },  // Peak
-    { hour: '17:00', scans: 240, checkouts: 4 },
-    { hour: '18:00', scans: 195, checkouts: 2 },
-    { hour: '20:00', scans: 160, checkouts: 1 },  // Dinner planning
-    { hour: '22:00', scans: 110, checkouts: 0 },
-  ], []);
+  const hourlyData = useMemo(() => {
+    const s = hasEngagementData ? 1 : 0;
+    return [
+      { hour: '08:00', scans: 18 * s, checkouts: 42 * s },
+      { hour: '10:00', scans: 34 * s, checkouts: 88 * s },
+      { hour: '12:00', scans: 56 * s, checkouts: 32 * s },
+      { hour: '14:00', scans: 142 * s, checkouts: 12 * s },
+      { hour: '15:00', scans: 220 * s, checkouts: 8 * s },
+      { hour: '16:00', scans: 285 * s, checkouts: 5 * s },
+      { hour: '17:00', scans: 240 * s, checkouts: 4 * s },
+      { hour: '18:00', scans: 195 * s, checkouts: 2 * s },
+      { hour: '20:00', scans: 160 * s, checkouts: 1 * s },
+      { hour: '22:00', scans: 110 * s, checkouts: 0 },
+    ];
+  }, [hasEngagementData]);
 
   // 4. Guest Language & Source Distribution
   const guestLanguageData = [
@@ -187,18 +217,22 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
 
   // Aggregated KPI Stats
   const totalViews = useMemo(() => {
+    if (!hasEngagementData) return 0;
+    if (timeRange === '30d' && totalRealViews > 0) return totalRealViews;
     return timeSeriesData.reduce((acc, curr) => acc + curr.views, 0);
-  }, [timeSeriesData]);
+  }, [timeSeriesData, hasEngagementData, timeRange, totalRealViews]);
 
   const totalGuests = useMemo(() => {
+    if (!hasEngagementData) return 0;
     return timeSeriesData.reduce((acc, curr) => acc + curr.uniqueGuests, 0);
-  }, [timeSeriesData]);
+  }, [timeSeriesData, hasEngagementData]);
 
   const totalInteractions = useMemo(() => {
+    if (!hasEngagementData) return 0;
     return timeSeriesData.reduce((acc, curr) => acc + curr.interactions, 0);
-  }, [timeSeriesData]);
+  }, [timeSeriesData, hasEngagementData]);
 
-  const questionsAvoided = Math.round(totalGuests * 1.8);
+  const questionsAvoided = hasEngagementData ? Math.round(totalGuests * 1.8) : 0;
 
   // CSV Export
   const handleExportCSV = () => {
@@ -220,8 +254,8 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
       <div className={`p-4 sm:p-6 rounded-[24px] sm:rounded-[30px] border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors ${
         isDark ? 'bg-[#0E1317] border-stone-800' : 'bg-white border-stone-200 shadow-sm'
       }`}>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
+        <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
             <span className="text-[10px] font-mono uppercase font-black tracking-widest text-amber-700 dark:text-amber-400">
               {language === 'ka' ? 'მასპინძლის ანალიტიკა' : language === 'ru' ? 'Аналитика хоста' : 'Host Performance Analytics'}
@@ -229,7 +263,7 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
               isDark ? 'bg-stone-800 text-stone-300' : 'bg-stone-100 text-stone-700'
             }`}>
-              Live
+              {hasEngagementData ? 'Live' : 'No Views Yet'}
             </span>
           </div>
 
@@ -247,23 +281,23 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
         </div>
 
         {/* Action Controls: Property Selector, Time Range, Export */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
           
           {/* Property Dropdown Filter */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto flex-1 sm:flex-initial min-w-0">
             <select
               value={selectedPropertyId}
               onChange={(e) => setSelectedPropertyId(e.target.value)}
-              className={`text-xs font-bold px-3 py-2 rounded-xl border transition-all cursor-pointer pr-8 appearance-none focus:outline-hidden ${
+              className={`w-full text-xs font-bold px-3 py-2 rounded-xl border transition-all cursor-pointer pr-8 appearance-none truncate focus:outline-hidden ${
                 isDark 
                   ? 'bg-stone-900 border-stone-700 text-stone-100 hover:border-stone-500' 
                   : 'bg-stone-50 border-stone-300 text-stone-900 hover:border-stone-400'
               }`}
             >
               <option value="all">
-                {language === 'ka' ? 'ყველა ბინა (3 აქტიური)' : language === 'ru' ? 'Все объекты (3)' : 'All Properties (3)'}
+                {language === 'ka' ? `ყველა ბინა (${hostProperties.length} აქტიური)` : language === 'ru' ? `Все объекты (${hostProperties.length})` : `All Properties (${hostProperties.length})`}
               </option>
-              {properties.map(p => (
+              {hostProperties.map(p => (
                 <option key={p.id} value={p.id}>
                   {p.title}
                 </option>
@@ -324,8 +358,25 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
         </div>
       </div>
 
+      {!hasEngagementData && (
+        <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 flex-wrap ${
+          isDark ? 'bg-stone-900/70 border-stone-800 text-stone-300' : 'bg-stone-50 border-stone-200 text-stone-700'
+        }`}>
+          <div className="flex items-center gap-2.5 text-xs">
+            <Info className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>
+              {language === 'ka'
+                ? 'ამ ობიექტზე სტუმრების ნახვები ჯერ არ დაფიქსირებულა. გაუზიარეთ ცოცხალი გიდის ბმული სტუმრებს.'
+                : language === 'ru'
+                ? 'По этому объекту пока нет просмотров. Поделитесь ссылкой на гид с гостями.'
+                : 'No guest guide views recorded yet for this selection. Share your live guide link or QR stand to begin tracking engagement.'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* 2. Top Summary KPI Bento Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         
         {/* Metric 1: Total Views */}
         <motion.div 
@@ -351,12 +402,16 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
             <span className="text-2xl sm:text-3xl font-serif font-bold text-stone-950 dark:text-white tabular-nums">
               {totalViews.toLocaleString()}
             </span>
-            <span className="text-[11px] font-mono font-bold text-emerald-500 flex items-center">
-              +18.4%
-            </span>
+            {hasEngagementData && (
+              <span className="text-[11px] font-mono font-bold text-emerald-500 flex items-center">
+                +18.4%
+              </span>
+            )}
           </div>
           <p className="text-[10px] mt-1 text-stone-500">
-            {timeRange === '7d' ? 'Last 7 days' : timeRange === '30d' ? 'Last 30 days' : 'Compared to previous period'}
+            {hasEngagementData
+              ? (timeRange === '7d' ? 'Last 7 days' : timeRange === '30d' ? 'Last 30 days' : 'Compared to previous period')
+              : 'Waiting for first guest view'}
           </p>
         </motion.div>
 
@@ -384,9 +439,11 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
             <span className="text-2xl sm:text-3xl font-serif font-bold text-stone-950 dark:text-white tabular-nums">
               {totalGuests.toLocaleString()}
             </span>
-            <span className="text-[11px] font-mono font-bold text-emerald-500 flex items-center">
-              +14.2%
-            </span>
+            {hasEngagementData && (
+              <span className="text-[11px] font-mono font-bold text-emerald-500 flex items-center">
+                +14.2%
+              </span>
+            )}
           </div>
           <p className="text-[10px] mt-1 text-stone-500">
             QR stands & direct links
@@ -417,9 +474,11 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
             <span className="text-2xl sm:text-3xl font-serif font-bold text-stone-950 dark:text-white tabular-nums">
               {totalInteractions.toLocaleString()}
             </span>
-            <span className="text-[11px] font-mono font-bold text-emerald-500 flex items-center">
-              +22.8%
-            </span>
+            {hasEngagementData && (
+              <span className="text-[11px] font-mono font-bold text-emerald-500 flex items-center">
+                +22.8%
+              </span>
+            )}
           </div>
           <p className="text-[10px] mt-1 text-stone-500">
             Wi-Fi, keypad, map taps
@@ -448,11 +507,13 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-serif font-bold text-stone-950 dark:text-white tabular-nums">
-              ~{questionsAvoided}
+              {hasEngagementData ? `~${questionsAvoided}` : '0'}
             </span>
-            <span className="text-[11px] font-mono font-bold text-emerald-500 flex items-center">
-              -68% msgs
-            </span>
+            {hasEngagementData && (
+              <span className="text-[11px] font-mono font-bold text-emerald-500 flex items-center">
+                -68% msgs
+              </span>
+            )}
           </div>
           <p className="text-[10px] mt-1 text-stone-500">
             Self-served via digital guide
@@ -661,7 +722,7 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
               <BarChart 
                 data={featureEngagementData} 
                 layout="vertical"
-                margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                margin={{ top: 5, right: 16, left: 10, bottom: 5 }}
               >
                 <CartesianGrid 
                   strokeDasharray="3 3" 
@@ -683,7 +744,7 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
                   fontWeight={600} 
                   tickLine={false} 
                   axisLine={false} 
-                  width={110} 
+                  width={90} 
                 />
                 <Tooltip 
                   formatter={(val: any) => [`${val} actions`, 'Total Taps']} 
@@ -708,14 +769,14 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
           </div>
 
           {/* Progress list quick recap */}
-          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-stone-800/50">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-stone-800/50">
             <div className="text-[11px] flex items-center justify-between">
               <span className="opacity-70">📶 Wi-Fi 1-Tap Copy:</span>
-              <strong className="font-mono text-emerald-400">95% of guests</strong>
+              <strong className="font-mono text-emerald-400">{hasEngagementData ? '95% of guests' : '0 taps'}</strong>
             </div>
             <div className="text-[11px] flex items-center justify-between">
               <span className="opacity-70">🔑 Door Keypad:</span>
-              <strong className="font-mono text-sky-400">91% of guests</strong>
+              <strong className="font-mono text-sky-400">{hasEngagementData ? '91% of guests' : '0 taps'}</strong>
             </div>
           </div>
         </div>
@@ -936,15 +997,17 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
             </div>
           </div>
 
-          <div className="pt-2 border-t border-stone-800/40">
-            <button
-              onClick={() => navigateToGuestGuide(properties[0]?.slug || 'old-tbilisi-apartment')}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
-            >
-              <span>Preview Live Guide Experience</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          {hostProperties[0] && (
+            <div className="pt-2 border-t border-stone-800/40">
+              <button
+                onClick={() => navigateToGuestGuide(hostProperties[0].slug)}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+              >
+                <span>Preview Live Guide Experience</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
       </div>
@@ -980,20 +1043,26 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-800/40">
-              {properties.map((p, idx) => {
-                const mult = idx === 0 ? 1 : idx === 1 ? 0.62 : 0.45;
-                const propViews = Math.round((p.viewsCount || 1420) * (timeRange === '30d' ? 1 : rangeFactor * 0.4));
+              {hostProperties.map((p, idx) => {
+                const rawViews = typeof p.viewsCount === 'number' ? p.viewsCount : (p.isDemo ? 1420 : 0);
+                const propViews = rawViews === 0 ? 0 : Math.round(rawViews * (timeRange === '30d' ? 1 : rangeFactor * 0.4));
                 const propGuests = Math.round(propViews * 0.32);
 
                 return (
                   <tr key={p.id} className="group hover:bg-stone-500/5 transition-colors">
                     <td className="py-3.5 pr-3">
                       <div className="flex items-center gap-3">
-                        <img 
-                          src={p.coverImage} 
-                          alt={p.title} 
-                          className="w-10 h-10 rounded-xl object-cover shrink-0 border border-stone-700/40" 
-                        />
+                        {(p.coverImage || p.photos?.[0]?.url) ? (
+                          <img 
+                            src={p.coverImage || p.photos?.[0]?.url} 
+                            alt={p.title} 
+                            className="w-10 h-10 rounded-xl object-cover shrink-0 border border-stone-700/40" 
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl shrink-0 border border-stone-700/40 bg-stone-800/50 flex items-center justify-center text-xs font-serif font-bold text-stone-400">
+                            {(p.title || 'P').charAt(0).toUpperCase()}
+                          </div>
+                        )}
                         <div className="min-w-0">
                           <span className="font-serif font-bold text-sm block truncate text-stone-950 dark:text-white">
                             {p.title}
@@ -1019,7 +1088,7 @@ export const HostAnalytics: React.FC<HostAnalyticsProps> = ({
 
                     <td className="py-3.5 px-3 text-right font-medium">
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400">
-                        {idx === 0 ? '📶 Wi-Fi (95%)' : idx === 1 ? '🔑 Keypad (92%)' : '✨ Gems (84%)'}
+                        {propViews === 0 ? '—' : (idx === 0 ? '📶 Wi-Fi (95%)' : idx === 1 ? '🔑 Keypad (92%)' : '✨ Gems (84%)')}
                       </span>
                     </td>
 

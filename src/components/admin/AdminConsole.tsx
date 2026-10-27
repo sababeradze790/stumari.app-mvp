@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Building2, 
@@ -79,10 +79,46 @@ export const AdminConsole: React.FC = () => {
     language, 
     setLanguage, 
     showToast,
-    feedbacks
+    feedbacks,
+    firebaseUser,
+    currentUser
   } = useApp();
 
   const isDark = theme === 'dark';
+
+  // Administrative Guard: verify authenticated host has administrative permissions
+  const ADMIN_WHITELIST = ['saba.beradze9@gmail.com', 'admin@stumari.app'];
+  const userEmail = (firebaseUser?.email || currentUser?.email || '').toLowerCase();
+  const isAdmin = Boolean(
+    ADMIN_WHITELIST.includes(userEmail) || 
+    currentUser?.name === 'Saba Beradze' // support demo host Saba Beradze in local mode
+  );
+
+  const hasRedirectedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isAdmin && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true;
+      showToast(
+        language === 'ka' 
+          ? 'ადმინისტრატორის წვდომა შეზღუდულია. გთხოვთ გაიაროთ ავტორიზაცია ადმინისტრატორის ანგარიშით.' 
+          : 'Administrator access restricted. Please sign in with an authorized administrator account.',
+        'info'
+      );
+      setCurrentRoute('/app');
+    }
+  }, [isAdmin, language, setCurrentRoute, showToast]);
+
+  if (!isAdmin) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-[#0D0E12] text-zinc-300' : 'bg-[#FAFAF8] text-zinc-700'}`}>
+        <div className="text-center space-y-3">
+          <ShieldAlert className="w-10 h-10 mx-auto text-amber-500 animate-pulse" />
+          <p className="text-sm font-medium">Verifying administrator authorization...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Navigation tab matching REFERENCE A
   const [activeTab, setActiveTab] = useState<
@@ -637,12 +673,16 @@ export const AdminConsole: React.FC = () => {
                           isDark ? 'bg-stone-900/80 border-stone-800 hover:border-stone-700' : 'bg-stone-50 border-stone-200 hover:border-stone-300'
                         }`}
                       >
-                        <div className="h-28 relative overflow-hidden">
-                          <img 
-                            src={prop.coverImage} 
-                            alt={prop.title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                          />
+                        <div className="h-28 relative overflow-hidden bg-stone-800/60 flex items-center justify-center">
+                          {(prop.coverImage || prop.photos?.[0]?.url) ? (
+                            <img 
+                              src={prop.coverImage || prop.photos?.[0]?.url} 
+                              alt={prop.title}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                            />
+                          ) : (
+                            <Building2 className="w-7 h-7 text-stone-500 opacity-50" />
+                          )}
                           <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500 text-white flex items-center gap-1 shadow-xs">
                             <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                             {language === 'ka' ? 'აქტიური' : 'Active'}
@@ -940,8 +980,12 @@ export const AdminConsole: React.FC = () => {
                       isDark ? 'bg-[#12171B] border-stone-800' : 'bg-white border-stone-200'
                     }`}
                   >
-                    <div className="h-36 relative">
-                      <img src={p.coverImage} alt={p.title} className="w-full h-full object-cover" />
+                    <div className="h-36 relative bg-stone-800/60 flex items-center justify-center">
+                      {(p.coverImage || p.photos?.[0]?.url) ? (
+                        <img src={p.coverImage || p.photos?.[0]?.url} alt={p.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <Building2 className="w-8 h-8 text-stone-500 opacity-50" />
+                      )}
                       <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#0C1510]/80 text-amber-400 backdrop-blur-md">
                         {p.city}
                       </span>

@@ -1,240 +1,354 @@
-import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  KeyRound, 
-  Wifi, 
-  Zap, 
-  BookOpen, 
-  CheckSquare, 
-  Check, 
-  Copy, 
-  MapPin, 
-  Clock, 
-  ChevronRight, 
-  Star, 
-  MessageCircle, 
-  Phone, 
-  ExternalLink, 
-  AlertCircle, 
-  ShieldAlert, 
-  Coffee, 
-  Tv, 
-  Thermometer, 
-  Shirt, 
-  Flame, 
-  Utensils, 
-  ArrowLeft, 
-  Square, 
-  Heart, 
-  Sparkles, 
-  Car, 
-  Bus, 
-  Compass, 
-  Trash2,
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Wifi,
+  Clock,
+  MapPin,
+  Copy,
+  Check,
+  ArrowLeft,
+  Compass,
+  FileText,
+  Sparkles,
   Sun,
   Moon,
-  CreditCard,
-  Navigation,
-  ShoppingBag,
-  Share2,
-  Play,
-  Pause,
-  Volume2,
   VolumeX,
-  Video,
-  Eye
+  Share2,
+  Navigation,
+  ChevronRight,
+  KeyRound,
+  ShieldAlert,
+  Car,
+  Plane,
+  Trash2,
+  Star,
+  ExternalLink,
+  Smartphone,
+  HelpCircle,
+  MessageCircle,
+  Phone,
+  BookOpen,
+  Wrench,
+  Lock,
+  CheckCircle2,
+  Home,
+  QrCode,
+  ChevronDown,
 } from 'lucide-react';
-import { Property, ApplianceGuide, GemMood } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { LanguageSelector, ThemeAndLanguageControls } from '../common/LanguageSelector';
+import { GuestRequestModal } from './GuestRequestModal';
+import { StumariGemsSection } from './StumariGemsSection';
+import { VisualHowToPlayer } from '../common/VisualHowToPlayer';
+import { ApplianceGuide, Property } from '../../types';
+import { ArrivalBoardingPass } from './ArrivalBoardingPass';
+import { MobileBottomDock, GuestTab } from './MobileBottomDock';
+import { MobileBottomSheet } from './MobileBottomSheet';
 import { OfflineGuestMap } from './OfflineGuestMap';
 import { ReviewEngineModal } from './ReviewEngineModal';
-import { StumariGemsSection } from './StumariGemsSection';
-import { MobileBottomDock, GuestTab } from './MobileBottomDock';
-import { ArrivalBoardingPass } from './ArrivalBoardingPass';
-import { MoodsCarousel } from './MoodsCarousel';
-import { MobileBottomSheet } from './MobileBottomSheet';
-import { AddToHomeScreenModal } from './AddToHomeScreenModal';
+import { NeedHelpAssistant } from './NeedHelpAssistant';
 import { ShareGuideModal } from './ShareGuideModal';
-import { GuestRequestModal } from './GuestRequestModal';
-import { 
-  CheckinArtSketch, 
-  AppliancesArtSketch, 
-  HouseRulesArtSketch, 
-  DepartureArtSketch, 
-  GroceryMarketSketch,
-  PhoneReceiverSketch, 
-  TaxiSedanSketch, 
-  RecyclingBinsSketch, 
-  TbilisiPanoramaSketch 
-} from './GuestGuideIllustrations';
+import { AddToHomeScreenModal } from './AddToHomeScreenModal';
+import { cacheGuidebookLocally, getCachedGuidebook } from '../../pwa';
+import { safeCopyToClipboard } from '../../utils/clipboard';
 
-interface GuestGuideSimpleProps {
+export interface GuestGuideSimpleProps {
   propertyOverride?: Property;
   isEmbed?: boolean;
 }
 
-type DrawerType = 
-  | null 
-  | 'checkin' 
-  | 'wifi' 
-  | 'appliances' 
-  | 'selected_appliance'
-  | 'rules' 
-  | 'transport' 
-  | 'checkout' 
-  | 'contact'
-  | 'stickers';
-
-export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({ 
-  propertyOverride, 
-  isEmbed = false 
+export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
+  propertyOverride,
+  isEmbed = false,
 }) => {
-  const { 
-    currentProperty, 
-    showToast, 
-    setCurrentRoute, 
-    theme, 
-    toggleTheme, 
-    t, 
-    language, 
-    getLocalizedProperty, 
-    setActiveMood,
+  const {
+    theme,
+    toggleTheme,
+    language,
+    setLanguage,
+    properties,
+    currentProperty,
+    activeGuestSlug,
+    fetchGuestProperty,
+    unlockGuestPropertyAccess,
+    isPropertyAccessUnlocked,
+    getLocalizedProperty,
     gems,
+    feedbacks,
     guestFavorites,
     toggleGuestFavorite,
-    isGuestFavorite
+    navigateTo,
+    firebaseUser,
+    showToast,
   } = useApp();
-  const rawProperty = propertyOverride || currentProperty;
-  const property = getLocalizedProperty(rawProperty);
+
   const isDark = theme === 'dark';
 
-  // Navigation & Modals
-  const [activeTab, setActiveTab] = useState<GuestTab>('stay');
-  const [activeDrawer, setActiveDrawer] = useState<DrawerType>(null);
-  const [selectedAppliance, setSelectedAppliance] = useState<ApplianceGuide | null>(null);
-  const [isPlayingAppVideo, setIsPlayingAppVideo] = useState(true);
-  const [isMutedAppVideo, setIsMutedAppVideo] = useState(true);
-  const appVideoRef = useRef<HTMLVideoElement>(null);
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [exploreViewMode, setExploreViewMode] = useState<'map' | 'list'>('map');
-  const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
+  const cleanActiveSlug = useMemo(
+    () => (activeGuestSlug ? decodeURIComponent(activeGuestSlug.split('?')[0]).trim() : ''),
+    [activeGuestSlug]
+  );
 
-  // Saved favorite places from AppContext
-  const favoriteGemsList = React.useMemo(() => {
-    return gems.filter(g => isGuestFavorite(g.id));
-  }, [gems, guestFavorites, isGuestFavorite]);
-
-  // Quick copy states
-  const [wifiCopied, setWifiCopied] = useState(false);
-  const [doorCopied, setDoorCopied] = useState(false);
-
-  const triggerHaptic = () => {
-    try {
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        navigator.vibrate(8);
+  // Resolve matching property from override, in-memory properties, or offline local cache
+  const matchedProperty = useMemo(() => {
+    if (propertyOverride) return propertyOverride;
+    if (cleanActiveSlug) {
+      const match = properties.find(
+        p => p.slug === cleanActiveSlug || p.id === cleanActiveSlug
+      );
+      if (match) {
+        const isOwner = Boolean(firebaseUser && match.ownerId === firebaseUser.uid);
+        if (match.status === 'published' || isOwner || isEmbed) {
+          return match;
+        }
+        return null;
       }
-    } catch {}
-  };
+      const cached = getCachedGuidebook(cleanActiveSlug);
+      if (cached) return cached;
+      return null;
+    }
+    return currentProperty;
+  }, [propertyOverride, cleanActiveSlug, properties, currentProperty, firebaseUser, isEmbed]);
 
-  const handleCopy = (text: string, type: 'wifi' | 'door') => {
-    triggerHaptic();
-    navigator.clipboard.writeText(text);
-    if (type === 'wifi') {
-      setWifiCopied(true);
-      setTimeout(() => setWifiCopied(false), 2000);
-      showToast(t.guestGuide.cards.passwordCopied);
+  const [isFetchingProperty, setIsFetchingProperty] = useState<boolean>(() => {
+    if (propertyOverride) return false;
+    if (!cleanActiveSlug) return false;
+    return !properties.some(p => p.slug === cleanActiveSlug || p.id === cleanActiveSlug);
+  });
+
+  const lastFetchedRequestKeyRef = React.useRef<string>('');
+
+  // Fetch guest property once per active slug / token / auth user (prevents any repeated fetch loops)
+  useEffect(() => {
+    let cancelled = false;
+    if (!propertyOverride && cleanActiveSlug) {
+      const requestKey = `${cleanActiveSlug}|${activeGuestSlug}|${firebaseUser?.uid || 'anon'}`;
+      if (lastFetchedRequestKeyRef.current === requestKey) {
+        return;
+      }
+      lastFetchedRequestKeyRef.current = requestKey;
+
+      const alreadyInState = properties.some(
+        p => p.slug === cleanActiveSlug || p.id === cleanActiveSlug
+      );
+      if (!alreadyInState) {
+        setIsFetchingProperty(true);
+      }
+      fetchGuestProperty(activeGuestSlug).finally(() => {
+        if (!cancelled) {
+          setIsFetchingProperty(false);
+        }
+      });
     } else {
-      setDoorCopied(true);
-      setTimeout(() => setDoorCopied(false), 2000);
-      showToast(t.guestGuide.cards.codeCopied);
+      lastFetchedRequestKeyRef.current = '';
+      setIsFetchingProperty(false);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyOverride, cleanActiveSlug, activeGuestSlug, firebaseUser?.uid, fetchGuestProperty]);
+
+  const property = useMemo(
+    () => (matchedProperty ? getLocalizedProperty(matchedProperty) : null),
+    [matchedProperty, getLocalizedProperty]
+  );
+
+  const [activeTab, setActiveTab] = useState<GuestTab>('stay');
+  const [copiedWifi, setCopiedWifi] = useState(false);
+  const [copiedAddress, setCopiedAddress] = useState(false);
+  const [copiedDoorCode, setCopiedDoorCode] = useState<string | null>(null);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [selectedReviewStars, setSelectedReviewStars] = useState<number | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+  const [activeSheet, setActiveSheet] = useState<
+    'wifi' | 'checkin' | 'rules' | 'checkout' | null
+  >(null);
+  const [selectedAppliance, setSelectedAppliance] = useState<ApplianceGuide | null>(null);
+  const [expandedStayNote, setExpandedStayNote] = useState<'parking' | 'trash' | null>(null);
+
+  // Manual capability-token unlock state
+  const [manualAccessKey, setManualAccessKey] = useState('');
+  const [isUnlockingKey, setIsUnlockingKey] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+
+  // Departure Checklist persisted in sessionStorage per property
+  const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
+  useEffect(() => {
+    if (!property?.id) return;
+    try {
+      const saved = sessionStorage.getItem(`stumari_checklist_${property.id}`);
+      setCheckedItems(saved ? JSON.parse(saved) : {});
+    } catch {
+      setCheckedItems({});
+    }
+  }, [property?.id]);
+
+  // Track whether guest has submitted review in this session
+  const [hasSubmittedReview, setHasSubmittedReview] = useState<boolean>(false);
+  useEffect(() => {
+    if (!property?.id) return;
+    try {
+      setHasSubmittedReview(
+        sessionStorage.getItem(`stumari_review_submitted_${property.id}`) === '1'
+      );
+    } catch {
+      setHasSubmittedReview(false);
+    }
+  }, [property?.id]);
+
+  // Cache sanitized public property data locally for offline viewing only when property identity/version changes
+  useEffect(() => {
+    if (property && property.slug && !isEmbed) {
+      try {
+        cacheGuidebookLocally(property);
+      } catch {
+        // Ignore storage errors
+      }
+    }
+  }, [property?.id, property?.slug, property?.updatedAt, isEmbed]);
+
+  const handleManualUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!property || !manualAccessKey.trim()) return;
+    setIsUnlockingKey(true);
+    setUnlockError(null);
+
+    const ok = await unlockGuestPropertyAccess(
+      property.slug || property.id,
+      manualAccessKey.trim()
+    );
+    setIsUnlockingKey(false);
+    if (ok) {
+      setManualAccessKey('');
+      setUnlockError(null);
+    } else {
+      setUnlockError(
+        language === 'ka'
+          ? 'წვდომის კოდი არასწორია. გთხოვთ გადაამოწმოთ მასპინძელთან.'
+          : language === 'ru'
+          ? 'Неверный код доступа. Пожалуйста, проверьте ссылку от хозяина.'
+          : 'Invalid access key. Please check the check-in link provided by your host.'
+      );
     }
   };
 
-  const toggleCheck = (idx: number) => {
-    triggerHaptic();
-    setCheckedItems(prev => ({ ...prev, [idx]: !prev[idx] }));
+  const toggleCheckItem = (idx: number) => {
+    setCheckedItems(prev => {
+      const next = { ...prev, [idx]: !prev[idx] };
+      if (property?.id) {
+        try {
+          sessionStorage.setItem(`stumari_checklist_${property.id}`, JSON.stringify(next));
+        } catch {
+          // Ignore storage errors
+        }
+      }
+      return next;
+    });
   };
 
-  const toggleFavorite = (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    triggerHaptic();
-    toggleGuestFavorite(id);
-  };
-
-  const getApplianceIcon = (iconName: string) => {
-    switch (iconName.toLowerCase()) {
-      case 'thermometer': return <Thermometer className="w-5 h-5 text-blue-500" />;
-      case 'coffee': return <Coffee className="w-5 h-5 text-amber-600" />;
-      case 'shirt': return <Shirt className="w-5 h-5 text-teal-500" />;
-      case 'tv': return <Tv className="w-5 h-5 text-purple-500" />;
-      case 'flame': return <Flame className="w-5 h-5 text-orange-500" />;
-      case 'utensils': return <Utensils className="w-5 h-5 text-stone-500" />;
-      default: return <Zap className="w-5 h-5 text-amber-500" />;
+  // Scroll to top when changing tabs
+  const handleSelectTab = (tab: GuestTab) => {
+    setActiveTab(tab);
+    if (!isEmbed && typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const handleMoodSelect = (mood: GemMood) => {
-    setActiveMood(mood);
-    setActiveTab('gems');
-  };
+  // Curated Gems for this property
+  const propertyGems = useMemo(() => {
+    if (!property) return [];
+    const customList = property.customGems || [];
+    const selectedIds = property.gemIds;
+    const baseList =
+      selectedIds && selectedIds.length > 0
+        ? gems.filter(g => selectedIds.includes(g.id))
+        : gems;
+    const merged = [...customList];
+    baseList.forEach(g => {
+      if (!merged.some(m => m.id === g.id)) merged.push(g);
+    });
+    return merged;
+  }, [property, gems]);
 
-  // Nearby Gems as in the reference
-  const nearbyGems = [
-    {
-      id: 'gem-sameba',
-      title: 'Sameba Cathedral',
-      time: '12 min walk',
-      image: 'https://images.unsplash.com/photo-1565008447742-97f6f38c985c?auto=format&fit=crop&w=600&q=80'
-    },
-    {
-      id: 'gem-fabrika',
-      title: 'Fabrika Tbilisi',
-      time: '8 min drive',
-      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80'
-    },
-    {
-      id: 'gem-mtatsminda',
-      title: 'Mtatsminda Park',
-      time: '15 min drive',
-      image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80'
-    }
-  ];
+  const favoriteGemsList = useMemo(
+    () => propertyGems.filter(g => guestFavorites.includes(g.id)),
+    [propertyGems, guestFavorites]
+  );
+
+  // Positive feedback notes for this property to display in the Digital Guestbook
+  const propertyGuestbookFeedbacks = useMemo(() => {
+    if (!property) return [];
+    return feedbacks.filter(
+      f =>
+        f.propertyId === property.id &&
+        (f.sentiment === 'amazing' || f.sentiment === 'good') &&
+        (Boolean(f.comment && f.comment.trim()) ||
+          Boolean(f.categories && f.categories.length > 0))
+    );
+  }, [property, feedbacks]);
+
+  if (isFetchingProperty && !property) {
+    return (
+      <div className={isDark ? 'dark' : ''}>
+        <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#141312] text-[#1C1B1A] dark:text-[#F7F5F0] flex items-center justify-center p-6">
+          <div className="max-w-sm w-full bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] rounded-3xl p-8 text-center space-y-3 shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-[#F55A51]/15 text-[#F55A51] flex items-center justify-center mx-auto animate-pulse">
+              <Home className="w-5 h-5" />
+            </div>
+            <p className="text-sm font-serif font-bold">
+              {language === 'ka'
+                ? 'იტვირთება სტუმრის გზამკვლევი...'
+                : language === 'ru'
+                ? 'Загрузка путеводителя...'
+                : 'Loading Guest Guide...'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!property) {
     return (
-      <div className={`min-h-screen flex flex-col items-center justify-center p-6 text-center ${
-        isDark ? 'bg-[#080B0D] text-stone-100' : 'bg-[#FBFBF9] text-stone-900'
-      }`}>
-        <div className="max-w-md w-full p-8 rounded-[32px] border space-y-4 bg-stone-500/5 border-stone-500/20 shadow-xl">
-          <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center bg-amber-600 text-white font-black text-2xl font-serif shadow-sm">
-            S
-          </div>
-          <h2 className="font-serif text-2xl font-bold">
-            {language === 'ka' ? 'მეგზური ვერ მოიძებნა' : language === 'ru' ? 'Гид не найден' : 'Guide Not Found'}
-          </h2>
-          <p className="text-xs text-stone-400 leading-relaxed">
-            {language === 'ka' 
-              ? 'მოცემული აპარტამენტის მეგზური არ არსებობს ან ჯერ არ არის გამოქვეყნებული.' 
-              : language === 'ru'
-              ? 'Запрошенный цифровой гид не найден или ещё не был опубликован хозяином.'
-              : 'The requested digital guest guide could not be found or has not been published yet.'}
-          </p>
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+      <div className={isDark ? 'dark' : ''}>
+        <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#141312] text-[#1C1B1A] dark:text-[#F7F5F0] flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] rounded-3xl p-8 text-center space-y-4 shadow-sm">
+            <h1 className="text-2xl font-serif font-bold">
+              {language === 'ka'
+                ? 'გზამკვლევი ვერ მოიძებნა'
+                : language === 'ru'
+                ? 'Путеводитель не найден'
+                : 'Guidebook Not Found'}
+            </h1>
+            <p className="text-sm text-[#7A756D] dark:text-[#A39E93]">
+              {language === 'ka' ? (
+                <>
+                  საცხოვრებლის გზამკვლევი მისამართით{' '}
+                  <span className="font-mono">{cleanActiveSlug}</span> ვერ მოიძებნა ან ჯერ არ არის გამოქვეყნებული.
+                </>
+              ) : language === 'ru' ? (
+                <>
+                  Путеводитель по адресу{' '}
+                  <span className="font-mono">{cleanActiveSlug}</span> не найден или ещё не опубликован.
+                </>
+              ) : (
+                <>
+                  We couldn't find a published property guide matching{' '}
+                  <span className="font-mono">{cleanActiveSlug}</span>.
+                </>
+              )}
+            </p>
             <button
-              onClick={() => setCurrentRoute('/')}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-full text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition-colors cursor-pointer shadow-sm"
+              type="button"
+              onClick={() => navigateTo('/')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F55A51] text-white font-bold text-sm hover:opacity-90 transition-opacity cursor-pointer"
             >
-              {language === 'ka' ? 'მთავარზე დაბრუნება' : language === 'ru' ? 'На главную' : 'Return Home'}
-            </button>
-            <button
-              onClick={() => setCurrentRoute('/demo')}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-full text-xs font-bold border border-stone-500/30 text-inherit hover:bg-stone-500/10 transition-colors cursor-pointer"
-            >
-              {language === 'ka' ? 'დემო მეგზური' : language === 'ru' ? 'Смотреть демо' : 'View Demo Guide'}
+              <ArrowLeft className="w-4 h-4" />
+              {language === 'ka'
+                ? 'მთავარ გვერდზე დაბრუნება'
+                : language === 'ru'
+                ? 'На главную'
+                : 'Return Home'}
             </button>
           </div>
         </div>
@@ -242,1740 +356,2091 @@ export const GuestGuideSimple: React.FC<GuestGuideSimpleProps> = ({
     );
   }
 
-  return (
-    <div className={`min-h-screen w-full ${isDark ? 'bg-[#141312] text-[#F7F5F0]' : 'bg-[#FAF8F5] text-[#1C1B1A]'} flex flex-col items-center justify-start font-sans tracking-tight transition-colors duration-200`}>
-      
-      {/* PRESENTATION CONTAINER: Clean modern web app canvas (full width on mobile, max-w-xl on desktop) */}
-      <div className={`w-full max-w-xl min-h-screen flex flex-col relative transition-all duration-300 sm:border-x sm:shadow-xs ${
-        isDark ? 'bg-[#141312] sm:border-[#2B2926] text-[#F7F5F0]' : 'bg-[#FAF8F5] sm:border-[#EBE6DF] text-[#1C1B1A]'
-      }`}>
-        
-        {/* NATIVE APP TOP HEADER BAR */}
-        <header className={`px-4 py-3 flex items-center justify-between border-b backdrop-blur-xl sticky top-0 z-30 transition-colors ${
-          isDark ? 'bg-[#141312]/92 border-[#2B2926] text-[#F7F5F0]' : 'bg-[#FAF8F5]/92 border-[#EBE6DF] text-[#1C1B1A] shadow-2xs'
-        }`}>
-          {/* Property Identity & Superhost badge */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            {!isEmbed && (
-              <button
-                onClick={() => setCurrentRoute('/app')}
-                className={`p-1.5 -ml-1.5 rounded-lg transition-colors shrink-0 flex items-center justify-center ${
-                  isDark ? 'text-[#ACA79F] hover:text-[#F7F5F0] hover:bg-[#272522]' : 'text-[#5C5853] hover:text-[#1C1B1A] hover:bg-[#EAE4DC]'
-                }`}
-                title={t.guestGuide.backToHost}
-                aria-label={t.guestGuide.backToHost}
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            )}
-            <img
-              src={property.hostAvatar}
-              alt={property.hostName}
-              className="w-9 h-9 rounded-full object-cover border border-[#EBE6DF] dark:border-[#2B2926] shrink-0 shadow-xs"
-            />
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 leading-none">
-                <span className={`text-sm font-serif font-bold truncate tracking-tight ${isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'}`}>
-                  {property.title}
-                </span>
-              </div>
-              <span className={`text-[11px] font-sans font-medium block truncate mt-0.5 tracking-tight ${
-                isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
-              }`}>
-                {property.city} · {property.hostName} (Host)
-              </span>
-            </div>
-          </div>
+  const isOfficialDemo = Boolean(
+    property.isDemo ||
+      property.id === 'prop-1' ||
+      property.slug === 'old-tbilisi-apartment'
+  );
+  const isAccessUnlocked = isPropertyAccessUnlocked(property);
+  const hostWhatsApp = isAccessUnlocked ? property.hostWhatsApp || '' : '';
+  const cleanHostWhatsApp = hostWhatsApp.replace(/[^0-9]/g, '');
+  const canUseDirectWhatsApp = Boolean(isAccessUnlocked && cleanHostWhatsApp);
+  const emergencyPhone =
+    property.emergencyServicesNumber ||
+    (isAccessUnlocked ? property.emergencyContact : '') ||
+    '112';
 
-          {/* Top Actions: Theme Toggle, Quick Share & Compact Language Dropdown */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => {
-                triggerHaptic();
-                setIsShareModalOpen(true);
-              }}
-              aria-label="Share guide"
-              title="Share guide with travelers"
-              className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-2xs ${
-                isDark 
-                  ? 'bg-[#1F1E1C] border-[#2B2926] text-[#ACA79F] hover:text-[#F7F5F0] hover:bg-[#272522]' 
-                  : 'bg-white border-[#EBE6DF] text-[#5C5853] hover:text-[#1C1B1A] hover:bg-[#FAF8F5]'
-              }`}
-            >
-              <Share2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={toggleTheme}
-              aria-label="Toggle dark/light mode"
-              className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-2xs ${
-                isDark 
-                  ? 'bg-[#1F1E1C] border-[#2B2926] text-[#FFC757] hover:bg-[#272522]' 
-                  : 'bg-white border-[#EBE6DF] text-[#5C5853] hover:text-[#1C1B1A] hover:bg-[#FAF8F5]'
-              }`}
-            >
-              {isDark ? <Sun className="w-4 h-4 text-[#FFC757]" /> : <Moon className="w-4 h-4 text-[#5C5853]" />}
-            </button>
-            <LanguageSelector variant="compact" />
+  const copyWifi = async () => {
+    if (!property.wifiPassword) return;
+    const ok = await safeCopyToClipboard(property.wifiPassword);
+    if (ok) {
+      setCopiedWifi(true);
+      setTimeout(() => setCopiedWifi(false), 2000);
+      showToast(
+        language === 'ka'
+          ? 'Wi-Fi პაროლი დაკოპირდა!'
+          : language === 'ru'
+          ? 'Пароль Wi-Fi скопирован!'
+          : 'Wi-Fi password copied!'
+      );
+    } else {
+      showToast(
+        language === 'ka'
+          ? 'ავტომატური კოპირება ვერ მოხერხდა — გთხოვთ მონიშნოთ ტექსტი'
+          : language === 'ru'
+          ? 'Не удалось скопировать автоматически — выделите текст вручную'
+          : 'Could not copy automatically — please select the text manually'
+      );
+    }
+  };
+
+  const copyAddress = async () => {
+    if (!isAccessUnlocked || !property.address) return;
+    const ok = await safeCopyToClipboard(property.address);
+    if (ok) {
+      setCopiedAddress(true);
+      setTimeout(() => setCopiedAddress(false), 2000);
+      showToast(
+        language === 'ka'
+          ? 'მისამართი დაკოპირდა!'
+          : language === 'ru'
+          ? 'Адрес скопирован!'
+          : 'Address copied!'
+      );
+    } else {
+      showToast(
+        language === 'ka'
+          ? 'ავტომატური კოპირება ვერ მოხერხდა'
+          : language === 'ru'
+          ? 'Не удалось скопировать автоматически'
+          : 'Could not copy address automatically'
+      );
+    }
+  };
+
+  const welcomeMessage = property.welcomeGreeting || property.tagline;
+  const arrivalDirections = property.arrivalDirections;
+  const houseRulesList = property.houseRules || [];
+  const departureList = property.departureChecklist || [];
+  const trashNotes = property.trashSchedule;
+  const parkingNotes = isAccessUnlocked ? property.parkingInstructions : '';
+  const taxiNotes = property.taxiInfo;
+  const transitNotes = property.transitInfo;
+  const airportNotes = property.airportTransit;
+
+  const cityNormalized = (property.city || '').toLowerCase();
+  const isTbilisiProperty =
+    cityNormalized.includes('tbilisi') ||
+    cityNormalized.includes('თბილის') ||
+    cityNormalized.includes('тбилиси');
+
+  // Check if there is an access/entry step-by-step guide in property.appliances
+  const entryVisualGuide = property.appliances?.find(
+    a => a.category === 'access' || a.icon === 'KeyRound'
+  );
+
+  const navItems: {
+    id: GuestTab;
+    label: { en: string; ka: string; ru: string };
+    icon: React.FC<{ className?: string }>;
+  }[] = [
+    { id: 'stay', label: { en: 'Stay', ka: 'სახლი', ru: 'Жильё' }, icon: Home },
+    { id: 'gems', label: { en: 'Gems', ka: 'რჩეული', ru: 'Места' }, icon: Sparkles },
+    { id: 'explore', label: { en: 'Explore', ka: 'გარემო', ru: 'Район' }, icon: Compass },
+    { id: 'feedback', label: { en: 'Review', ka: 'შეფასება', ru: 'Отзыв' }, icon: Star },
+    { id: 'host', label: { en: 'Host', ka: 'მასპინძელი', ru: 'Хозяин' }, icon: MessageCircle },
+  ];
+
+  const mapsDestination =
+    isAccessUnlocked && property.address
+      ? property.latitude && property.longitude
+        ? `${property.latitude},${property.longitude}`
+        : encodeURIComponent(property.address)
+      : encodeURIComponent(`${property.city || 'Tbilisi'}, ${property.country || 'Georgia'}`);
+
+  const airbnbReviewUrl = property.publicReviewLinks?.airbnb;
+  const bookingReviewUrl = property.publicReviewLinks?.booking;
+  const googleReviewUrl = property.publicReviewLinks?.google;
+
+  return (
+    <div className={isDark ? 'dark' : ''}>
+      <div
+        className={`${
+          isEmbed ? 'min-h-full' : 'min-h-screen'
+        } bg-[#FAF8F5] dark:bg-[#141312] text-[#1C1B1A] dark:text-[#F7F5F0] font-sans pb-28 lg:pb-16 selection:bg-[#F55A51]/20 transition-colors duration-300`}
+      >
+        {/* Sticky Top Header Bar */}
+        <header className="sticky top-0 z-30 bg-[#FAF8F5]/90 dark:bg-[#141312]/90 backdrop-blur-xl border-b border-[#EBE6DF] dark:border-[#2B2926]">
+          <div className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-3">
+            {/* Brand & Host Dashboard Back Link */}
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              {firebaseUser && !isEmbed && (
+                <button
+                  type="button"
+                  onClick={() => navigateTo('/app')}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#7A756D] dark:text-[#A39E93] hover:text-[#1C1B1A] dark:hover:text-white transition-colors py-1.5 px-2 sm:px-2.5 rounded-xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] shrink-0 cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">
+                    {language === 'ka'
+                      ? 'მასპინძლის პანელი'
+                      : language === 'ru'
+                      ? 'Панель хозяина'
+                      : 'Host Studio'}
+                  </span>
+                </button>
+              )}
+              <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-[#F55A51] text-white font-serif font-bold text-sm flex items-center justify-center shadow-sm shrink-0">
+                  S
+                </div>
+                <div className="min-w-0">
+                  <span className="font-serif font-bold text-sm tracking-tight block leading-none text-[#1C1B1A] dark:text-[#F7F5F0] truncate">
+                    Stumari
+                  </span>
+                  <span className="text-[10px] text-[#7A756D] dark:text-[#A39E93] font-medium block truncate mt-0.5">
+                    {property.title}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Navigation Tabs (Visible on lg+ viewports when not embedded in phone frame) */}
+            {!isEmbed && (
+              <nav
+                aria-label="Guest guide sections"
+                className="hidden lg:flex items-center gap-1 p-1 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926]"
+              >
+                {navItems.map(item => {
+                  const Icon = item.icon;
+                  const active = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => handleSelectTab(item.id)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                        active
+                          ? 'bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] shadow-sm'
+                          : 'text-[#7A756D] dark:text-[#A39E93] hover:text-[#1C1B1A] dark:hover:text-[#F7F5F0]'
+                      }`}
+                    >
+                      <Icon className={`w-3.5 h-3.5 ${active ? 'text-[#F55A51]' : ''}`} />
+                      {item.label[language]}
+                      {item.id === 'gems' && guestFavorites.length > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full bg-[#F55A51] text-white text-[10px]">
+                          {guestFavorites.length}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            )}
+
+            {/* Right Controls: Save to Phone, Share, Theme Toggle, Language */}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsInstallModalOpen(true)}
+                className="hidden min-[380px]:flex w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] items-center justify-center text-[#7A756D] dark:text-[#A39E93] hover:text-[#1C1B1A] dark:hover:text-white transition-colors cursor-pointer"
+                title={
+                  language === 'ka'
+                    ? 'ტელეფონში შენახვა'
+                    : language === 'ru'
+                    ? 'Сохранить на телефон'
+                    : 'Save Guide to Phone'
+                }
+              >
+                <Smartphone className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsShareModalOpen(true)}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex items-center justify-center text-[#7A756D] dark:text-[#A39E93] hover:text-[#1C1B1A] dark:hover:text-white transition-colors cursor-pointer"
+                title={
+                  language === 'ka'
+                    ? 'გზამკვლევის გაზიარება'
+                    : language === 'ru'
+                    ? 'Поделиться гидом'
+                    : 'Share Guide'
+                }
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex items-center justify-center text-[#7A756D] dark:text-[#A39E93] hover:text-[#1C1B1A] dark:hover:text-white transition-colors cursor-pointer"
+                title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                {isDark ? (
+                  <Sun className="w-4 h-4 text-[#FFC757]" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Language Switcher */}
+              <div className="flex items-center p-0.5 rounded-xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926]">
+                {(['en', 'ka', 'ru'] as const).map(lang => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => setLanguage(lang)}
+                    className={`px-1.5 sm:px-2 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold uppercase transition-all cursor-pointer ${
+                      language === lang
+                        ? 'bg-[#F55A51] text-white shadow-sm'
+                        : 'text-[#7A756D] dark:text-[#A39E93] hover:text-[#1C1B1A] dark:hover:text-white'
+                    }`}
+                  >
+                    {lang}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </header>
 
-        {/* SCROLLABLE MOBILE CONTENT AREA */}
-        <div className="flex-1 w-full pb-28">
-          <AnimatePresence mode="wait">
-            {/* ═══════════════════════════════════════════════════════════════ */}
-            {/* TAB 1: STAY (Apartment Manual, Fast Pass, Appliances, Rules)  */}
-            {/* ═══════════════════════════════════════════════════════════════ */}
-            {activeTab === 'stay' && (
-              <motion.div
-                key="tab-stay"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="p-4 space-y-4"
-              >
-              
-              {/* 1. HERO VISUAL COVER WITH WELCOME QUOTE & WEATHER */}
-              <motion.div 
-                whileHover={{ scale: 1.004 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                className="relative h-52 sm:h-56 rounded-2xl overflow-hidden shadow-warm-md border border-[#EBE6DF] dark:border-[#2B2926] group"
-              >
-                <img
-                  src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80"
-                  alt={property.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#141312]/92 via-[#141312]/40 to-transparent" />
-                
-                {/* Weather Pill (Top Right) */}
-                <div className="absolute top-3.5 right-3.5 px-2.5 py-1 rounded-xl bg-black/50 backdrop-blur-md border border-white/15 text-[#F7F5F0] text-xs font-medium flex items-center gap-1.5 shadow-2xs">
-                  <span>🌤️</span>
-                  <span className="font-semibold text-[11px] tracking-tight">22°C</span>
-                </div>
+        {/* Main Responsive Container */}
+        <main
+          className={`${
+            isEmbed ? 'max-w-xl' : 'max-w-xl md:max-w-3xl lg:max-w-5xl'
+          } mx-auto px-4 sm:px-6 pt-5 space-y-6`}
+        >
+          {/* =========================================================
+              TAB 1: STAY — Welcome, Arrival Pass, Manual, Help
+             ========================================================= */}
+          {activeTab === 'stay' && (
+            <div className="space-y-6">
+              {/* Section A: Welcome & Property Identity */}
+              <div className="relative rounded-3xl overflow-hidden bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] shadow-[0_14px_40px_-16px_rgba(28,27,26,0.14)]">
+                {property.coverImage ? (
+                  <div className="relative h-64 sm:h-72 lg:h-80 w-full">
+                    <img
+                      src={property.coverImage}
+                      alt={property.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#141312] via-[#141312]/45 to-black/15" />
+                  </div>
+                ) : (
+                  <div className="h-44 sm:h-52 w-full bg-gradient-to-br from-[#1F1E1C] via-[#141312] to-[#2B2926]" />
+                )}
 
-                {/* Cover Text Details */}
-                <div className="absolute bottom-4 left-4 right-4 text-white">
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-md border border-white/15 w-fit mb-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#F55A51] animate-pulse" />
-                    <span className="text-[9px] font-mono uppercase tracking-wider text-[#F7F5F0] font-semibold">
-                      {language === 'ka' ? 'დადასტურებული ბინა' : language === 'ru' ? 'Проверенное жильё' : 'STUMARI VERIFIED'}
+                {/* Location Pill */}
+                <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2">
+                  <div className="px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-md border border-white/15 flex items-center gap-1.5 text-white text-xs font-semibold">
+                    <MapPin className="w-3.5 h-3.5 text-[#F55A51]" />
+                    <span>
+                      {property.city || 'Tbilisi'}, {property.country || 'Georgia'}
                     </span>
                   </div>
-                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#F7F5F0] tracking-tight leading-tight">
-                    {language === 'ka' ? 'კეთილი იყოს თქვენი მობრძანება!' : 'Welcome to Old Tbilisi!'}
-                  </h1>
-                  <p className="text-xs text-[#ACA79F] line-clamp-2 mt-1 font-normal leading-relaxed max-w-sm tracking-tight">
-                    {language === 'ka' 
-                      ? 'თავი ისე იგრძენით, როგორც საკუთარ სახლში. ყველაფერი მზადაა კომფორტული დასვენებისთვის.' 
-                      : 'Make yourself at home. Everything you need for a comfortable and memorable stay.'}
-                  </p>
-                </div>
-              </motion.div>
 
-              {/* 2. FAST PASS: ACCESS CODES BENTO & ADDRESS */}
-              <ArrivalBoardingPass 
-                property={property}
-                onOpenCheckinInstructions={() => {
-                  triggerHaptic();
-                  setActiveDrawer('checkin');
-                }}
-                onOpenWifiModal={() => {
-                  triggerHaptic();
-                  setActiveDrawer('wifi');
-                }}
-              />
-
-              {/* 3. "WHAT ARE YOU IN THE MOOD FOR?" (5 Pastel Cards) */}
-              <div className="pt-1">
-                <MoodsCarousel 
-                  onSelectMood={handleMoodSelect}
-                  onViewAllGems={() => setActiveTab('gems')}
-                />
-              </div>
-
-              {/* 4. "YOUR STAY GUIDE" (2x2 Illustrated Bento Cards) */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between px-0.5">
-                  <span className={`text-[11px] font-sans font-semibold uppercase tracking-wider ${
-                    isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'
-                  }`}>
-                    {language === 'ka' ? 'თქვენი გზამკვლევი' : language === 'ru' ? 'Ваш гид' : 'YOUR STAY GUIDE'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Check-in Instructions */}
-                  <motion.button
-                    whileHover={{ y: -3, scale: 1.01 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                    onClick={() => {
-                      triggerHaptic();
-                      setActiveDrawer('checkin');
-                    }}
-                    className={`p-4 rounded-2xl border text-left flex justify-between relative overflow-hidden transition-all h-[140px] group shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
-                      isDark 
-                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#F55A51]/60 hover:bg-[#272522] text-[#F7F5F0]' 
-                        : 'bg-white hover:bg-[#FDF1F0]/40 border-[#EBE6DF] hover:border-[#F55A51]/50 text-[#1C1B1A]'
-                    }`}
-                  >
-                    <div className="flex flex-col justify-between h-full z-10 min-w-0 pr-1 flex-1">
-                      <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-2xs ${
-                        isDark ? 'bg-[#F55A51]/15 border-[#F55A51]/30 text-[#F55A51]' : 'bg-[#FDF1F0] border-[#F55A51]/25 text-[#F55A51]'
-                      }`}>
-                        <KeyRound className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className={`text-xs sm:text-sm font-serif font-bold block truncate leading-snug tracking-tight ${
-                          isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
-                        }`}>
-                          {t.guestGuide.cards.checkinTitle}
-                        </span>
-                        <span className={`text-[11px] block line-clamp-2 mt-0.5 font-medium leading-tight tracking-tight ${
-                          isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
-                        }`}>
-                          Step-by-step arrival
-                        </span>
-                      </div>
-                    </div>
-                    {/* Illustration */}
-                    <div className="shrink-0 -mr-2 -mt-1 opacity-75 group-hover:scale-105 transition-transform duration-300">
-                      <CheckinArtSketch className="w-20 h-20" isDark={isDark} />
-                    </div>
-                    <ChevronRight className="absolute bottom-3 right-3 w-3.5 h-3.5 text-[#ACA79F] group-hover:text-[#F55A51] group-hover:translate-x-0.5 transition-all" />
-                  </motion.button>
-
-                  {/* Appliances & How Things Work */}
-                  <motion.button
-                    whileHover={{ y: -3, scale: 1.01 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                    onClick={() => {
-                      triggerHaptic();
-                      setActiveDrawer('appliances');
-                    }}
-                    className={`p-4 rounded-2xl border text-left flex justify-between relative overflow-hidden transition-all h-[140px] group shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
-                      isDark 
-                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#748C96]/60 hover:bg-[#272522] text-[#F7F5F0]' 
-                        : 'bg-white hover:bg-[#F0F4F6]/50 border-[#EBE6DF] hover:border-[#748C96]/50 text-[#1C1B1A]'
-                    }`}
-                  >
-                    <div className="flex flex-col justify-between h-full z-10 min-w-0 pr-1 flex-1">
-                      <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-2xs ${
-                        isDark ? 'bg-[#748C96]/15 border-[#748C96]/30 text-[#9CB1BB]' : 'bg-[#F0F4F6] border-[#748C96]/25 text-[#4D6169]'
-                      }`}>
-                        <Zap className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className={`text-xs sm:text-sm font-serif font-bold block truncate leading-snug tracking-tight ${
-                          isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
-                        }`}>
-                          {t.guestGuide.cards.howThingsWork}
-                        </span>
-                        <span className={`text-[11px] block line-clamp-2 mt-0.5 font-medium leading-tight tracking-tight ${
-                          isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
-                        }`}>
-                          {property.appliances.length} appliances guided
-                        </span>
-                      </div>
-                    </div>
-                    {/* Illustration */}
-                    <div className="shrink-0 -mr-2 -mt-1 opacity-75 group-hover:scale-105 transition-transform duration-300">
-                      <AppliancesArtSketch className="w-20 h-20" isDark={isDark} />
-                    </div>
-                    <ChevronRight className="absolute bottom-3 right-3 w-3.5 h-3.5 text-[#ACA79F] group-hover:text-[#748C96] group-hover:translate-x-0.5 transition-all" />
-                  </motion.button>
-
-                  {/* House Rules & Quiet Hours */}
-                  <motion.button
-                    whileHover={{ y: -3, scale: 1.01 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                    onClick={() => {
-                      triggerHaptic();
-                      setActiveDrawer('rules');
-                    }}
-                    className={`p-4 rounded-2xl border text-left flex justify-between relative overflow-hidden transition-all h-[140px] group shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
-                      isDark 
-                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#FFC757]/60 hover:bg-[#272522] text-[#F7F5F0]' 
-                        : 'bg-white hover:bg-[#FFF9ED]/50 border-[#EBE6DF] hover:border-[#FFC757]/50 text-[#1C1B1A]'
-                    }`}
-                  >
-                    <div className="flex flex-col justify-between h-full z-10 min-w-0 pr-1 flex-1">
-                      <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-2xs ${
-                        isDark ? 'bg-[#FFC757]/15 border-[#FFC757]/30 text-[#FFC757]' : 'bg-[#FFF9ED] border-[#FFC757]/30 text-[#996F00]'
-                      }`}>
-                        <BookOpen className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className={`text-xs sm:text-sm font-serif font-bold block truncate leading-snug tracking-tight ${
-                          isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
-                        }`}>
-                          {t.guestGuide.cards.houseRules}
-                        </span>
-                        <span className={`text-[11px] block line-clamp-2 mt-0.5 font-medium leading-tight tracking-tight ${
-                          isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
-                        }`}>
-                          {property.quietHours}
-                        </span>
-                      </div>
-                    </div>
-                    {/* Illustration */}
-                    <div className="shrink-0 -mr-2 -mt-1 opacity-75 group-hover:scale-105 transition-transform duration-300">
-                      <HouseRulesArtSketch className="w-20 h-20" isDark={isDark} />
-                    </div>
-                    <ChevronRight className="absolute bottom-3 right-3 w-3.5 h-3.5 text-[#ACA79F] group-hover:text-[#FFC757] group-hover:translate-x-0.5 transition-all" />
-                  </motion.button>
-
-                  {/* Departure Checklist */}
-                  <motion.button
-                    whileHover={{ y: -3, scale: 1.01 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                    onClick={() => {
-                      triggerHaptic();
-                      setActiveDrawer('checkout');
-                    }}
-                    className={`p-4 rounded-2xl border text-left flex justify-between relative overflow-hidden transition-all h-[140px] group shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
-                      isDark 
-                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#F55A51]/60 hover:bg-[#272522] text-[#F7F5F0]' 
-                        : 'bg-white hover:bg-[#FDF1F0]/40 border-[#EBE6DF] hover:border-[#F55A51]/50 text-[#1C1B1A]'
-                    }`}
-                  >
-                    <div className="flex flex-col justify-between h-full z-10 min-w-0 pr-1 flex-1">
-                      <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-2xs ${
-                        isDark ? 'bg-[#F55A51]/15 border-[#F55A51]/30 text-[#F55A51]' : 'bg-[#FDF1F0] border-[#F55A51]/25 text-[#F55A51]'
-                      }`}>
-                        <CheckSquare className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className={`text-xs sm:text-sm font-serif font-bold block truncate leading-snug tracking-tight ${
-                          isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
-                        }`}>
-                          {t.guestGuide.cards.checkoutChecklist}
-                        </span>
-                        <span className={`text-[11px] block line-clamp-2 mt-0.5 font-medium leading-tight tracking-tight ${
-                          isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
-                        }`}>
-                          {property.checkOutTime}
-                        </span>
-                      </div>
-                    </div>
-                    {/* Illustration */}
-                    <div className="shrink-0 -mr-2 -mt-1 opacity-75 group-hover:scale-105 transition-transform duration-300">
-                      <DepartureArtSketch className="w-20 h-20" isDark={isDark} />
-                    </div>
-                    <ChevronRight className="absolute bottom-3 right-3 w-3.5 h-3.5 text-[#ACA79F] group-hover:text-[#F55A51] group-hover:translate-x-0.5 transition-all" />
-                  </motion.button>
-                </div>
-              </div>
-
-              {/* 5. "USEFUL STICKERS" (Emergency, Taxi, Trash) */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between px-0.5">
-                  <span className={`text-[11px] font-sans font-semibold uppercase tracking-wider ${
-                    isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'
-                  }`}>
-                    {language === 'ka' ? 'სასარგებლო ბარათები' : language === 'ru' ? 'Полезные стикеры' : 'USEFUL STICKERS'}
-                  </span>
                   <button
-                    onClick={() => {
-                      triggerHaptic();
-                      setActiveDrawer('stickers');
-                    }}
-                    className={`text-xs font-medium hover:underline flex items-center gap-0.5 transition-colors cursor-pointer ${
-                      isDark ? 'text-[#F7F5F0] hover:text-white' : 'text-[#1C1B1A] hover:text-[#F55A51]'
-                    }`}
+                    type="button"
+                    onClick={() => setIsInstallModalOpen(true)}
+                    className="px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-md border border-white/15 text-white text-xs font-semibold hidden sm:inline-flex items-center gap-1.5 hover:bg-black/75 transition-colors cursor-pointer"
                   >
-                    <span>{language === 'ka' ? 'ყველა' : language === 'ru' ? 'Все' : 'View all'}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2.5">
-                  {/* Sticker 1: 24/7 Groceries & Local Market */}
-                  <motion.a
-                    whileHover={{ y: -3, scale: 1.01 }}
-                    whileTap={{ scale: 0.96 }}
-                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                    href={`https://maps.google.com/?q=${encodeURIComponent(`supermarket 24/7 near ${property.address}, ${property.city}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => triggerHaptic()}
-                    className={`p-3 rounded-2xl border text-center flex flex-col items-center justify-between transition-all group shadow-warm-sm hover:shadow-warm-md h-[92px] cursor-pointer ${
-                      isDark 
-                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#FFC757]/40 text-[#F7F5F0] hover:bg-[#272522]' 
-                        : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] hover:border-[#FFC757]/50 text-[#1C1B1A]'
-                    }`}
-                  >
-                    <div className="w-6 h-6 rounded-lg bg-[#FFF9ED] dark:bg-[#FFC757]/15 border border-[#FFC757]/30 text-[#996F00] dark:text-[#FFC757] flex items-center justify-center shrink-0 shadow-2xs">
-                      <ShoppingBag className="w-3 h-3" />
-                    </div>
-                    <span className="text-[10px] sm:text-[11px] font-semibold leading-tight truncate w-full px-0.5 tracking-tight">
-                      {language === 'ka' ? 'მარკეტი 24/7' : language === 'ru' ? 'Маркет 24/7' : '24/7 Market'}
-                    </span>
-                    <div className="opacity-75 group-hover:scale-105 transition-transform">
-                      <GroceryMarketSketch className="w-11 h-7" isDark={isDark} />
-                    </div>
-                  </motion.a>
-
-                  {/* Sticker 2: Taxi & Transfers */}
-                  <motion.button
-                    whileHover={{ y: -3, scale: 1.01 }}
-                    whileTap={{ scale: 0.96 }}
-                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                    onClick={() => {
-                      triggerHaptic();
-                      setExploreViewMode('list');
-                      setActiveTab('explore');
-                    }}
-                    className={`p-3 rounded-2xl border text-center flex flex-col items-center justify-between transition-all group shadow-warm-sm hover:shadow-warm-md h-[92px] cursor-pointer ${
-                      isDark 
-                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#748C96]/40 text-[#F7F5F0] hover:bg-[#272522]' 
-                        : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] hover:border-[#748C96]/50 text-[#1C1B1A]'
-                    }`}
-                  >
-                    <div className="w-6 h-6 rounded-lg bg-[#F0F4F6] dark:bg-[#748C96]/15 border border-[#748C96]/25 text-[#4D6169] dark:text-[#9CB1BB] flex items-center justify-center shrink-0 shadow-2xs">
-                      <Car className="w-3 h-3" />
-                    </div>
-                    <span className="text-[10px] sm:text-[11px] font-semibold leading-tight truncate w-full px-0.5 tracking-tight">
-                      {language === 'ka' ? 'ტაქსი' : language === 'ru' ? 'Такси' : 'Taxi & Bolt'}
-                    </span>
-                    <div className="opacity-75 group-hover:scale-105 transition-transform">
-                      <TaxiSedanSketch className="w-12 h-7" isDark={isDark} />
-                    </div>
-                  </motion.button>
-
-                  {/* Sticker 3: Trash & Recycling */}
-                  <motion.button
-                    whileHover={{ y: -3, scale: 1.01 }}
-                    whileTap={{ scale: 0.96 }}
-                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                    onClick={() => {
-                      triggerHaptic();
-                      setActiveDrawer('rules');
-                    }}
-                    className={`p-3 rounded-2xl border text-center flex flex-col items-center justify-between transition-all group shadow-warm-sm hover:shadow-warm-md h-[92px] cursor-pointer ${
-                      isDark 
-                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#3B3833] text-[#F7F5F0] hover:bg-[#272522]' 
-                        : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] hover:border-[#DDD8CF] text-[#1C1B1A]'
-                    }`}
-                  >
-                    <div className="w-6 h-6 rounded-lg bg-[#F3EFE9] dark:bg-[#272522] border border-[#DDD8CF] dark:border-[#3B3833] text-[#5C5853] dark:text-[#ACA79F] flex items-center justify-center shrink-0 shadow-2xs">
-                      <Trash2 className="w-3 h-3" />
-                    </div>
-                    <span className="text-[10px] sm:text-[11px] font-semibold leading-tight truncate w-full px-0.5 tracking-tight">
-                      {language === 'ka' ? 'ნაგავი' : language === 'ru' ? 'Мусор' : 'Trash & Bins'}
-                    </span>
-                    <div className="opacity-75 group-hover:scale-105 transition-transform">
-                      <RecyclingBinsSketch className="w-12 h-7" isDark={isDark} />
-                    </div>
-                  </motion.button>
-                </div>
-              </div>
-
-              {/* 7. "HOW IS YOUR STAY GOING?" REVIEW BANNER */}
-              <motion.div 
-                whileHover={{ scale: 1.006, y: -2 }}
-                transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-                className={`p-4 rounded-2xl border flex items-center justify-between transition-all shadow-warm-sm hover:shadow-warm-md ${
-                isDark 
-                  ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
-                  : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
-              }`}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-[#FFF9ED] dark:bg-[#FFC757]/15 border border-[#FFC757]/30 text-[#FFC757] flex items-center justify-center shrink-0 shadow-2xs">
-                    <Star className="w-4 h-4 fill-[#FFC757] text-[#FFC757]" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className={`text-xs font-serif font-bold block truncate tracking-tight ${
-                      isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
-                    }`}>
-                      {language === 'ka' ? 'როგორ მიმდინარეობს დასვენება?' : language === 'ru' ? 'Как проходит ваш отдых?' : 'How is your stay going?'}
-                    </span>
-                    <span className={`text-[11px] block truncate font-medium tracking-tight ${
-                      isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
-                    }`}>
-                      {language === 'ka' ? 'დაუტოვეთ პირადი შეფასება მასპინძელს' : language === 'ru' ? 'Оставьте отзыв для хозяина' : 'Leave private feedback for your host'}
-                    </span>
-                  </div>
-                </div>
-
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => {
-                    triggerHaptic();
-                    setIsReviewModalOpen(true);
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl font-semibold text-xs shrink-0 shadow-xs cursor-pointer transition-all bg-[#F55A51] hover:bg-[#E04840] text-white"
-                >
-                  {language === 'ka' ? 'შეფასება' : language === 'ru' ? 'Отзыв' : 'Review'}
-                </motion.button>
-              </motion.div>
-
-              {/* 8. "NEARBY GEMS" CAROUSEL */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between px-0.5">
-                  <span className={`text-[11px] font-sans font-semibold uppercase tracking-wider ${
-                    isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'
-                  }`}>
-                    {language === 'ka' ? 'ახლომდებარე ადგილები' : language === 'ru' ? 'Места поблизости' : 'NEARBY GEMS'}
-                  </span>
-                  <button
-                    onClick={() => {
-                      triggerHaptic();
-                      setActiveTab('gems');
-                    }}
-                    className={`text-xs font-medium hover:underline flex items-center gap-0.5 transition-colors cursor-pointer ${
-                      isDark ? 'text-[#F7F5F0] hover:text-white' : 'text-[#1C1B1A] hover:text-[#F55A51]'
-                    }`}
-                  >
-                    <span>{language === 'ka' ? 'ყველა' : language === 'ru' ? 'Все' : 'View all'}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 py-1.5">
-                  {nearbyGems.map(gem => (
-                    <motion.div
-                      key={gem.id}
-                      whileHover={{ y: -3, scale: 1.01 }}
-                      whileTap={{ scale: 0.98 }}
-                      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                      onClick={() => {
-                        triggerHaptic();
-                        setActiveTab('gems');
-                      }}
-                      className={`rounded-2xl border overflow-hidden shrink-0 w-44 transition-all duration-300 cursor-pointer group shadow-warm-sm hover:shadow-warm-md ${
-                        isDark 
-                          ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0] hover:border-[#3B3833]' 
-                          : 'bg-white border-[#EBE6DF] text-[#1C1B1A] hover:border-[#DDD8CF]'
-                      }`}
-                    >
-                      <div className="relative h-28 w-full overflow-hidden bg-[#272522]">
-                        <img 
-                          src={gem.image} 
-                          alt={gem.title} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                      </div>
-
-                      <div className="p-3">
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs font-semibold truncate pr-1 tracking-tight ${
-                            isDark ? 'text-[#F7F5F0]' : 'text-[#1C1B1A]'
-                          }`}>
-                            {gem.title}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              triggerHaptic();
-                              toggleGuestFavorite(gem.id, gem.title);
-                            }}
-                            className={`p-1.5 rounded-lg transition-all active:scale-75 cursor-pointer ${
-                              isGuestFavorite(gem.id)
-                                ? 'text-[#F55A51]'
-                                : 'text-[#ACA79F] hover:text-[#F55A51]'
-                            }`}
-                            aria-label="Save to favorites"
-                            title={isGuestFavorite(gem.id) ? "Saved to favorites" : "Save to favorites"}
-                          >
-                            <Heart className={`w-3.5 h-3.5 ${isGuestFavorite(gem.id) ? 'fill-[#F55A51] text-[#F55A51]' : ''}`} />
-                          </button>
-                        </div>
-                        <span className={`text-[11px] font-medium flex items-center gap-1 mt-1 tracking-tight ${
-                          isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'
-                        }`}>
-                          <MapPin className="w-3 h-3 text-[#748C96]" />
-                          <span>{gem.time}</span>
-                        </span>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 9. "NEED HELP?" (3 Action Cards) */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between px-0.5">
-                  <span className={`text-[11px] font-sans font-semibold uppercase tracking-wider ${
-                    isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'
-                  }`}>
-                    {language === 'ka' ? 'დახმარება' : language === 'ru' ? 'Помощь' : 'NEED HELP?'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2.5">
-                  <motion.a
-                    whileHover={{ y: -3, scale: 1.01 }}
-                    whileTap={{ scale: 0.96 }}
-                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                    href={`https://wa.me/${property.hostWhatsApp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${property.hostName}, I am staying at ${property.title}.`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`py-3 px-2 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
-                      isDark 
-                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#3B3833] text-[#F7F5F0] hover:bg-[#272522]' 
-                        : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] hover:border-[#DDD8CF] text-[#1C1B1A]'
-                    }`}
-                  >
-                    <div className="w-7 h-7 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 dark:text-emerald-400 flex items-center justify-center shadow-2xs">
-                      <MessageCircle className="w-4 h-4" />
-                    </div>
-                    <span className="text-[11px] font-medium tracking-tight">
-                      {language === 'ka' ? 'ჩატი' : language === 'ru' ? 'Чат' : 'Chat'}
-                    </span>
-                  </motion.a>
-
-                  <motion.a
-                    whileHover={{ y: -3, scale: 1.01 }}
-                    whileTap={{ scale: 0.96 }}
-                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                    href={`tel:${property.hostPhone}`}
-                    className={`py-3 px-2 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
-                      isDark 
-                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#3B3833] text-[#F7F5F0] hover:bg-[#272522]' 
-                        : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] hover:border-[#DDD8CF] text-[#1C1B1A]'
-                    }`}
-                  >
-                    <div className="w-7 h-7 rounded-xl bg-[#748C96]/15 border border-[#748C96]/30 text-[#748C96] dark:text-[#98B1BC] flex items-center justify-center shadow-2xs">
-                      <Phone className="w-4 h-4" />
-                    </div>
-                    <span className="text-[11px] font-medium tracking-tight">
-                      {language === 'ka' ? 'ზარი' : language === 'ru' ? 'Звонок' : 'Call'}
-                    </span>
-                  </motion.a>
-
-                  <motion.a
-                    whileHover={{ y: -3, scale: 1.01 }}
-                    whileTap={{ scale: 0.96 }}
-                    transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-                    href={`tel:${property.emergencyServicesNumber || '112'}`}
-                    className={`py-3 px-2 rounded-2xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all shadow-warm-sm hover:shadow-warm-md cursor-pointer ${
-                      isDark 
-                        ? 'bg-[#1F1E1C] border-[#2B2926] hover:border-[#3B3833] text-[#F7F5F0] hover:bg-[#272522]' 
-                        : 'bg-white hover:bg-[#FAF8F5] border-[#EBE6DF] hover:border-[#DDD8CF] text-[#1C1B1A]'
-                    }`}
-                  >
-                    <div className="w-7 h-7 rounded-xl bg-red-500/15 border border-red-500/30 text-red-500 dark:text-red-400 flex items-center justify-center text-[10px] font-bold shadow-2xs">
-                      SOS
-                    </div>
-                    <span className="text-[11px] font-medium tracking-tight">112 SOS</span>
-                  </motion.a>
-                </div>
-              </div>
-
-              {/* 10. "EXPLORE TBILISI LIKE A LOCAL" BANNER */}
-              <motion.div 
-                whileHover={{ y: -2 }}
-                transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-                className={`p-5 rounded-2xl border relative overflow-hidden flex flex-col justify-between transition-all shadow-warm-md ${
-                isDark 
-                  ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
-                  : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
-              }`}>
-                {/* Background Panoramic Sketch */}
-                <div className="absolute inset-0 pointer-events-none opacity-15">
-                  <TbilisiPanoramaSketch isDark={isDark} />
-                </div>
-
-                <div className="relative z-10 space-y-1 mb-4">
-                  <div className="flex items-center gap-1.5 text-[#ACA79F] font-medium text-xs">
-                    <span>✨</span>
-                    <span className="text-[10px] font-mono uppercase tracking-wider">Curated by Stumari</span>
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-serif font-bold tracking-tight">
-                    {language === 'ka' ? 'აღმოაჩინეთ თბილისი როგორც ადგილობრივმა' : language === 'ru' ? 'Исследуйте Тбилиси как местный житель' : 'Explore Tbilisi Like a Local'}
-                  </h3>
-                </div>
-
-                <div className="relative z-10 flex justify-end">
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.96 }}
-                    onClick={() => {
-                      triggerHaptic();
-                      setActiveTab('gems');
-                    }}
-                    className="px-4 py-2 rounded-xl bg-[#F55A51] hover:bg-[#E04840] text-white font-medium text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-all"
-                  >
-                    <span>{language === 'ka' ? 'ადგილების ნახვა' : language === 'ru' ? 'Смотреть места' : 'Discover Gems'}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </motion.button>
-                </div>
-              </motion.div>
-
-            </motion.div>
-          )}
-
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* TAB 2: GEMS (Curated Local Secrets & Tbilisi Library)           */}
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'gems' && (
-            <motion.div 
-              key="tab-gems"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="p-4 pb-4"
-            >
-              <StumariGemsSection 
-                hostName={property.hostName} 
-                hostAvatar={property.hostAvatar} 
-              />
-            </motion.div>
-          )}
-
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* TAB 3: EXPLORE (Interactive Offline Map & Getting Around)        */}
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'explore' && (
-            <motion.div 
-              key="tab-explore"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="flex flex-col h-[740px]"
-            >
-              {/* Segmented Switcher: Map vs Transit info */}
-              <div className={`px-4 py-3 border-b flex items-center justify-between shrink-0 transition-colors ${
-                isDark ? 'border-[#2B2926] bg-[#141312]' : 'border-[#EBE6DF] bg-[#FAF8F5]'
-              }`}>
-                <div>
-                  <span className="text-xs sm:text-sm font-semibold block tracking-tight">
-                    {exploreViewMode === 'map' 
-                      ? (language === 'ka' ? 'თბილისის ინტერაქტიული რუკა' : language === 'ru' ? 'Интерактивная карта' : 'Interactive Tbilisi Map')
-                      : (language === 'ka' ? 'ტრანსპორტი და გადაადგილება' : language === 'ru' ? 'Транспорт и такси' : 'Transit, Taxis & Etiquette')}
-                  </span>
-                  <span className={`text-[11px] font-medium tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'}`}>
-                    {exploreViewMode === 'map' ? 'Offline-ready · Walk times' : 'Local transport guides & tips'}
-                  </span>
-                </div>
-
-                <div className={`p-1 rounded-xl border flex items-center text-xs font-medium relative shadow-2xs ${
-                  isDark ? 'bg-[#1F1E1C] border-[#2B2926]' : 'bg-[#F3EFE9] border-[#EBE6DF]'
-                }`}>
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => {
-                      triggerHaptic();
-                      setExploreViewMode('map');
-                    }}
-                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold relative z-10 cursor-pointer ${
-                      exploreViewMode === 'map'
-                        ? 'text-white'
-                        : isDark ? 'text-[#ACA79F] hover:text-[#F7F5F0]' : 'text-[#5C5853] hover:text-[#1C1B1A]'
-                    }`}
-                  >
-                    {exploreViewMode === 'map' && (
-                      <motion.div
-                        layoutId="activeExploreSegment"
-                        transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-                        className="absolute inset-0 rounded-lg shadow-xs bg-[#F55A51]"
-                      />
-                    )}
-                    <span className="relative z-10">{language === 'ka' ? '🗺️ რუკა' : language === 'ru' ? '🗺️ Карта' : '🗺️ Map'}</span>
-                  </motion.button>
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => {
-                      triggerHaptic();
-                      setExploreViewMode('list');
-                    }}
-                    className={`px-3 py-1.5 rounded-lg transition-colors font-semibold relative z-10 cursor-pointer ${
-                      exploreViewMode === 'list'
-                        ? 'text-white'
-                        : isDark ? 'text-[#ACA79F] hover:text-[#F7F5F0]' : 'text-[#5C5853] hover:text-[#1C1B1A]'
-                    }`}
-                  >
-                    {exploreViewMode === 'list' && (
-                      <motion.div
-                        layoutId="activeExploreSegment"
-                        transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-                        className="absolute inset-0 rounded-lg shadow-xs bg-[#F55A51]"
-                      />
-                    )}
-                    <span className="relative z-10">{language === 'ka' ? '🚕 ტრანსპორტი' : language === 'ru' ? '🚕 Транспорт' : '🚕 Transit'}</span>
-                  </motion.button>
-                </div>
-              </div>
-
-              {exploreViewMode === 'map' ? (
-                <div className="flex-1 w-full h-full relative">
-                  <OfflineGuestMap 
-                    property={property} 
-                    onClose={() => setActiveTab('stay')} 
-                  />
-                </div>
-              ) : (
-                <div className="p-4 space-y-3.5 flex-1 overflow-y-auto">
-                  
-                  {/* Taxi / Bolt */}
-                  <div className={`p-4 rounded-2xl border space-y-2.5 transition-all shadow-warm-sm hover:shadow-warm-md ${
-                    isDark 
-                      ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
-                      : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-2xs ${
-                          isDark ? 'bg-[#748C96]/15 border-[#748C96]/30 text-[#98B1BC]' : 'bg-[#F0F4F6] border-[#748C96]/25 text-[#47606B]'
-                        }`}>
-                          <Car className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-sm font-semibold block tracking-tight">{t.propertyHub.forms.taxiBolt}</span>
-                          <span className={`text-xs font-medium tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>Bolt App · Recommended Taxi</span>
-                        </div>
-                      </div>
-                      <span className={`text-xs font-mono font-medium px-2 py-0.5 rounded-lg border ${
-                        isDark ? 'bg-[#272522] text-[#F7F5F0] border-[#3B3833]' : 'bg-[#F3EFE9] text-[#1C1B1A] border-[#EBE6DF]'
-                      }`}>
-                        ~5-7 GEL
-                      </span>
-                    </div>
-                    <p className={`text-xs sm:text-sm leading-relaxed font-normal tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
-                      {property.taxiInfo}
-                    </p>
-                    <div className="pt-1 flex items-center justify-between">
-                      <a
-                        href="https://bolt.eu"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition-all active:scale-95 bg-[#F55A51] hover:bg-[#E04840] text-white cursor-pointer"
-                      >
-                        <span>{language === 'ka' ? 'Bolt ტაქსის გამოძახება' : language === 'ru' ? 'Вызвать Bolt' : 'Open Bolt App'}</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                      <span className={`text-[11px] font-normal tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#8A857D]'}`}>
-                        Destination pre-sets
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Public Transit / Metro */}
-                  <div className={`p-4 rounded-2xl border space-y-2.5 transition-all shadow-warm-sm hover:shadow-warm-md ${
-                    isDark 
-                      ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
-                      : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-2xs ${
-                          isDark ? 'bg-[#748C96]/15 border-[#748C96]/30 text-[#98B1BC]' : 'bg-[#F0F4F6] border-[#748C96]/25 text-[#47606B]'
-                        }`}>
-                          <Bus className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-sm font-semibold block tracking-tight">{t.propertyHub.forms.transitMetro}</span>
-                          <span className={`text-xs font-medium tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>{t.guestGuide.cards.transport}</span>
-                        </div>
-                      </div>
-                      <span className={`text-xs font-mono font-medium px-2 py-0.5 rounded-lg border ${
-                        isDark ? 'bg-[#272522] text-[#F7F5F0] border-[#3B3833]' : 'bg-[#F3EFE9] text-[#1C1B1A] border-[#EBE6DF]'
-                      }`}>
-                        1.00 GEL
-                      </span>
-                    </div>
-                    <p className={`text-xs sm:text-sm leading-relaxed font-normal tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
-                      {property.transitInfo}
-                    </p>
-                    <div className={`p-2.5 rounded-xl border text-xs font-medium flex items-center gap-2 ${
-                      isDark ? 'bg-[#272522] border-[#3B3833] text-[#F7F5F0]' : 'bg-[#F3EFE9] border-[#EBE6DF] text-[#1C1B1A]'
-                    }`}>
-                      <CreditCard className="w-4 h-4 text-[#748C96] shrink-0" />
-                      <span><strong>Tip:</strong> Tap your physical Visa / Mastercard directly at turnstiles (1.00 GEL / 90 min free transfer).</span>
-                    </div>
-                  </div>
-
-                  {/* Airport Transit */}
-                  <div className={`p-4 rounded-2xl border space-y-2.5 transition-all shadow-warm-sm hover:shadow-warm-md ${
-                    isDark 
-                      ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
-                      : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-2xs ${
-                          isDark ? 'bg-[#FFC757]/15 border-[#FFC757]/30 text-[#FFC757]' : 'bg-[#FFF9ED] border-[#FFC757]/30 text-[#996F00]'
-                        }`}>
-                          <Compass className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-sm font-semibold block tracking-tight">{t.propertyHub.forms.airportTransit}</span>
-                          <span className={`text-xs font-medium tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>TBS Shota Rustaveli Airport (~17 km)</span>
-                        </div>
-                      </div>
-                      <span className={`text-xs font-mono font-medium px-2 py-0.5 rounded-lg border ${
-                        isDark ? 'bg-[#272522] text-[#F7F5F0] border-[#3B3833]' : 'bg-[#F3EFE9] text-[#1C1B1A] border-[#EBE6DF]'
-                      }`}>
-                        ~25-30 GEL
-                      </span>
-                    </div>
-                    <p className={`text-xs sm:text-sm leading-relaxed font-normal tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
-                      {property.airportTransit}
-                    </p>
-                  </div>
-
-                  {/* Local City Etiquette */}
-                  <div className={`p-4 rounded-2xl border space-y-3 shadow-warm-sm ${
-                    isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-[#FFC757]" />
-                      <h4 className="font-serif font-bold text-sm sm:text-base tracking-tight">
-                        {language === 'ka' ? 'თბილისური რჩევები და ეტიკეტი' : language === 'ru' ? 'Советы и этикет в Тбилиси' : 'Tbilisi Etiquette & Local Notes'}
-                      </h4>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      <div className={`p-3 rounded-xl border ${
-                        isDark ? 'bg-[#272522] border-[#3B3833]' : 'bg-[#FAF8F5] border-[#EBE6DF]'
-                      }`}>
-                        <span className="font-semibold block mb-0.5 tracking-tight">💧 Tap Water</span>
-                        <p className={`leading-relaxed ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
-                          Tbilisi tap water comes from mountain reservoirs and is 100% clean and delicious to drink.
-                        </p>
-                      </div>
-
-                      <div className={`p-3 rounded-xl border ${
-                        isDark ? 'bg-[#272522] border-[#3B3833]' : 'bg-[#FAF8F5] border-[#EBE6DF]'
-                      }`}>
-                        <span className="font-semibold block mb-0.5 tracking-tight">💳 Cards Everywhere</span>
-                        <p className={`leading-relaxed ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
-                          Apple Pay and contactless cards work almost everywhere. Cash is only needed for small church stalls or flea markets.
-                        </p>
-                      </div>
-
-                      <div className={`p-3 rounded-xl border ${
-                        isDark ? 'bg-[#272522] border-[#3B3833]' : 'bg-[#FAF8F5] border-[#EBE6DF]'
-                      }`}>
-                        <span className="font-semibold block mb-0.5 tracking-tight">🗣️ Georgian Words</span>
-                        <p className={`leading-relaxed ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
-                          <strong>Gamarjoba</strong> (Hello) · <strong>Madloba</strong> (Thank you) · <strong>Gaumarjos</strong> (Cheers!)
-                        </p>
-                      </div>
-
-                      <div className={`p-3 rounded-xl border ${
-                        isDark ? 'bg-[#272522] border-[#3B3833]' : 'bg-[#FAF8F5] border-[#EBE6DF]'
-                      }`}>
-                        <span className="font-semibold block mb-0.5 tracking-tight">🥟 Khinkali Rule</span>
-                        <p className={`leading-relaxed ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
-                          Never use a fork! Grab the crown by hand, bite the side, sip the broth first, then eat. Leave the tail on the plate.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* TAB 4: REVIEW (Direct Feedback Engine)                          */}
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'feedback' && (
-            <motion.div
-              key="tab-feedback"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="p-4 space-y-4"
-            >
-              
-              <div className={`p-6 rounded-2xl border text-center space-y-4 shadow-warm-md ${
-                isDark 
-                  ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
-                  : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
-              }`}>
-                <div className="w-14 h-14 rounded-2xl bg-[#FFF9ED] dark:bg-[#FFC757]/15 border border-[#FFC757]/30 text-[#FFC757] flex items-center justify-center mx-auto shadow-2xs">
-                  <Star className="w-7 h-7 fill-[#FFC757] text-[#FFC757]" />
-                </div>
-                
-                <div>
-                  <h2 className="text-2xl font-serif font-bold tracking-tight">
-                    {language === 'ka' ? 'როგორ ჩაიარა თქვენმა დასვენებამ?' : language === 'ru' ? 'Как прошло ваше пребывание?' : 'How was your stay?'}
-                  </h2>
-                  <p className={`text-xs sm:text-sm mt-1.5 max-w-sm mx-auto font-normal leading-relaxed tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
-                    {language === 'ka' 
-                      ? 'თქვენი შეფასება გვეხმარება გავხდეთ უკეთესი, ხოლო საუკეთესო შთაბეჭდილებები გაუზიაროთ მსოფლიოს.'
+                    <Smartphone className="w-3.5 h-3.5 text-[#FFC757]" />
+                    {language === 'ka'
+                      ? 'შენახვა ტელეფონში'
                       : language === 'ru'
-                      ? 'Ваш отзыв помогает сделать жилье идеальным для следующих гостей.'
-                      : 'Your private feedback helps your host improve immediately, while 5-star stays help future travelers.'}
-                  </p>
-                </div>
-
-                {/* Interactive 5-Star Selector Right on Page */}
-                <div className="flex items-center justify-center gap-2 pt-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => {
-                        triggerHaptic();
-                        setIsReviewModalOpen(true);
-                      }}
-                      className="p-2 rounded-xl bg-[#FFF9ED] dark:bg-[#FFC757]/10 border border-[#FFC757]/30 text-[#FFC757] hover:scale-110 active:scale-95 transition-all shadow-2xs cursor-pointer"
-                      title={`Rate ${star} Stars`}
-                    >
-                      <Star className="w-6 h-6 fill-[#FFC757] text-[#FFC757]" />
-                    </button>
-                  ))}
-                </div>
-
-                {/* Primary Action Button */}
-                <button
-                  onClick={() => {
-                    triggerHaptic();
-                    setIsReviewModalOpen(true);
-                  }}
-                  className="w-full py-3.5 rounded-xl bg-[#F55A51] hover:bg-[#E04840] text-white font-semibold text-xs sm:text-sm shadow-md transition-all active:scale-98 cursor-pointer"
-                >
-                  {language === 'ka' ? 'შეფასების დატოვება ⭐⭐⭐⭐⭐' : language === 'ru' ? 'Оставить отзыв ⭐⭐⭐⭐⭐' : 'Start Stay Feedback ⭐⭐⭐⭐⭐'}
-                </button>
-              </div>
-
-              {/* Host Promise Note & Direct Fast WhatsApp */}
-              <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 shadow-warm-sm ${
-                isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <img 
-                    src={property.hostAvatar} 
-                    alt={property.hostName} 
-                    className="w-11 h-11 rounded-full object-cover border border-[#EBE6DF] dark:border-[#2B2926] shrink-0 shadow-xs" 
-                  />
-                  <div className="text-xs">
-                    <span className="font-semibold text-sm block tracking-tight">{property.hostName}'s Promise</span>
-                    <span className={`block text-xs mt-0.5 font-normal tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
-                      "Any issue during your stay? Text me on WhatsApp so I can solve it within minutes!"
-                    </span>
-                  </div>
-                </div>
-
-                <a
-                  href={`https://wa.me/${property.hostWhatsApp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${property.hostName}, I am currently staying at ${property.title}.`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shrink-0 active:scale-95 transition-all shadow-xs"
-                  title="Direct WhatsApp"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                </a>
-              </div>
-
-            </motion.div>
-          )}
-
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {/* TAB 5: HOST & HELP (Saba Superhost, WhatsApp, Emergency 112)   */}
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'host' && (
-            <motion.div
-              key="tab-host"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="p-4 space-y-4"
-            >
-              
-              {/* Host Card */}
-              <div className={`p-6 rounded-2xl border text-center space-y-4 shadow-warm-md ${
-                isDark 
-                  ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' 
-                  : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
-              }`}>
-                <div className="relative inline-block mx-auto">
-                  <img
-                    src={property.hostAvatar}
-                    alt={property.hostName}
-                    className="w-20 h-20 rounded-full object-cover border-2 border-[#EBE6DF] dark:border-[#2B2926] shadow-warm-sm"
-                  />
-                  <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold shadow-2xs ring-2 ring-white dark:ring-[#141312]">
-                    ✓
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className="text-2xl font-serif font-bold tracking-tight">
-                    {property.hostName}
-                  </h3>
-                  <div className="flex items-center justify-center gap-2 mt-1">
-                    <span className="px-2.5 py-0.5 rounded-lg text-xs font-semibold uppercase tracking-wider bg-[#FFF9ED] dark:bg-[#FFC757]/15 text-[#996F00] dark:text-[#FFC757] border border-[#FFC757]/30">
-                      ★ {property.hostRole || 'Superhost'} · 5.0 (120+ stays)
-                    </span>
-                  </div>
-                  <p className={`text-xs sm:text-sm mt-2 max-w-sm mx-auto font-normal leading-relaxed tracking-tight ${isDark ? 'text-[#ACA79F]' : 'text-[#5C5853]'}`}>
-                    {property.welcomeGreeting || 'Always happy to help make your Tbilisi stay unforgettable. I usually reply within 5 minutes.'}
-                  </p>
-                </div>
-
-                {/* Direct Host Buttons */}
-                <div className="grid grid-cols-2 gap-2.5 pt-1">
-                  <a
-                    href={`https://wa.me/${property.hostWhatsApp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${property.hostName}, I am staying at ${property.title}.`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="py-3 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-98 transition-all cursor-pointer"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>WhatsApp</span>
-                  </a>
-
-                  <a
-                    href={`tel:${property.hostPhone}`}
-                    className={`py-3 px-3 rounded-xl font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs active:scale-98 transition-all border cursor-pointer ${
-                      isDark ? 'bg-[#272522] hover:bg-[#322F2B] text-[#F7F5F0] border-[#3B3833]' : 'bg-[#FAF8F5] hover:bg-[#EAE4DC] text-[#1C1B1A] border-[#EBE6DF]'
-                    }`}
-                  >
-                    <Phone className="w-4 h-4" />
-                    <span>{language === 'ka' ? 'დარეკვა' : language === 'ru' ? 'Позвонить' : 'Call Host'}</span>
-                  </a>
-                </div>
-
-                {/* Direct Request to Host Team */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic();
-                    setIsRequestModalOpen(true);
-                  }}
-                  className="w-full mt-2 py-3 px-4 rounded-xl bg-[#F55A51] hover:bg-[#E04840] text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm active:scale-98 transition-all cursor-pointer"
-                >
-                  <Sparkles className="w-4 h-4 text-[#FFC757]" />
-                  <span>{language === 'ka' ? 'მოთხოვნის გაგზავნა (პირსახოცები, დახმარება)' : 'Send Request to Host (Linens, Luggage, Help)'}</span>
-                </button>
-              </div>
-
-              {/* Property Address & Map Shortcut Card */}
-              <div className={`p-4 rounded-2xl border space-y-2.5 shadow-warm-sm ${
-                isDark ? 'bg-[#1F1E1C] border-[#2B2926] text-[#F7F5F0]' : 'bg-white border-[#EBE6DF] text-[#1C1B1A]'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-[#F55A51]" />
-                    <span className="text-xs font-mono uppercase font-semibold tracking-wider text-[#ACA79F]">
-                      Apartment Address
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleCopy(`${property.address}, ${property.city}`, 'door')}
-                    className="text-xs font-medium text-[#748C96] hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>{language === 'ka' ? 'კოპირება' : 'Copy'}</span>
+                      ? 'Сохранить гид'
+                      : 'Save to Phone'}
                   </button>
                 </div>
-                <p className="text-xs sm:text-sm font-semibold tracking-tight">
-                  {property.address}, {property.city}
-                </p>
-                <a
-                  href={`https://maps.google.com/?q=${encodeURIComponent(property.address + ', ' + property.city)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`w-full py-2.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-2 shadow-2xs transition-colors cursor-pointer ${
-                    isDark ? 'bg-[#272522] border-[#3B3833] text-[#F7F5F0] hover:bg-[#322F2B]' : 'bg-[#FAF8F5] border-[#EBE6DF] text-[#1C1B1A] hover:bg-[#EAE4DC]'
-                  }`}
-                >
-                  <Navigation className="w-3.5 h-3.5 text-[#748C96]" />
-                  <span>Open in Google Maps for Taxi / Couriers</span>
-                </a>
-              </div>
 
-              {/* Emergency Services 112 Card */}
-              <div className={`p-4 rounded-2xl border space-y-2.5 shadow-warm-sm ${
-                isDark ? 'bg-[#281518] border-red-900/40 text-red-100' : 'bg-red-50/70 border-red-200 text-stone-900'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ShieldAlert className="w-5 h-5 text-red-500" />
-                    <span className="font-bold text-xs uppercase tracking-wider text-red-600 dark:text-red-400">
-                      {t.guestGuide.cards.emergency112}
+                {/* Title & Host Identity */}
+                <div className="p-6 sm:p-7 -mt-20 relative z-10 text-white space-y-4">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#FFC757] block mb-1">
+                      {property.welcomeTitle ||
+                        (language === 'ka'
+                          ? 'კეთილი იყოს თქვენი მობრძანება'
+                          : language === 'ru'
+                          ? 'Добро пожаловать'
+                          : 'Welcome to Your Stay')}
                     </span>
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-bold tracking-tight leading-tight">
+                      {property.title}
+                    </h1>
+                    {property.subtitle && (
+                      <p className="text-xs sm:text-sm text-white/80 mt-1">{property.subtitle}</p>
+                    )}
                   </div>
-                  <span className="font-mono font-black text-base text-red-600 dark:text-red-400">112</span>
-                </div>
-                <p className={`text-xs sm:text-sm leading-relaxed font-medium ${isDark ? 'text-red-200/90' : 'text-stone-700'}`}>
-                  Police, Ambulance, and Fire Rescue in Georgia (English & Russian operators available 24/7).
-                </p>
-                <a
-                  href={`tel:${property.emergencyServicesNumber || '112'}`}
-                  className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95"
-                >
-                  <Phone className="w-4 h-4 stroke-[2.2]" />
-                  <span>{t.guestGuide.cards.emergencyCall}</span>
-                </a>
-              </div>
 
-            </motion.div>
-          )}
-
-          </AnimatePresence>
-        </div>
-
-        {/* ═══════════════════════════════════════════════════════════════ */}
-        {/* NATIVE BOTTOM NAVIGATION DOCK                                   */}
-        {/* ═══════════════════════════════════════════════════════════════ */}
-        <MobileBottomDock 
-          activeTab={activeTab}
-          onSelectTab={(tab) => {
-            setActiveTab(tab);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          unreadFeedbackBadge={true}
-        />
-
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* NATIVE MOBILE BOTTOM SHEETS FOR MODAL INTERACTIONS              */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
-
-      {/* 1. Check-In & Arrival Sheet */}
-      <MobileBottomSheet
-        isOpen={activeDrawer === 'checkin'}
-        onClose={() => setActiveDrawer(null)}
-        title={t.guestGuide.cards.checkinTitle}
-        subtitle={`${property.checkInMethod === 'keypad' ? 'Digital Keypad' : 'Lockbox'} · ${property.checkInTime}`}
-        icon={<KeyRound className="w-5 h-5 text-emerald-400" />}
-        stickyBottomAction={
-          <a
-            href={`https://maps.google.com/?q=${encodeURIComponent(property.address + ', ' + property.city)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full py-3 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98 cursor-pointer"
-          >
-            <MapPin className="w-4 h-4" />
-            <span>{t.guestGuide.cards.viewOnMaps}</span>
-          </a>
-        }
-      >
-        <div className="space-y-4 tracking-tight">
-          {/* Code Banner */}
-          <div className={`p-5 rounded-xl border text-center space-y-2 shadow-sm ${
-            isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
-          }`}>
-            <span className={`text-xs uppercase font-mono font-semibold tracking-wider block ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-              {t.guestGuide.cards.doorCodeTitle}
-            </span>
-            <div className={`font-mono text-4xl sm:text-5xl font-bold tracking-widest my-1 select-all ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
-              {property.doorKeypadCode}
-            </div>
-            <button
-              onClick={() => handleCopy(property.doorKeypadCode, 'door')}
-              className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm ${
-                isDark ? 'bg-zinc-800 hover:bg-zinc-750 text-zinc-200 border border-zinc-700' : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-900'
-              }`}
-            >
-              {doorCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              <span>{doorCopied ? t.common.copied : t.common.copy}</span>
-            </button>
-          </div>
-
-          <div>
-            <h4 className={`font-semibold text-xs uppercase font-mono mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-              {t.guestGuide.cards.directionsTitle}
-            </h4>
-            <p className={`p-4 rounded-xl border text-xs sm:text-sm leading-relaxed font-normal shadow-sm ${
-              isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-900'
-            }`}>
-              {property.arrivalDirections}
-            </p>
-          </div>
-
-          <div>
-            <h4 className={`font-semibold text-xs uppercase font-mono mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-              {t.guestGuide.cards.parkingTitle}
-            </h4>
-            <p className={`p-4 rounded-xl border text-xs sm:text-sm leading-relaxed font-normal shadow-sm ${
-              isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-900'
-            }`}>
-              {property.parkingInstructions}
-            </p>
-          </div>
-        </div>
-      </MobileBottomSheet>
-
-      {/* 2. Wi-Fi Modal Sheet */}
-      <MobileBottomSheet
-        isOpen={activeDrawer === 'wifi'}
-        onClose={() => setActiveDrawer(null)}
-        title={t.guestGuide.cards.wifiTitle}
-        subtitle={property.wifiNetwork}
-        icon={<Wifi className="w-5 h-5 text-emerald-400" />}
-      >
-        <div className="space-y-4 text-center tracking-tight">
-          <div className={`p-6 rounded-xl border space-y-3 shadow-sm ${
-            isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
-          }`}>
-            <span className={`text-xs uppercase font-mono font-semibold tracking-wider block ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-              {t.propertyHub.forms.networkName}
-            </span>
-            <div className={`text-2xl font-bold font-mono select-all ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
-              {property.wifiNetwork}
-            </div>
-
-            <div className="pt-3 border-t border-zinc-800">
-              <span className={`text-xs uppercase font-mono font-semibold tracking-wider block ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                {t.guestGuide.cards.wifiPassword}
-              </span>
-              <div className={`text-3xl sm:text-4xl font-mono font-bold tracking-widest my-2 select-all ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
-                {property.wifiPassword}
-              </div>
-            </div>
-
-            <button
-              onClick={() => handleCopy(property.wifiPassword, 'wifi')}
-              className={`w-full mt-3 py-3 rounded-xl font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer ${
-                isDark ? 'bg-zinc-100 hover:bg-white text-zinc-950' : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-100'
-              }`}
-            >
-              {wifiCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              <span>{wifiCopied ? t.guestGuide.cards.passwordCopied : t.guestGuide.cards.copyPassword}</span>
-            </button>
-          </div>
-        </div>
-      </MobileBottomSheet>
-
-      {/* 3. Full Appliances List Sheet */}
-      <MobileBottomSheet
-        isOpen={activeDrawer === 'appliances'}
-        onClose={() => setActiveDrawer(null)}
-        title={t.guestGuide.cards.howThingsWork}
-        subtitle={`${property.appliances.length} items with step-by-step instructions`}
-        icon={<Zap className="w-5 h-5 text-sky-400" />}
-      >
-        <div className="space-y-3 tracking-tight">
-          {property.appliances.map(app => (
-            <div 
-              key={app.id}
-              onClick={() => {
-                triggerHaptic();
-                setSelectedAppliance(app);
-                setActiveDrawer('selected_appliance');
-              }}
-              className={`p-4 rounded-2xl border space-y-2.5 transition-all shadow-xs cursor-pointer group hover:scale-[1.01] active:scale-[0.99] ${
-                isDark 
-                  ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-100' 
-                  : 'bg-white border-stone-200 hover:border-stone-300 text-stone-900'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 font-semibold text-base">
-                  <div className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 border border-stone-200 dark:border-zinc-700 group-hover:scale-105 transition-transform">
-                    {getApplianceIcon(app.icon)}
-                  </div>
-                  <span className="font-semibold text-base">{app.title}</span>
-                </div>
-
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold font-mono bg-[#F55A51]/15 text-[#F55A51] border border-[#F55A51]/30 flex items-center gap-1 shrink-0 group-hover:bg-[#F55A51] group-hover:text-white transition-colors">
-                  <Play className="w-3 h-3 fill-current" />
-                  <span>{language === 'ka' ? 'ვიდეო გიდი' : '10s Guide'}</span>
-                </span>
-              </div>
-              
-              <p className={`text-xs sm:text-sm leading-relaxed font-normal ${isDark ? 'text-zinc-300' : 'text-stone-700'}`}>
-                {app.instructions}
-              </p>
-
-              {app.troubleshooting && (
-                <div className={`p-2.5 rounded-xl border text-xs font-medium flex items-start gap-2 ${
-                  isDark ? 'bg-zinc-850/60 border-zinc-800 text-zinc-300' : 'bg-stone-50 border-stone-200 text-stone-800'
-                }`}>
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
-                  <span><strong>Troubleshooting:</strong> {app.troubleshooting}</span>
-                </div>
-              )}
-
-              {/* Direct Host WhatsApp Assistance */}
-              <div className="pt-2 border-t border-stone-200/60 dark:border-zinc-800/80 flex items-center justify-between text-xs">
-                <span className={`font-normal ${isDark ? 'text-zinc-400' : 'text-stone-500'}`}>
-                  {language === 'ka' ? 'დააწკაპუნეთ ვიდეო ინსტრუქციის სანახავად' : 'Tap to open video & guide'}
-                </span>
-                <span className="font-semibold text-[#F55A51] group-hover:underline flex items-center gap-1">
-                  <span>Open Guide</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </MobileBottomSheet>
-
-      {/* 4. Single Selected Appliance Interactive Modal / Drawer with 10-Sec Video */}
-      {selectedAppliance && (() => {
-        const mediaSource = selectedAppliance.mediaUrl || (selectedAppliance.id === 'app-1' || selectedAppliance.id === 'app-ob-1' ? '/tbilisi-twilight.mp4' : undefined);
-        const isVideoMedia = selectedAppliance.mediaType === 'video' || (!selectedAppliance.mediaType && mediaSource?.endsWith('.mp4'));
-
-        return (
-          <MobileBottomSheet
-            isOpen={activeDrawer === 'selected_appliance'}
-            onClose={() => {
-              setActiveDrawer(null);
-              setSelectedAppliance(null);
-            }}
-            title={selectedAppliance.title}
-            subtitle={language === 'ka' ? 'ვიდეო ინსტრუქცია და მოხმარების წესები' : 'Video instruction & step-by-step guide'}
-            icon={getApplianceIcon(selectedAppliance.icon)}
-            stickyBottomAction={
-              <a
-                href={`https://wa.me/${property.hostWhatsApp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${property.hostName}, I have a quick question about ${selectedAppliance.title} in ${property.title}.`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>Ask {property.hostName} on WhatsApp</span>
-              </a>
-            }
-          >
-            <div className="space-y-4 tracking-tight">
-              {/* Clean Auto-Looping 10-Second Video Player with Play/Pause & Audio controls */}
-              {mediaSource ? (
-                <div className="rounded-2xl overflow-hidden border border-stone-200 dark:border-white/10 bg-black relative shadow-lg">
-                  {isVideoMedia ? (
-                    <div className="relative aspect-video w-full bg-black flex items-center justify-center">
-                      <video
-                        ref={appVideoRef}
-                        src={mediaSource}
-                        autoPlay
-                        loop
-                        muted={isMutedAppVideo}
-                        playsInline
-                        className="w-full h-full object-cover"
-                      />
-                      
-                      {/* Video Player Floating Controls */}
-                      <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-auto">
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-[10px] font-mono text-white border border-white/20">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                          <span>10s Visual Guide</span>
+                  {/* Host Note & Attribution */}
+                  <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-start sm:items-center gap-3">
+                      {property.hostAvatar ? (
+                        <img
+                          src={property.hostAvatar}
+                          alt={property.hostName}
+                          className="w-11 h-11 rounded-full object-cover border border-white/30 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-11 h-11 rounded-full bg-[#F55A51] text-white font-serif font-bold text-base flex items-center justify-center shrink-0">
+                          {property.hostName.charAt(0)}
                         </div>
-
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (appVideoRef.current) {
-                                if (appVideoRef.current.paused) {
-                                  appVideoRef.current.play();
-                                  setIsPlayingAppVideo(true);
-                                } else {
-                                  appVideoRef.current.pause();
-                                  setIsPlayingAppVideo(false);
-                                }
-                              }
-                            }}
-                            className="p-2 rounded-full bg-black/75 hover:bg-black text-white border border-white/20 backdrop-blur-md transition-all active:scale-95 cursor-pointer"
-                            title={isPlayingAppVideo ? "Pause" : "Play"}
-                          >
-                            {isPlayingAppVideo ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (appVideoRef.current) {
-                                appVideoRef.current.muted = !isMutedAppVideo;
-                                setIsMutedAppVideo(!isMutedAppVideo);
-                              }
-                            }}
-                            className="p-2 rounded-full bg-black/75 hover:bg-black text-white border border-white/20 backdrop-blur-md transition-all active:scale-95 cursor-pointer"
-                            title={isMutedAppVideo ? "Unmute" : "Mute"}
-                          >
-                            {isMutedAppVideo ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
+                      )}
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-bold text-white">
+                          {language === 'ka'
+                            ? `მასპინძელი: ${property.hostName}`
+                            : language === 'ru'
+                            ? `Ваш хозяин: ${property.hostName}`
+                            : `Hosted by ${property.hostName}`}
+                        </p>
+                        {welcomeMessage && (
+                          <p className="text-xs text-white/85 leading-relaxed line-clamp-2">
+                            “{welcomeMessage}”
+                          </p>
+                        )}
                       </div>
                     </div>
-                  ) : (
-                    <div className="relative aspect-video w-full bg-stone-900 flex items-center justify-center">
-                      <img
-                        src={mediaSource}
-                        alt={selectedAppliance.title}
-                        className="w-full h-full object-cover"
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectTab('host')}
+                      className="px-3.5 py-2 rounded-xl bg-white text-[#1C1B1A] text-xs font-bold inline-flex items-center justify-center gap-1.5 shrink-0 hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 text-[#F55A51]" />
+                      {language === 'ka'
+                        ? 'კონტაქტი'
+                        : language === 'ru'
+                        ? 'Связаться'
+                        : 'Contact Host'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop 2-Column Layout for Section B (Arrival Pass) & Section C (Apartment Manual) */}
+              <div
+                className={`grid grid-cols-1 ${
+                  isEmbed ? '' : 'lg:grid-cols-12'
+                } gap-6 items-start`}
+              >
+                {/* Section B: Arrival Boarding Pass (Left 7 columns on Desktop) */}
+                <div className={`${isEmbed ? '' : 'lg:col-span-7'} space-y-4`}>
+                  <ArrivalBoardingPass
+                    property={property}
+                    language={language}
+                    onOpenCheckinInstructions={() => setActiveSheet('checkin')}
+                    onOpenWifiModal={() => setActiveSheet('wifi')}
+                  />
+
+                  {/* Visual Check-In Walkthrough inline preview when unlocked and configured */}
+                  {isAccessUnlocked && entryVisualGuide && (
+                    <div className="rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] p-5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#F55A51] block">
+                            {language === 'ka'
+                              ? 'ვიზუალური ინსტრუქცია'
+                              : language === 'ru'
+                              ? 'Пошаговое заселение'
+                              : 'Step-by-Step Arrival'}
+                          </span>
+                          <h2 className="font-serif font-bold text-base text-[#1C1B1A] dark:text-[#F7F5F0]">
+                            {entryVisualGuide.title ||
+                              entryVisualGuide.name ||
+                              (language === 'ka'
+                                ? 'როგორ შევიდეთ ბინაში'
+                                : language === 'ru'
+                                ? 'Как попасть в квартиру'
+                                : 'How to Enter the Property')}
+                          </h2>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveSheet('checkin')}
+                          className="text-xs font-bold text-[#F55A51] hover:underline cursor-pointer"
+                        >
+                          {language === 'ka'
+                            ? 'სრულად'
+                            : language === 'ru'
+                            ? 'Подробнее'
+                            : 'Full view'}
+                        </button>
+                      </div>
+                      <VisualHowToPlayer
+                        guide={entryVisualGuide}
+                        language={language}
+                        isDark={isDark}
+                        compact
                       />
-                      <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/70 text-white text-[10px] font-mono border border-white/20">
-                        Photo Guide
+                    </div>
+                  )}
+                </div>
+
+                {/* Section C: Apartment Manual (Right 5 columns on Desktop) */}
+                <div className={`${isEmbed ? '' : 'lg:col-span-5'} space-y-5`}>
+                  {/* Tier 3: House Rules, Check-Out & Progressive Disclosure for Parking/Trash */}
+                  <div className="rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] p-5 space-y-4 shadow-[0_8px_28px_-14px_rgba(28,27,26,0.06)] dark:shadow-none">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#748C96] block">
+                          {language === 'ka'
+                            ? 'სახლის გზამკვლევი'
+                            : language === 'ru'
+                            ? 'Правила и удобства'
+                            : 'Apartment Manual'}
+                        </span>
+                        <h2 className="font-serif font-bold text-lg text-[#1C1B1A] dark:text-[#F7F5F0]">
+                          {language === 'ka'
+                            ? 'წესები და გასვლა'
+                            : language === 'ru'
+                            ? 'Правила дома и выезд'
+                            : 'House Rules & Departure'}
+                        </h2>
+                      </div>
+                    </div>
+
+                    {/* Focused 2-Tile Manual Pair (No duplicate Check-In tile competing with ArrivalBoardingPass) */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setActiveSheet('rules')}
+                        className="p-4 rounded-2xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] hover:border-[#F55A51]/40 transition-all text-left flex flex-col justify-between min-h-[100px] cursor-pointer group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="w-9 h-9 rounded-xl bg-[#F55A51]/10 text-[#F55A51] flex items-center justify-center">
+                            <FileText className="w-4 h-4" />
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-[#7A756D] group-hover:translate-x-0.5 transition-transform" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-xs sm:text-sm text-[#1C1B1A] dark:text-[#F7F5F0]">
+                            {language === 'ka'
+                              ? 'სახლის წესები'
+                              : language === 'ru'
+                              ? 'Правила дома'
+                              : 'House Rules'}
+                          </p>
+                          <p className="text-[11px] text-[#7A756D] dark:text-[#A39E93] mt-0.5">
+                            {houseRulesList.length > 0
+                              ? language === 'ka'
+                                ? `${houseRulesList.length} წესი`
+                                : language === 'ru'
+                                ? `Правил: ${houseRulesList.length}`
+                                : `${houseRulesList.length} guidelines`
+                              : language === 'ka'
+                              ? 'სიჩუმის საათები'
+                              : language === 'ru'
+                              ? 'Тихие часы и правила'
+                              : 'Quiet hours & policies'}
+                          </p>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveSheet('checkout')}
+                        className="p-4 rounded-2xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] hover:border-[#F55A51]/40 transition-all text-left flex flex-col justify-between min-h-[100px] cursor-pointer group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="w-9 h-9 rounded-xl bg-[#748C96]/15 text-[#748C96] flex items-center justify-center">
+                            <Clock className="w-4 h-4" />
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-[#7A756D] group-hover:translate-x-0.5 transition-transform" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-xs sm:text-sm text-[#1C1B1A] dark:text-[#F7F5F0]">
+                            {language === 'ka'
+                              ? 'გასვლის სია'
+                              : language === 'ru'
+                              ? 'Выезд из дома'
+                              : 'Check-Out Guide'}
+                          </p>
+                          <p className="text-[11px] text-[#7A756D] dark:text-[#A39E93] mt-0.5">
+                            {property.checkOutTime
+                              ? language === 'ka'
+                                ? `${property.checkOutTime}-მდე`
+                                : language === 'ru'
+                                ? `До ${property.checkOutTime}`
+                                : `By ${property.checkOutTime}`
+                              : language === 'ka'
+                              ? 'გასვლის ჩექლისტი'
+                              : language === 'ru'
+                              ? 'Чек-лист выезда'
+                              : 'Departure checklist'}
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Progressive Disclosure Accordions for Parking & Trash */}
+                    {(trashNotes || parkingNotes) && (
+                      <div className="rounded-2xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] divide-y divide-[#EBE6DF] dark:divide-[#2B2926] overflow-hidden">
+                        {parkingNotes && (
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedStayNote(
+                                  expandedStayNote === 'parking' ? null : 'parking'
+                                )
+                              }
+                              aria-expanded={expandedStayNote === 'parking'}
+                              className="w-full px-4 py-3 text-left flex items-center justify-between gap-2.5 hover:bg-white/60 dark:hover:bg-[#1F1E1C]/50 transition-colors min-h-[46px] cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2.5 text-xs font-bold text-[#1C1B1A] dark:text-[#F7F5F0]">
+                                <Car className="w-4 h-4 text-[#748C96] shrink-0" />
+                                <span>
+                                  {language === 'ka'
+                                    ? 'პარკირების წესი'
+                                    : language === 'ru'
+                                    ? 'Парковка у дома'
+                                    : 'Parking Instructions'}
+                                </span>
+                              </div>
+                              <ChevronDown
+                                className={`w-4 h-4 text-[#7A756D] transition-transform duration-200 ${
+                                  expandedStayNote === 'parking'
+                                    ? 'rotate-180 text-[#F55A51]'
+                                    : ''
+                                }`}
+                              />
+                            </button>
+                            {expandedStayNote === 'parking' && (
+                              <div className="px-4 pb-3.5 pt-1 text-xs text-[#5C5852] dark:text-[#A39E93] leading-relaxed bg-white/50 dark:bg-[#1F1E1C]/30">
+                                {parkingNotes}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {trashNotes && (
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedStayNote(expandedStayNote === 'trash' ? null : 'trash')
+                              }
+                              aria-expanded={expandedStayNote === 'trash'}
+                              className="w-full px-4 py-3 text-left flex items-center justify-between gap-2.5 hover:bg-white/60 dark:hover:bg-[#1F1E1C]/50 transition-colors min-h-[46px] cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2.5 text-xs font-bold text-[#1C1B1A] dark:text-[#F7F5F0]">
+                                <Trash2 className="w-4 h-4 text-[#748C96] shrink-0" />
+                                <span>
+                                  {language === 'ka'
+                                    ? 'ნაგვის გატანა'
+                                    : language === 'ru'
+                                    ? 'Вынос мусора'
+                                    : 'Trash & Recycling'}
+                                </span>
+                              </div>
+                              <ChevronDown
+                                className={`w-4 h-4 text-[#7A756D] transition-transform duration-200 ${
+                                  expandedStayNote === 'trash' ? 'rotate-180 text-[#F55A51]' : ''
+                                }`}
+                              />
+                            </button>
+                            {expandedStayNote === 'trash' && (
+                              <div className="px-4 pb-3.5 pt-1 text-xs text-[#5C5852] dark:text-[#A39E93] leading-relaxed bg-white/50 dark:bg-[#1F1E1C]/30">
+                                {trashNotes}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tier 3: How Things Work — Divided List (No nested box-in-box clutter) */}
+                  {property.appliances && property.appliances.length > 0 && (
+                    <div className="rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] p-5 space-y-3.5 shadow-[0_8px_28px_-14px_rgba(28,27,26,0.06)] dark:shadow-none">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#F55A51] block">
+                            {language === 'ka'
+                              ? 'ტექნიკის ინსტრუქცია'
+                              : language === 'ru'
+                              ? 'Бытовая техника'
+                              : 'How Things Work'}
+                          </span>
+                          <h3 className="font-serif font-bold text-lg text-[#1C1B1A] dark:text-[#F7F5F0]">
+                            {language === 'ka'
+                              ? 'სახლის მოწყობილობები'
+                              : language === 'ru'
+                              ? 'Техника в доме'
+                              : 'Appliance Guides'}
+                          </h3>
+                        </div>
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] text-[#7A756D] dark:text-[#A39E93]">
+                          {property.appliances.length}
+                        </span>
+                      </div>
+
+                      <div className="rounded-2xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] divide-y divide-[#EBE6DF] dark:divide-[#2B2926] overflow-hidden">
+                        {property.appliances.map(app => {
+                          const appTitle = app.title || app.name || 'Appliance';
+                          const stepCount =
+                            app.steps?.length || app.stepsText?.length || 0;
+                          const thumbUrl =
+                            app.mediaType === 'photo' && app.mediaUrl
+                              ? app.mediaUrl
+                              : app.mediaPoster;
+
+                          return (
+                            <button
+                              key={app.id}
+                              type="button"
+                              onClick={() => setSelectedAppliance(app)}
+                              className="w-full p-3.5 hover:bg-white dark:hover:bg-[#1F1E1C] transition-colors flex items-center justify-between gap-3 text-left group cursor-pointer"
+                            >
+                              <div className="flex items-start gap-3 min-w-0">
+                                {thumbUrl ? (
+                                  <img
+                                    src={thumbUrl}
+                                    alt={appTitle}
+                                    className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[#EBE6DF] dark:border-[#2B2926] mt-0.5"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-xl bg-[#F55A51]/10 text-[#F55A51] flex items-center justify-center shrink-0 mt-0.5">
+                                    <Wrench className="w-4 h-4" />
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-bold text-sm text-[#1C1B1A] dark:text-[#F7F5F0]">
+                                      {appTitle}
+                                    </p>
+                                    {stepCount > 0 && (
+                                      <span className="px-2 py-0.5 rounded-full bg-[#F55A51]/10 text-[#F55A51] text-[10px] font-bold shrink-0">
+                                        {stepCount}{' '}
+                                        {language === 'ka'
+                                          ? 'ნაბიჯი'
+                                          : language === 'ru'
+                                          ? 'шага'
+                                          : 'steps'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-[#5C5852] dark:text-[#A39E93] line-clamp-2 mt-0.5 leading-relaxed">
+                                    {app.instructions}
+                                  </p>
+                                </div>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-[#7A756D] group-hover:translate-x-0.5 transition-transform shrink-0" />
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
                 </div>
-              ) : (
-                <div className="rounded-2xl p-4 bg-stone-100 dark:bg-zinc-850 border border-stone-200 dark:border-zinc-700/80 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-stone-600 dark:text-zinc-300">
-                    <Video className="w-4 h-4 text-[#F55A51]" />
-                    <span>{language === 'ka' ? 'ტექსტური ინსტრუქცია' : 'Text Instructions'}</span>
+              </div>
+
+              {/* Section D: First Interesting Recommendation Spotlight & Stay Support */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Tier 2: Featured First Local Gem Spotlight on Stay Tab */}
+                {propertyGems.length > 0 && (
+                  <div className="rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] overflow-hidden flex flex-col justify-between shadow-[0_10px_30px_-14px_rgba(28,27,26,0.07)] dark:shadow-none">
+                    <div>
+                      <div className="p-5 pb-3 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#F55A51]">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            {language === 'ka'
+                              ? 'მასპინძლის რჩეული'
+                              : language === 'ru'
+                              ? 'Рекомендация хозяина'
+                              : `${property.hostName}’s Top Pick Nearby`}
+                          </span>
+                          <span className="text-[11px] font-semibold text-[#7A756D] dark:text-[#A39E93]">
+                            {language === 'ka'
+                              ? `${propertyGems.length} ადგილი`
+                              : language === 'ru'
+                              ? `${propertyGems.length} мест`
+                              : `${propertyGems.length} curated spots`}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Featured First Gem Card Preview */}
+                      <div
+                        onClick={() => handleSelectTab('gems')}
+                        className="px-5 pb-4 flex items-start gap-3.5 cursor-pointer group"
+                      >
+                        {propertyGems[0].image && (
+                          <img
+                            src={propertyGems[0].image}
+                            alt={propertyGems[0].title}
+                            loading="lazy"
+                            className="w-20 h-20 rounded-2xl object-cover shrink-0 border border-[#EBE6DF] dark:border-[#2B2926] group-hover:scale-105 transition-transform"
+                          />
+                        )}
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {propertyGems[0].subCategory && (
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#D99B26] dark:text-[#FFC757]">
+                                {propertyGems[0].subCategory}
+                              </span>
+                            )}
+                            {propertyGems[0].distance && (
+                              <span className="text-[11px] text-[#7A756D] dark:text-[#A39E93]">
+                                · {propertyGems[0].distance}
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-serif font-bold text-base sm:text-lg text-[#1C1B1A] dark:text-[#F7F5F0] group-hover:text-[#F55A51] transition-colors truncate">
+                            {propertyGems[0].title}
+                          </h3>
+                          <p className="text-xs italic text-[#5C5852] dark:text-[#A39E93] line-clamp-2 border-l-2 border-[#F55A51] pl-2.5">
+                            “{propertyGems[0].hostQuote || propertyGems[0].localTip || propertyGems[0].whyWeRecommend}”
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="px-5 pb-5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectTab('gems')}
+                        className="w-full py-3 px-4 rounded-2xl bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] text-xs font-bold flex items-center justify-between hover:opacity-90 transition-opacity cursor-pointer min-h-[44px]"
+                      >
+                        <span>
+                          {language === 'ka'
+                            ? `ყველა ${propertyGems.length} რჩეული ადგილის ნახვა`
+                            : language === 'ru'
+                            ? `Смотреть все ${propertyGems.length} рекомендаций`
+                            : `Explore All ${propertyGems.length} Local Gems`}
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-[#F55A51]" />
+                      </button>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-mono text-emerald-500 font-bold">Verified Guide</span>
+                )}
+
+                {/* Concierge & Stay Requests Card */}
+                <div className="p-5 rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex flex-col justify-between gap-4 shadow-[0_10px_30px_-14px_rgba(28,27,26,0.07)] dark:shadow-none">
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#748C96]">
+                      <HelpCircle className="w-3.5 h-3.5 text-[#F55A51]" />
+                      {language === 'ka'
+                        ? 'სტუმრის მხარდაჭერა'
+                        : language === 'ru'
+                        ? 'Поддержка гостей'
+                        : 'Stay Support & Requests'}
+                    </div>
+                    <h3 className="font-serif font-bold text-lg text-[#1C1B1A] dark:text-[#F7F5F0]">
+                      {language === 'ka'
+                        ? 'გჭირდებათ დამატებითი პირსახოცი ან გვიანი გასვლა?'
+                        : language === 'ru'
+                        ? 'Нужен поздний выезд или свежие полотенца?'
+                        : 'Need Late Check-Out or Fresh Towels?'}
+                    </h3>
+                    <p className="text-xs text-[#5C5852] dark:text-[#A39E93] leading-relaxed">
+                      {language === 'ka'
+                        ? `გაუგზავნეთ სწრაფი მოთხოვნა ${property.hostName}-ს ან იხილეთ სწრაფი პასუხები.`
+                        : language === 'ru'
+                        ? `Отправьте быстрый запрос ${property.hostName} или откройте ответы по дому.`
+                        : `Send a stay request to ${property.hostName} or browse organized quick answers.`}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsRequestModalOpen(true)}
+                      className="flex-1 py-3 px-4 rounded-2xl bg-[#F55A51] text-white text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#E04840] transition-colors cursor-pointer min-h-[44px]"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      {language === 'ka'
+                        ? 'მოთხოვნის გაგზავნა'
+                        : language === 'ru'
+                        ? 'Оставить запрос'
+                        : 'Request Something'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectTab('host')}
+                      className="py-3 px-4 rounded-2xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] text-xs font-bold text-[#1C1B1A] dark:text-[#F7F5F0] hover:border-[#F55A51]/40 transition-colors cursor-pointer min-h-[44px]"
+                    >
+                      {language === 'ka' ? 'დახმარება' : language === 'ru' ? 'Помощь' : 'Host & FAQ'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =========================================================
+              TAB 2: GEMS — Host-Curated Local Places & Mood Discovery
+             ========================================================= */}
+          {activeTab === 'gems' && (
+            <div className="space-y-6">
+              <StumariGemsSection
+                property={property}
+                gems={propertyGems}
+                hostName={property.hostName}
+                hostAvatar={property.hostAvatar}
+                language={language}
+                favoriteIds={guestFavorites}
+                onToggleFavorite={toggleGuestFavorite}
+                hostWhatsApp={hostWhatsApp}
+                isAccessUnlocked={isAccessUnlocked}
+                onOpenRequestModal={() => setIsRequestModalOpen(true)}
+              />
+            </div>
+          )}
+
+          {/* =========================================================
+              TAB 3: EXPLORE — Neighborhood Directory, Map & Transit
+             ========================================================= */}
+          {activeTab === 'explore' && (
+            <div className="space-y-5">
+              {/* Tier 4: Open Editorial Masthead on Canvas (Eliminates double-stacked header boxes) */}
+              <div className="pt-1 pb-4 border-b border-[#EBE6DF] dark:border-[#2B2926] space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F55A51]/10 border border-[#F55A51]/20 text-[#F55A51] text-[11px] font-bold uppercase tracking-widest">
+                  <Compass className="w-3.5 h-3.5" />
+                  {language === 'ka'
+                    ? 'უბნის გზამკვლევი'
+                    : language === 'ru'
+                    ? 'Путеводитель по району'
+                    : 'Neighborhood & Getting Around'}
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-serif font-bold tracking-tight text-[#1C1B1A] dark:text-[#F7F5F0]">
+                  {language === 'ka'
+                    ? `აღმოაჩინეთ ${property.city || 'უბანი'}`
+                    : language === 'ru'
+                    ? `Исследуйте ${property.city || 'район'}`
+                    : `Explore Around ${property.title}`}
+                </h1>
+                <p className="text-xs sm:text-sm text-[#5C5852] dark:text-[#A39E93] max-w-2xl leading-relaxed">
+                  {language === 'ka'
+                    ? 'ყველა რეკომენდებული ადგილი, მარშრუტი და ტრანსპორტის ინფორმაცია ერთ სივრცეში.'
+                    : language === 'ru'
+                    ? 'Все рекомендованные места, маршруты и советы по транспорту рядом с домом.'
+                    : 'Browse recommended neighborhood spots, get directions back to your stay, and check local transit notes.'}
+                </p>
+              </div>
+
+              {/* Unified Neighborhood Map & Directory */}
+              <OfflineGuestMap
+                property={property}
+                language={language}
+                favoriteIds={guestFavorites}
+                onToggleFavorite={toggleGuestFavorite}
+                propertyGems={propertyGems}
+              />
+
+              {/* Tier 3: Property-Aware Transit & Local Notes (Divided list instead of nested boxes) */}
+              {(taxiNotes || transitNotes || airportNotes || isTbilisiProperty) && (
+                <div className="rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] p-5 sm:p-6 space-y-4 shadow-[0_8px_28px_-14px_rgba(28,27,26,0.06)] dark:shadow-none">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#748C96] block">
+                      {language === 'ka'
+                        ? 'გადაადგილება'
+                        : language === 'ru'
+                        ? 'Транспорт'
+                        : 'Getting Around'}
+                    </span>
+                    <h2 className="font-serif font-bold text-lg text-[#1C1B1A] dark:text-[#F7F5F0]">
+                      {language === 'ka'
+                        ? 'ტრანსპორტი და სასარგებლო რჩევები'
+                        : language === 'ru'
+                        ? 'Транспорт и полезные советы'
+                        : 'Transit & Local Tips'}
+                    </h2>
+                  </div>
+
+                  <div className="rounded-2xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] divide-y divide-[#EBE6DF] dark:divide-[#2B2926] overflow-hidden">
+                    {(taxiNotes || isTbilisiProperty) && (
+                      <div className="p-4 flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#F55A51]/10 text-[#F55A51] flex items-center justify-center shrink-0 mt-0.5">
+                          <Car className="w-4 h-4" />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="font-bold text-xs sm:text-sm text-[#1C1B1A] dark:text-[#F7F5F0] block">
+                            {language === 'ka'
+                              ? 'ტაქსის აპლიკაციები'
+                              : language === 'ru'
+                              ? 'Приложения такси'
+                              : 'Ride Apps & Taxis'}
+                          </span>
+                          <p className="text-xs text-[#5C5852] dark:text-[#A39E93] leading-relaxed">
+                            {taxiNotes ||
+                              (language === 'ka'
+                                ? 'გამოიყენეთ Bolt-ის აპლიკაცია ქალაქში კომფორტული და ფიქსირებული ტარიფით გადაადგილებისთვის.'
+                                : language === 'ru'
+                                ? 'Используйте приложение Bolt для поездок по городу с фиксированной ценой.'
+                                : 'Use the Bolt app rather than street-hailing for reliable pickups and transparent card pricing.')}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {(transitNotes || isTbilisiProperty) && (
+                      <div className="p-4 flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#748C96]/15 text-[#748C96] flex items-center justify-center shrink-0 mt-0.5">
+                          <Compass className="w-4 h-4" />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="font-bold text-xs sm:text-sm text-[#1C1B1A] dark:text-[#F7F5F0] block">
+                            {language === 'ka'
+                              ? 'საზოგადოებრივი ტრანსპორტი'
+                              : language === 'ru'
+                              ? 'Общественный транспорт'
+                              : 'Metro & Bus Transit'}
+                          </span>
+                          <p className="text-xs text-[#5C5852] dark:text-[#A39E93] leading-relaxed">
+                            {transitNotes ||
+                              (language === 'ka'
+                                ? 'მეტროსა და ავტობუსებში გადახდა შესაძლებელია ნებისმიერი უკონტაქტო საბანკო ბარათით ან Apple/Google Pay-ით.'
+                                : language === 'ru'
+                                ? 'Оплата в метро и автобусах возможна любой бесконтактной картой или Apple/Google Pay.'
+                                : 'Tbilisi Metro and municipal buses accept contactless Visa/Mastercard and Apple/Google Pay directly at the turnstile.')}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {airportNotes && (
+                      <div className="p-4 flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#F55A51]/10 text-[#F55A51] flex items-center justify-center shrink-0 mt-0.5">
+                          <Plane className="w-4 h-4" />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="font-bold text-xs sm:text-sm text-[#1C1B1A] dark:text-[#F7F5F0] block">
+                            {language === 'ka'
+                              ? 'აეროპორტის გზა'
+                              : language === 'ru'
+                              ? 'Дорога в аэропорт'
+                              : 'Airport Transit'}
+                          </span>
+                          <p className="text-xs text-[#5C5852] dark:text-[#A39E93] leading-relaxed">
+                            {airportNotes}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* =========================================================
+              TAB 4: REVIEW — Unmistakable Public vs. Private Feedback
+             ========================================================= */}
+          {activeTab === 'feedback' && (
+            <div className="space-y-6">
+              {/* Interactive Star Rating Masthead Card */}
+              <div className="rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] p-6 sm:p-8 text-center space-y-5 shadow-[0_10px_32px_-16px_rgba(28,27,26,0.07)] dark:shadow-none">
+                <div className="w-12 h-12 rounded-2xl bg-[#FFC757]/20 text-[#D99B26] dark:text-[#FFC757] flex items-center justify-center mx-auto">
+                  <Star className="w-6 h-6 fill-current" />
+                </div>
+
+                <div className="space-y-2 max-w-lg mx-auto">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#F55A51] block">
+                    {language === 'ka'
+                      ? 'თქვენი შთაბეჭდილება'
+                      : language === 'ru'
+                      ? 'Ваши впечатления'
+                      : 'Guest Feedback & Guestbook'}
+                  </span>
+                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#1C1B1A] dark:text-[#F7F5F0]">
+                    {language === 'ka'
+                      ? `როგორ მოგეწონათ ${property.title}?`
+                      : language === 'ru'
+                      ? `Как вам проживание в ${property.title}?`
+                      : `How Was Your Stay at ${property.title}?`}
+                  </h1>
+                  <p className="text-xs sm:text-sm text-[#5C5852] dark:text-[#A39E93] leading-relaxed">
+                    {language === 'ka'
+                      ? 'აირჩიეთ ვარსკვლავი ან ქვემოთ აირჩიეთ საჯარო ჩანაწერი სტუმრების წიგნაკში თუ პირადი შეტყობინება მასპინძლისთვის.'
+                      : language === 'ru'
+                      ? 'Нажмите на звезду или выберите ниже: публичная запись в гостевую книгу либо личное сообщение только для хозяина.'
+                      : 'Tap a star rating below, or choose directly between signing the public guestbook and sending private feedback to your host.'}
+                  </p>
+                </div>
+
+                {hasSubmittedReview && (
+                  <div className="mx-auto max-w-md px-4 py-2.5 rounded-2xl bg-[#2E7D32]/10 border border-[#2E7D32]/25 flex items-center justify-center gap-2 text-xs font-semibold text-[#2E7D32] dark:text-[#81C784]">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>
+                      {language === 'ka'
+                        ? 'მადლობა! თქვენი შეფასება ჩაწერილია ამ სესიაზე.'
+                        : language === 'ru'
+                        ? 'Спасибо! Ваш отзыв сохранён в этой сессии.'
+                        : 'Thank you! Your feedback has been recorded in this session.'}
+                    </span>
+                  </div>
+                )}
+
+                {/* Interactive 1-5 Star Selector */}
+                <div className="flex items-center justify-center gap-2 sm:gap-3 py-1">
+                  {[1, 2, 3, 4, 5].map(starValue => {
+                    const isFilled = (selectedReviewStars || 0) >= starValue;
+                    return (
+                      <button
+                        key={starValue}
+                        type="button"
+                        onClick={() => {
+                          setSelectedReviewStars(starValue);
+                          setIsReviewModalOpen(true);
+                        }}
+                        aria-label={`Rate ${starValue} out of 5 stars`}
+                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] hover:border-[#FFC757] hover:scale-105 transition-all flex items-center justify-center group cursor-pointer"
+                      >
+                        <Star
+                          className={`w-6 h-6 sm:w-7 sm:h-7 transition-colors ${
+                            isFilled
+                              ? 'fill-[#FFC757] text-[#FFC757]'
+                              : 'text-[#D5CEC4] dark:text-[#3A3733] group-hover:fill-[#FFC757] group-hover:text-[#FFC757]'
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Unmistakable Public vs. Private Feedback Pathway Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Pathway 1: PUBLIC Guestbook & Platform Review */}
+                <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex flex-col justify-between gap-4 shadow-[0_8px_28px_-14px_rgba(28,27,26,0.06)] dark:shadow-none">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F55A51]/10 text-[#F55A51] text-[10px] font-bold uppercase tracking-wider">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        {language === 'ka'
+                          ? 'საჯარო · სტუმრების წიგნაკი'
+                          : language === 'ru'
+                          ? 'Публично · Гостевая книга'
+                          : 'Public · Visible to Guests'}
+                      </span>
+                    </div>
+                    <h2 className="font-serif font-bold text-lg text-[#1C1B1A] dark:text-[#F7F5F0]">
+                      {language === 'ka'
+                        ? 'სტუმრების წიგნაკში ჩაწერა'
+                        : language === 'ru'
+                        ? 'Запись в гостевую книгу'
+                        : 'Sign the Digital Guestbook'}
+                    </h2>
+                    <p className="text-xs text-[#5C5852] dark:text-[#A39E93] leading-relaxed">
+                      {language === 'ka'
+                        ? `გაუზიარეთ შთაბეჭდილებები მომავალ სტუმრებს ${property.hostName}-ის საჯარო წიგნაკში და მარტივად დააკოპირეთ ტექსტი Airbnb / Booking-ისთვის.`
+                        : language === 'ru'
+                        ? `Поделитесь впечатлениями с будущими гостями в гостевой книге ${property.hostName} и скопируйте текст для Airbnb / Booking.`
+                        : `Share a public note for future guests in ${property.hostName}’s guestbook, with 1-tap copy to reuse on Airbnb or Booking.com.`}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedReviewStars(5);
+                      setIsReviewModalOpen(true);
+                    }}
+                    className="w-full py-3.5 px-5 rounded-2xl bg-[#F55A51] hover:bg-[#E04840] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-colors min-h-[46px] cursor-pointer"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    {language === 'ka'
+                      ? 'საჯარო ჩანაწერის დატოვება'
+                      : language === 'ru'
+                      ? 'Оставить публичную запись'
+                      : 'Sign Public Guestbook'}
+                  </button>
+                </div>
+
+                {/* Pathway 2: PRIVATE Note to Host Only */}
+                <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex flex-col justify-between gap-4 shadow-[0_8px_28px_-14px_rgba(28,27,26,0.06)] dark:shadow-none">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#748C96]/15 text-[#748C96] text-[10px] font-bold uppercase tracking-wider">
+                        <Lock className="w-3.5 h-3.5" />
+                        {language === 'ka'
+                          ? 'პირადი · მხოლოდ მასპინძლისთვის'
+                          : language === 'ru'
+                          ? 'Лично · Только для хозяина'
+                          : 'Private · Host Eyes Only'}
+                      </span>
+                    </div>
+                    <h2 className="font-serif font-bold text-lg text-[#1C1B1A] dark:text-[#F7F5F0]">
+                      {language === 'ka'
+                        ? `პირადი შენიშვნა ${property.hostName}-ს`
+                        : language === 'ru'
+                        ? `Личное сообщение для ${property.hostName}`
+                        : `Private Note to ${property.hostName}`}
+                    </h2>
+                    <p className="text-xs text-[#5C5852] dark:text-[#A39E93] leading-relaxed">
+                      {language === 'ka'
+                        ? `გაქვთ რჩევა ან შენიშვნა, რაც შეიძლება გავაუმჯობესოთ? ეს შეტყობინება ეგზავნება მხოლოდ ${property.hostName}-ს და არ ქვეყნდება საჯაროდ.`
+                        : language === 'ru'
+                        ? `Есть совет по улучшению или замечание по дому? Это сообщение увидит только ${property.hostName} — оно не публикуется.`
+                        : `Have a suggestion or spotted something that needs attention? This message goes privately to ${property.hostName} and is never posted publicly.`}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedReviewStars(3);
+                      setIsReviewModalOpen(true);
+                    }}
+                    className="w-full py-3.5 px-5 rounded-2xl bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] font-bold text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-opacity min-h-[46px] cursor-pointer"
+                  >
+                    <MessageCircle className="w-4 h-4 text-[#F55A51]" />
+                    {language === 'ka'
+                      ? 'პირადი შეტყობინების გაგზავნა'
+                      : language === 'ru'
+                      ? 'Отправить личное сообщение'
+                      : 'Send Private Feedback'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Direct External Platform Review Links (Only shown if configured by host) */}
+              {(airbnbReviewUrl || bookingReviewUrl || googleReviewUrl) && (
+                <div className="rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] p-6 space-y-4">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#748C96] block">
+                      {language === 'ka'
+                        ? 'დაჯავშნის პლატფორმები'
+                        : language === 'ru'
+                        ? 'Платформы бронирования'
+                        : 'Booking Platforms'}
+                    </span>
+                    <h2 className="font-serif font-bold text-lg text-[#1C1B1A] dark:text-[#F7F5F0]">
+                      {language === 'ka'
+                        ? 'დაგვიტოვეთ შეფასება პლატფორმაზე'
+                        : language === 'ru'
+                        ? 'Оставьте отзыв на сайте бронирования'
+                        : 'Review Us Where You Booked'}
+                    </h2>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {airbnbReviewUrl && (
+                      <a
+                        href={airbnbReviewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-4 rounded-2xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] hover:border-[#FF5A5F] transition-all flex items-center justify-between font-bold text-xs text-[#1C1B1A] dark:text-[#F7F5F0]"
+                      >
+                        <span>Airbnb Review</span>
+                        <ExternalLink className="w-4 h-4 text-[#FF5A5F]" />
+                      </a>
+                    )}
+                    {bookingReviewUrl && (
+                      <a
+                        href={bookingReviewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-4 rounded-2xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] hover:border-[#003580] transition-all flex items-center justify-between font-bold text-xs text-[#1C1B1A] dark:text-[#F7F5F0]"
+                      >
+                        <span>Booking.com Review</span>
+                        <ExternalLink className="w-4 h-4 text-[#003580] dark:text-[#748C96]" />
+                      </a>
+                    )}
+                    {googleReviewUrl && (
+                      <a
+                        href={googleReviewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-4 rounded-2xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] hover:border-[#F55A51] transition-all flex items-center justify-between font-bold text-xs text-[#1C1B1A] dark:text-[#F7F5F0]"
+                      >
+                        <span>Google Maps Review</span>
+                        <ExternalLink className="w-4 h-4 text-[#F55A51]" />
+                      </a>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* Operating Instructions */}
-              <div className={`p-4 rounded-2xl border space-y-2 shadow-xs ${
-                isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-stone-200 text-stone-900'
-              }`}>
-                <h4 className={`font-bold text-xs font-mono uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-stone-500'}`}>
-                  {language === 'ka' ? 'მოხმარების წესები' : 'Operating Instructions'}
-                </h4>
-                <p className={`text-xs sm:text-sm leading-relaxed font-normal ${isDark ? 'text-zinc-300' : 'text-stone-700'}`}>
+              {/* Tier 2: Editorial Digital Guestbook Stories (Grounded in actual feedbacks for this property) */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center justify-between px-1">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#F55A51] block">
+                      {language === 'ka'
+                        ? 'სტუმრების ჩანაწერები'
+                        : language === 'ru'
+                        ? 'Записи гостей'
+                        : 'Public Guestbook'}
+                    </span>
+                    <h2 className="font-serif font-bold text-xl text-[#1C1B1A] dark:text-[#F7F5F0]">
+                      {language === 'ka'
+                        ? 'სტუმრების წიგნაკი'
+                        : language === 'ru'
+                        ? 'Гостевая книга дома'
+                        : 'Notes From Previous Guests'}
+                    </h2>
+                  </div>
+                  {propertyGuestbookFeedbacks.length > 0 && (
+                    <span className="px-2.5 py-1 rounded-full bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] text-xs font-bold text-[#7A756D] dark:text-[#A39E93]">
+                      {propertyGuestbookFeedbacks.length}
+                    </span>
+                  )}
+                </div>
+
+                {propertyGuestbookFeedbacks.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {propertyGuestbookFeedbacks.map(entry => {
+                      const starsCount = entry.sentiment === 'amazing' ? 5 : 4;
+                      return (
+                        <article
+                          key={entry.id}
+                          className="p-5 rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex flex-col justify-between gap-4 shadow-[0_8px_26px_-14px_rgba(28,27,26,0.06)] dark:shadow-none"
+                        >
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-0.5">
+                                {Array.from({ length: starsCount }).map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className="w-3.5 h-3.5 fill-[#FFC757] text-[#FFC757]"
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-[11px] text-[#7A756D] dark:text-[#A39E93]">
+                                {entry.createdAt}
+                              </span>
+                            </div>
+
+                            <blockquote className="border-l-2 border-[#F55A51] pl-3.5 py-0.5">
+                              {entry.comment ? (
+                                <p className="text-xs sm:text-sm text-[#1C1B1A] dark:text-[#F7F5F0] leading-relaxed italic">
+                                  “{entry.comment}”
+                                </p>
+                              ) : (
+                                <p className="text-xs sm:text-sm text-[#1C1B1A] dark:text-[#F7F5F0] leading-relaxed italic">
+                                  {language === 'ka'
+                                    ? '“შესანიშნავი სტუმრობა და საუკეთესო მასპინძლობა!”'
+                                    : language === 'ru'
+                                    ? '«Прекрасное проживание и тёплое гостеприимство!»'
+                                    : '“Wonderful stay and warm hospitality!”'}
+                                </p>
+                              )}
+                            </blockquote>
+                          </div>
+
+                          <div className="pt-2.5 border-t border-[#EBE6DF]/70 dark:border-[#2B2926]/70 flex items-center justify-between text-xs">
+                            <span className="font-bold text-[#1C1B1A] dark:text-[#F7F5F0]">
+                              {entry.guestName || 'Guest'}
+                            </span>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 rounded-3xl bg-white dark:bg-[#1F1E1C] border border-dashed border-[#EBE6DF] dark:border-[#2B2926] text-center space-y-2">
+                    <p className="text-sm font-semibold text-[#1C1B1A] dark:text-[#F7F5F0]">
+                      {language === 'ka'
+                        ? 'იყავით პირველი, ვინც დატოვებს ჩანაწერს სტუმრების წიგნაკში!'
+                        : language === 'ru'
+                        ? 'Станьте первым гостем, оставившим запись в гостевой книге!'
+                        : 'Be the first guest to leave a note in the digital guestbook!'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* =========================================================
+              TAB 5: HOST — Action-First Contact, Location, FAQ & 112
+             ========================================================= */}
+          {activeTab === 'host' && (
+            <div className="space-y-6">
+              {/* 1. Tier 1: Host Profile & Obvious Direct Contact Card */}
+              <div className="rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] p-6 sm:p-7 space-y-5 shadow-[0_12px_34px_-16px_rgba(28,27,26,0.08)] dark:shadow-none">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    {property.hostAvatar ? (
+                      <img
+                        src={property.hostAvatar}
+                        alt={property.hostName}
+                        className="w-16 h-16 rounded-2xl object-cover border border-[#EBE6DF] dark:border-[#2B2926]"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-[#F55A51] text-white font-serif font-bold text-2xl flex items-center justify-center">
+                        {property.hostName.charAt(0)}
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#F55A51] block">
+                        {property.hostRole ||
+                          (language === 'ka'
+                            ? 'თქვენი მასპინძელი'
+                            : language === 'ru'
+                            ? 'Ваш хозяин'
+                            : 'Your Host')}
+                      </span>
+                      <h1 className="text-2xl font-serif font-bold text-[#1C1B1A] dark:text-[#F7F5F0]">
+                        {property.hostName}
+                      </h1>
+                      <p className="text-xs text-[#5C5852] dark:text-[#A39E93]">
+                        {language === 'ka'
+                          ? `მასპინძელი საცხოვრებელში: ${property.title}`
+                          : language === 'ru'
+                          ? `Принимает гостей в ${property.title}`
+                          : `Welcoming guests to ${property.title}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Primary Direct Contact & Assistance Actions */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[#EBE6DF] dark:border-[#2B2926]">
+                  {canUseDirectWhatsApp ? (
+                    <a
+                      href={`https://wa.me/${cleanHostWhatsApp}?text=${encodeURIComponent(
+                        `Hi ${property.hostName}! I'm staying at ${property.title} and have a question...`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-3.5 px-4 rounded-2xl bg-[#25D366] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm hover:opacity-95 transition-opacity min-h-[48px]"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      {language === 'ka'
+                        ? `მიწერეთ ${property.hostName}-ს WhatsApp-ში`
+                        : language === 'ru'
+                        ? `Написать ${property.hostName} в WhatsApp`
+                        : `Message ${property.hostName} on WhatsApp`}
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setActiveSheet('checkin')}
+                      className="py-3.5 px-4 rounded-2xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] text-[#1C1B1A] dark:text-[#F7F5F0] font-bold text-xs flex items-center justify-center gap-2 hover:border-[#F55A51]/40 transition-colors min-h-[48px] cursor-pointer"
+                    >
+                      <Lock className="w-4 h-4 text-[#F55A51]" />
+                      {language === 'ka'
+                        ? 'გახსენით პირდაპირი WhatsApp კონტაქტი'
+                        : language === 'ru'
+                        ? 'Разблокировать прямой WhatsApp хозяина'
+                        : 'Unlock Direct Host WhatsApp'}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsRequestModalOpen(true)}
+                    className="py-3.5 px-4 rounded-2xl bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] font-bold text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-opacity min-h-[48px] cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4 text-[#F55A51]" />
+                    {language === 'ka'
+                      ? 'სერვისის / დროის მოთხოვნა'
+                      : language === 'ru'
+                      ? 'Запросить услугу / время выезда'
+                      : 'Request Late Check-Out or Extras'}
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. Tier 1: Property Address for Taxi / Delivery (Immediately Accessible) */}
+              <div className="rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_8px_26px_-14px_rgba(28,27,26,0.06)] dark:shadow-none">
+                <div className="space-y-1.5 min-w-0">
+                  <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[#748C96]">
+                    <MapPin className="w-4 h-4 text-[#F55A51] shrink-0" />
+                    {language === 'ka'
+                      ? 'მისამართი ტაქსისა და კურიერისთვის'
+                      : language === 'ru'
+                      ? 'Адрес для такси и доставки'
+                      : 'Address for Taxi / Delivery'}
+                  </div>
+                  <p className="font-serif font-bold text-base sm:text-lg text-[#1C1B1A] dark:text-[#F7F5F0] break-words">
+                    {isAccessUnlocked && property.address
+                      ? property.address
+                      : `${property.city || 'Tbilisi'}, ${property.country || 'Georgia'}`}
+                  </p>
+                  {!isAccessUnlocked && (
+                    <p className="text-xs text-[#7A756D] dark:text-[#A39E93]">
+                      {language === 'ka'
+                        ? 'ზუსტი მისამართი ჩანს წვდომის კოდის შეყვანის შემდეგ.'
+                        : language === 'ru'
+                        ? 'Точный адрес отображается после ввода ключа доступа.'
+                        : 'Exact street address unlocks with your check-in key.'}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {isAccessUnlocked && property.address && (
+                    <button
+                      type="button"
+                      onClick={copyAddress}
+                      className="py-2.5 px-3.5 rounded-xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] text-xs font-bold text-[#1C1B1A] dark:text-[#F7F5F0] flex items-center justify-center gap-1.5 min-h-[42px] cursor-pointer"
+                    >
+                      {copiedAddress ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-[#2E7D32]" />
+                          {language === 'ka'
+                            ? 'დაკოპირდა'
+                            : language === 'ru'
+                            ? 'Скопировано'
+                            : 'Copied'}
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-[#7A756D]" />
+                          {language === 'ka'
+                            ? 'მისამართის კოპირება'
+                            : language === 'ru'
+                            ? 'Скопировать адрес'
+                            : 'Copy Address'}
+                        </>
+                      )}
+                    </button>
+                  )}
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${mapsDestination}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-2.5 px-4 rounded-xl bg-[#1C1B1A] dark:bg-[#F7F5F0] text-[#F7F5F0] dark:text-[#1C1B1A] text-xs font-bold flex items-center justify-center gap-1.5 min-h-[42px]"
+                  >
+                    <Navigation className="w-3.5 h-3.5 text-[#F55A51]" />
+                    {language === 'ka'
+                      ? 'რუკაზე გახსნა'
+                      : language === 'ru'
+                      ? 'Открыть в картах'
+                      : 'Google Maps'}
+                  </a>
+                </div>
+              </div>
+
+              {/* 3. Tier 3: Grouped Quick Stay Answers (NeedHelpAssistant) */}
+              <NeedHelpAssistant
+                property={property}
+                language={language}
+                onOpenRequestModal={() => setIsRequestModalOpen(true)}
+                onOpenUnlockModal={() => setActiveSheet('checkin')}
+              />
+
+              {/* 4. Distinct Emergency Support Banner */}
+              <div className="rounded-3xl bg-[#F55A51]/[0.05] dark:bg-[#F55A51]/[0.09] border border-[#F55A51]/30 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#F55A51]">
+                    <ShieldAlert className="w-4 h-4" />
+                    {language === 'ka'
+                      ? 'გადაუდებელი დახმარება'
+                      : language === 'ru'
+                      ? 'Экстренная помощь'
+                      : 'Emergency Services'}
+                  </div>
+                  <p className="font-serif font-bold text-base sm:text-lg text-[#1C1B1A] dark:text-[#F7F5F0]">
+                    {language === 'ka'
+                      ? 'საქართველოს გადაუდებელი დახმარება: 112'
+                      : language === 'ru'
+                      ? 'Экстренная служба Грузии: 112'
+                      : 'Unified Emergency Line: 112'}
+                  </p>
+                  <p className="text-xs text-[#5C5852] dark:text-[#A39E93] leading-relaxed max-w-xl">
+                    {language === 'ka'
+                      ? '24/7 სასწრაფო სამედიცინო დახმარება, პოლიცია და სახანძრო სამსახური (საუბრობენ ინგლისურად).'
+                      : language === 'ru'
+                      ? 'Круглосуточная скорая помощь, полиция и пожарная служба.'
+                      : '24/7 Police, Ambulance, and Fire response with English-speaking operators.'}
+                  </p>
+                </div>
+
+                <a
+                  href={`tel:${emergencyPhone}`}
+                  className="py-3 px-5 rounded-2xl bg-[#F55A51] text-white text-xs font-bold inline-flex items-center justify-center gap-2 hover:bg-[#E04840] transition-colors shrink-0 min-h-[46px] shadow-sm"
+                >
+                  <Phone className="w-4 h-4" />
+                  {language === 'ka'
+                    ? `დარეკვა (${emergencyPhone})`
+                    : language === 'ru'
+                    ? `Позвонить (${emergencyPhone})`
+                    : `Call ${emergencyPhone}`}
+                </a>
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* =========================================================
+            SHARED MODALS & BOTTOM SHEETS
+           ========================================================= */}
+
+        {/* 1. Wi-Fi Sheet */}
+        <MobileBottomSheet
+          isOpen={activeSheet === 'wifi'}
+          onClose={() => setActiveSheet(null)}
+          title={
+            language === 'ka'
+              ? 'Wi-Fi კავშირი'
+              : language === 'ru'
+              ? 'Подключение к Wi-Fi'
+              : 'Wi-Fi Connection'
+          }
+        >
+          <div className="space-y-5 pb-4">
+            {isAccessUnlocked ? (
+              property.wifiNetwork || property.wifiPassword ? (
+                <>
+                  <div className="p-5 rounded-3xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex flex-col items-center text-center space-y-2.5">
+                    <div className="w-16 h-16 rounded-2xl bg-[#748C96]/15 text-[#748C96] flex items-center justify-center">
+                      <Wifi className="w-8 h-8" />
+                    </div>
+                    <p className="text-xs text-[#7A756D] dark:text-[#A39E93]">
+                      {language === 'ka'
+                        ? 'დააკოპირეთ პაროლი და აირჩიეთ ქსელი თქვენი ტელეფონის Wi-Fi პარამეტრებში'
+                        : language === 'ru'
+                        ? 'Скопируйте пароль ниже и выберите сеть в настройках Wi-Fi телефона'
+                        : 'Copy the password below and select the network in your device Wi-Fi settings'}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <div className="p-4 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926]">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#7A756D] dark:text-[#A39E93] block">
+                        {language === 'ka'
+                          ? 'ქსელის სახელი'
+                          : language === 'ru'
+                          ? 'Имя сети'
+                          : 'Network Name (SSID)'}
+                      </span>
+                      <p className="text-base font-bold text-[#1C1B1A] dark:text-[#F7F5F0] mt-0.5">
+                        {property.wifiNetwork || 'Property Wi-Fi'}
+                      </p>
+                    </div>
+
+                    {property.wifiPassword && (
+                      <div className="p-4 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#7A756D] dark:text-[#A39E93] block">
+                            {language === 'ka'
+                              ? 'პაროლი'
+                              : language === 'ru'
+                              ? 'Пароль'
+                              : 'Password'}
+                          </span>
+                          <p className="text-base font-mono font-bold text-[#1C1B1A] dark:text-[#F7F5F0] truncate mt-0.5">
+                            {property.wifiPassword}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={copyWifi}
+                          className="px-4 py-2.5 rounded-xl bg-[#F55A51] text-white text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer"
+                        >
+                          {copiedWifi ? (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              {language === 'ka'
+                                ? 'დაკოპირდა'
+                                : language === 'ru'
+                                ? 'Скопировано'
+                                : 'Copied'}
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              {language === 'ka'
+                                ? 'კოპირება'
+                                : language === 'ru'
+                                ? 'Копировать'
+                                : 'Copy'}
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-[#7A756D] dark:text-[#A39E93] text-center py-6">
+                  {language === 'ka'
+                    ? 'Wi-Fi-ს მონაცემები ჯერ არ არის დამატებული.'
+                    : language === 'ru'
+                    ? 'Данные Wi-Fi пока не добавлены.'
+                    : 'Wi-Fi details have not been added for this property yet.'}
+                </p>
+              )
+            ) : (
+              <form onSubmit={handleManualUnlock} className="space-y-4">
+                <div className="p-4 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#F55A51]">
+                    <Lock className="w-4 h-4" />
+                    {language === 'ka'
+                      ? 'სტუმრის წვდომის კოდი'
+                      : language === 'ru'
+                      ? 'Защищено ключом гостя'
+                      : 'Protected Guest Credentials'}
+                  </div>
+                  <p className="text-xs text-[#5C5852] dark:text-[#A39E93] leading-relaxed">
+                    {language === 'ka'
+                      ? 'Wi-Fi პაროლისა და შესვლის კოდების სანახავად შეიყვანეთ მასპინძლის მიერ გამოგზავნილი წვდომის გასაღები ან სრული QR ბმული.'
+                      : language === 'ru'
+                      ? 'Введите ключ доступа или полную ссылку от хозяина, чтобы открыть пароль Wi-Fi и коды дверей.'
+                      : 'Enter the check-in key or paste the full check-in link shared by your host to unlock Wi-Fi and door codes.'}
+                  </p>
+                </div>
+
+                <div>
+                  <input
+                    type="text"
+                    value={manualAccessKey}
+                    onChange={e => setManualAccessKey(e.target.value)}
+                    placeholder={
+                      language === 'ka'
+                        ? 'ჩასვით წვდომის გასაღები ან ბმული...'
+                        : language === 'ru'
+                        ? 'Вставьте ключ доступа или ссылку...'
+                        : 'Paste check-in key or link...'
+                    }
+                    className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] text-xs font-mono text-[#1C1B1A] dark:text-[#F7F5F0] focus:outline-none focus:border-[#F55A51]"
+                  />
+                  {unlockError && (
+                    <p className="text-xs text-[#F55A51] font-medium mt-1.5">{unlockError}</p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isUnlockingKey || !manualAccessKey.trim()}
+                  className="w-full py-3.5 rounded-2xl bg-[#F55A51] text-white font-bold text-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {isUnlockingKey
+                    ? language === 'ka'
+                      ? 'მოწმდება...'
+                      : language === 'ru'
+                      ? 'Проверка...'
+                      : 'Verifying...'
+                    : language === 'ka'
+                    ? 'გახსნა'
+                    : language === 'ru'
+                    ? 'Разблокировать'
+                    : 'Unlock Guest Credentials'}
+                </button>
+              </form>
+            )}
+          </div>
+        </MobileBottomSheet>
+
+        {/* 2. Check-In & Access Sheet */}
+        <MobileBottomSheet
+          isOpen={activeSheet === 'checkin'}
+          onClose={() => setActiveSheet(null)}
+          title={
+            language === 'ka'
+              ? 'შესვლის ინსტრუქცია'
+              : language === 'ru'
+              ? 'Инструкция по заселению'
+              : 'Check-In & Access'
+          }
+        >
+          <div className="space-y-5 pb-4">
+            {!isAccessUnlocked ? (
+              <form onSubmit={handleManualUnlock} className="space-y-4">
+                <div className="p-4 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#F55A51]">
+                    <Lock className="w-4 h-4" />
+                    {language === 'ka'
+                      ? 'დაცული შესვლის მონაცემები'
+                      : language === 'ru'
+                      ? 'Защищённые данные входа'
+                      : 'Unlock Check-In Credentials'}
+                  </div>
+                  <p className="text-xs text-[#5C5852] dark:text-[#A39E93] leading-relaxed">
+                    {language === 'ka'
+                      ? 'კარის კოდის, ზუსტი მისამართისა და Wi-Fi-ს გასახსნელად შეიყვანეთ თქვენი სტუმრის გასაღები.'
+                      : language === 'ru'
+                      ? 'Для просмотра кода двери, точного адреса и Wi-Fi введите ключ гостя из вашей ссылки заезда.'
+                      : 'Enter your check-in key or paste the private link from your host to reveal door codes, exact address, and step-by-step entry instructions.'}
+                  </p>
+                </div>
+
+                <div>
+                  <input
+                    type="text"
+                    value={manualAccessKey}
+                    onChange={e => setManualAccessKey(e.target.value)}
+                    placeholder={
+                      language === 'ka'
+                        ? 'ჩასვით წვდომის გასაღები ან ბმული...'
+                        : language === 'ru'
+                        ? 'Вставьте ключ доступа или ссылку...'
+                        : 'Paste check-in key or link...'
+                    }
+                    className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] text-xs font-mono text-[#1C1B1A] dark:text-[#F7F5F0] focus:outline-none focus:border-[#F55A51]"
+                  />
+                  {unlockError && (
+                    <p className="text-xs text-[#F55A51] font-medium mt-1.5">{unlockError}</p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isUnlockingKey || !manualAccessKey.trim()}
+                  className="w-full py-3.5 rounded-2xl bg-[#F55A51] text-white font-bold text-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {isUnlockingKey
+                    ? language === 'ka'
+                      ? 'მოწმდება...'
+                      : language === 'ru'
+                      ? 'Проверка...'
+                      : 'Verifying...'
+                    : language === 'ka'
+                    ? 'შესვლის კოდის გახსნა'
+                    : language === 'ru'
+                    ? 'Разблокировать доступ'
+                    : 'Unlock Check-In Access'}
+                </button>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                {(property.doorKeypadCode || property.lockboxCode) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {property.doorKeypadCode && (
+                      <div className="p-4 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex items-center justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#7A756D] dark:text-[#A39E93] block">
+                            {language === 'ka'
+                              ? 'კარის კოდი'
+                              : language === 'ru'
+                              ? 'Код двери / домофона'
+                              : 'Door Keypad Code'}
+                          </span>
+                          <p className="font-mono text-xl font-bold text-[#F55A51] mt-1">
+                            {property.doorKeypadCode}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const ok = await safeCopyToClipboard(property.doorKeypadCode);
+                            if (ok) {
+                              setCopiedDoorCode('keypad');
+                              setTimeout(() => setCopiedDoorCode(null), 2000);
+                            } else {
+                              showToast(
+                                language === 'ka'
+                                  ? 'კოდის კოპირება ვერ მოხერხდა'
+                                  : language === 'ru'
+                                  ? 'Не удалось скопировать код'
+                                  : 'Could not copy code automatically'
+                              );
+                            }
+                          }}
+                          className="px-3 py-2 rounded-xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer"
+                        >
+                          {copiedDoorCode === 'keypad' ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-[#2E7D32]" />
+                              {language === 'ka' ? 'დაკოპირდა' : language === 'ru' ? 'Скопировано' : 'Copied'}
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5 text-[#7A756D]" />
+                              {language === 'ka' ? 'კოპირება' : language === 'ru' ? 'Копировать' : 'Copy'}
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                    {property.lockboxCode && (
+                      <div className="p-4 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex items-center justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#7A756D] dark:text-[#A39E93] block">
+                            {language === 'ka'
+                              ? 'სეიფის (Lockbox) კოდი'
+                              : language === 'ru'
+                              ? 'Код сейфа (Lockbox)'
+                              : 'Lockbox Code'}
+                          </span>
+                          <p className="font-mono text-xl font-bold text-[#F55A51] mt-1">
+                            {property.lockboxCode}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const ok = await safeCopyToClipboard(property.lockboxCode);
+                            if (ok) {
+                              setCopiedDoorCode('lockbox');
+                              setTimeout(() => setCopiedDoorCode(null), 2000);
+                            } else {
+                              showToast(
+                                language === 'ka'
+                                  ? 'კოდის კოპირება ვერ მოხერხდა'
+                                  : language === 'ru'
+                                  ? 'Не удалось скопировать код'
+                                  : 'Could not copy code automatically'
+                              );
+                            }
+                          }}
+                          className="px-3 py-2 rounded-xl bg-[#FAF8F5] dark:bg-[#141312] border border-[#EBE6DF] dark:border-[#2B2926] text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer"
+                        >
+                          {copiedDoorCode === 'lockbox' ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-[#2E7D32]" />
+                              {language === 'ka' ? 'დაკოპირდა' : language === 'ru' ? 'Скопировано' : 'Copied'}
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5 text-[#7A756D]" />
+                              {language === 'ka' ? 'კოპირება' : language === 'ru' ? 'Копировать' : 'Copy'}
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {arrivalDirections && (
+                  <div className="p-4 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] space-y-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#7A756D] dark:text-[#A39E93] block">
+                      {language === 'ka'
+                        ? 'მოსვლის ინსტრუქცია'
+                        : language === 'ru'
+                        ? 'Как войти'
+                        : 'Arrival Instructions'}
+                    </span>
+                    <p className="text-xs sm:text-sm text-[#1C1B1A] dark:text-[#F7F5F0] leading-relaxed whitespace-pre-line">
+                      {arrivalDirections}
+                    </p>
+                  </div>
+                )}
+
+                {entryVisualGuide && (
+                  <VisualHowToPlayer
+                    guide={entryVisualGuide}
+                    language={language}
+                    isDark={isDark}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        </MobileBottomSheet>
+
+        {/* 3. House Rules Sheet */}
+        <MobileBottomSheet
+          isOpen={activeSheet === 'rules'}
+          onClose={() => setActiveSheet(null)}
+          title={
+            language === 'ka'
+              ? 'სახლის წესები'
+              : language === 'ru'
+              ? 'Правила проживания'
+              : 'House Rules'
+          }
+        >
+          <div className="space-y-4 pb-4">
+            {/* Quiet Hours Highlight */}
+            {property.quietHours && (
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex items-center gap-2.5">
+                <VolumeX className="w-4 h-4 text-[#F55A51] shrink-0" />
+                <div>
+                  <span className="text-[10px] uppercase tracking-wider text-[#7A756D] dark:text-[#A39E93] block">
+                    {language === 'ka'
+                      ? 'სიჩუმის საათები'
+                      : language === 'ru'
+                      ? 'Тихие часы'
+                      : 'Quiet Hours'}
+                  </span>
+                  <span className="text-xs font-bold">{property.quietHours}</span>
+                </div>
+              </div>
+            )}
+
+            {houseRulesList.length > 0 ? (
+              <div className="space-y-2">
+                {houseRulesList.map((rule, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex items-start gap-3 text-xs leading-relaxed"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-[#F55A51]/10 text-[#F55A51] font-bold flex items-center justify-center shrink-0">
+                      {idx + 1}
+                    </span>
+                    <span>{rule}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-[#7A756D] dark:text-[#A39E93] text-center py-4">
+                {language === 'ka'
+                  ? 'გთხოვთ გაუფრთხილდეთ ბინას და პატივი სცეთ მეზობლების სიმშვიდეს.'
+                  : language === 'ru'
+                  ? 'Пожалуйста, бережно относитесь к квартире и уважайте покой соседей.'
+                  : 'Please treat the apartment and neighbors with care.'}
+              </p>
+            )}
+          </div>
+        </MobileBottomSheet>
+
+        {/* 4. Check-Out Checklist Sheet (Persisted in sessionStorage) */}
+        <MobileBottomSheet
+          isOpen={activeSheet === 'checkout'}
+          onClose={() => setActiveSheet(null)}
+          title={
+            language === 'ka'
+              ? 'გასვლის ინსტრუქცია'
+              : language === 'ru'
+              ? 'Чек-лист перед выездом'
+              : 'Departure Checklist'
+          }
+        >
+          <div className="space-y-4 pb-4">
+            {property.checkOutTime && (
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] flex items-center justify-between">
+                <span className="text-xs font-bold text-[#7A756D] dark:text-[#A39E93]">
+                  {language === 'ka'
+                    ? 'გასვლის დრო'
+                    : language === 'ru'
+                    ? 'Время выезда'
+                    : 'Scheduled Check-Out'}
+                </span>
+                <span className="text-sm font-bold text-[#F55A51]">{property.checkOutTime}</span>
+              </div>
+            )}
+
+            {departureList.length > 0 ? (
+              <div className="space-y-2">
+                {departureList.map((item, idx) => {
+                  const done = Boolean(checkedItems[idx]);
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => toggleCheckItem(idx)}
+                      className={`w-full p-3.5 rounded-2xl border text-left transition-all flex items-center gap-3 text-xs cursor-pointer ${
+                        done
+                          ? 'bg-[#2E7D32]/10 border-[#2E7D32]/30 text-[#2E7D32] line-through'
+                          : 'bg-white dark:bg-[#1F1E1C] border-[#EBE6DF] dark:border-[#2B2926] text-[#1C1B1A] dark:text-[#F7F5F0]'
+                      }`}
+                    >
+                      <CheckCircle2
+                        className={`w-5 h-5 shrink-0 ${
+                          done ? 'text-[#2E7D32]' : 'text-[#7A756D]'
+                        }`}
+                      />
+                      <span className="font-medium leading-relaxed">{item}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-[#7A756D] dark:text-[#A39E93] text-center py-4">
+                {language === 'ka'
+                  ? 'გასვლის წინ გთხოვთ გადაამოწმოთ, რომ პირადი ნივთები არ დაგრჩათ.'
+                  : language === 'ru'
+                  ? 'Перед выходом, пожалуйста, убедитесь, что вы не забыли личные вещи.'
+                  : 'Please double-check that you have all personal belongings before locking up.'}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSheet(null);
+                setIsRequestModalOpen(true);
+              }}
+              className="w-full py-3.5 rounded-2xl bg-[#FAF8F5] dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] text-xs font-bold text-[#F55A51] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Clock className="w-4 h-4" />
+              {language === 'ka'
+                ? 'გვიანი გასვლის მოთხოვნა'
+                : language === 'ru'
+                ? 'Запросить поздний выезд'
+                : 'Need a Late Check-Out? Request Here'}
+            </button>
+          </div>
+        </MobileBottomSheet>
+
+        {/* 5. Appliance Detail Sheet (Uses real VisualHowToPlayer, never fabricates video/photos) */}
+        <MobileBottomSheet
+          isOpen={!!selectedAppliance}
+          onClose={() => setSelectedAppliance(null)}
+          title={
+            selectedAppliance
+              ? selectedAppliance.title || selectedAppliance.name || 'Appliance Guide'
+              : ''
+          }
+        >
+          {selectedAppliance && (
+            <div className="space-y-4 pb-4">
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#1F1E1C] border border-[#EBE6DF] dark:border-[#2B2926] space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#F55A51] block">
+                  {language === 'ka'
+                    ? 'მოხმარების წესი'
+                    : language === 'ru'
+                    ? 'Инструкция'
+                    : 'Instructions'}
+                </span>
+                <p className="text-xs sm:text-sm text-[#1C1B1A] dark:text-[#F7F5F0] leading-relaxed whitespace-pre-line">
                   {selectedAppliance.instructions}
                 </p>
               </div>
 
-              {/* Troubleshooting */}
-              {selectedAppliance.troubleshooting && (
-                <div className={`p-4 rounded-2xl border space-y-2 shadow-xs ${
-                  isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-amber-50/70 border-amber-200 text-stone-900'
-                }`}>
-                  <h4 className="font-bold text-xs font-mono uppercase flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>{language === 'ka' ? 'ხარვეზის აღმოფხვრა' : 'Troubleshooting'}</span>
-                  </h4>
-                  <p className={`text-xs sm:text-sm leading-relaxed font-normal ${isDark ? 'text-zinc-300' : 'text-stone-700'}`}>
-                    {selectedAppliance.troubleshooting}
-                  </p>
-                </div>
+              {((selectedAppliance.steps && selectedAppliance.steps.length > 0) ||
+                (selectedAppliance.stepsText && selectedAppliance.stepsText.length > 0) ||
+                selectedAppliance.videoUrl ||
+                (selectedAppliance.mediaType === 'video' && selectedAppliance.mediaUrl)) && (
+                <VisualHowToPlayer
+                  key={selectedAppliance.id}
+                  guide={selectedAppliance}
+                  language={language}
+                  isDark={isDark}
+                />
               )}
             </div>
-          </MobileBottomSheet>
-        );
-      })()}
+          )}
+        </MobileBottomSheet>
 
-      {/* 5. House Rules Sheet */}
-      <MobileBottomSheet
-        isOpen={activeDrawer === 'rules'}
-        onClose={() => setActiveDrawer(null)}
-        title={t.guestGuide.cards.houseRules}
-        subtitle="Quiet hours, garbage schedule & house norms"
-        icon={<BookOpen className="w-5 h-5 text-amber-400" />}
-      >
-        <div className="space-y-3 tracking-tight">
-          <div className={`p-4 rounded-xl border shadow-sm ${
-            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
-          }`}>
-            <span className={`font-semibold block text-xs font-mono uppercase mb-1 ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-              {t.guestGuide.cards.quietHoursLabel}
-            </span>
-            <p className={`font-bold text-lg ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{property.quietHours}</p>
-          </div>
+        {/* 6. Guest Request Modal */}
+        <GuestRequestModal
+          isOpen={isRequestModalOpen}
+          onClose={() => setIsRequestModalOpen(false)}
+          language={language}
+          property={property}
+        />
 
-          <div className={`p-4 rounded-xl border shadow-sm ${
-            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
-          }`}>
-            <span className={`font-semibold block text-xs font-mono uppercase mb-1 ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-              {t.guestGuide.cards.trashScheduleLabel}
-            </span>
-            <p className={`text-xs sm:text-sm font-normal leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>{property.trashSchedule}</p>
-          </div>
+        {/* 7. Review Engine Modal */}
+        <ReviewEngineModal
+          isOpen={isReviewModalOpen}
+          onClose={() => setIsReviewModalOpen(false)}
+          property={property}
+          language={language}
+          initialStars={selectedReviewStars}
+          onSubmitted={() => {
+            setHasSubmittedReview(true);
+            try {
+              sessionStorage.setItem(`stumari_review_submitted_${property.id}`, '1');
+            } catch {
+              // Ignore storage errors
+            }
+          }}
+        />
 
-          <div className={`p-4 rounded-xl border space-y-2.5 shadow-sm ${
-            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
-          }`}>
-            <span className={`font-semibold block text-xs font-mono uppercase ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-              General House Norms
-            </span>
-            <ul className="space-y-2">
-              {property.houseRules.map((rule, idx) => (
-                <li key={idx} className={`flex items-start gap-2.5 text-xs sm:text-sm font-normal ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-                  <span className="text-zinc-400 font-bold text-base leading-none">•</span>
-                  <span>{rule}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+        {/* 8. Share Guide Modal */}
+        <ShareGuideModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          property={property}
+          favoriteGems={favoriteGemsList}
+        />
+
+        {/* 9. Add to Home Screen Modal */}
+        <AddToHomeScreenModal
+          isOpen={isInstallModalOpen}
+          onClose={() => setIsInstallModalOpen(false)}
+        />
+
+        {/* Mobile & Tablet Floating Bottom Navigation Dock (Hidden on lg+ unless embedded in simulator) */}
+        <div className={isEmbed ? '' : 'lg:hidden'}>
+          <MobileBottomDock
+            activeTab={activeTab}
+            onSelectTab={handleSelectTab}
+            unreadFeedbackBadge={!hasSubmittedReview && false}
+          />
         </div>
-      </MobileBottomSheet>
-
-      {/* 6. Checkout Checklist Sheet */}
-      <MobileBottomSheet
-        isOpen={activeDrawer === 'checkout'}
-        onClose={() => setActiveDrawer(null)}
-        title={t.guestGuide.cards.checkoutChecklist}
-        subtitle={`Check-out time: ${property.checkOutTime}`}
-        icon={<CheckSquare className="w-5 h-5 text-zinc-300" />}
-        stickyBottomAction={
-          <button
-            onClick={() => {
-              triggerHaptic();
-              setActiveDrawer(null);
-              setIsReviewModalOpen(true);
-            }}
-            className="w-full py-3.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98 cursor-pointer"
-          >
-            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-            <span>{language === 'ka' ? 'შეაფასეთ თქვენი დასვენება ⭐⭐⭐⭐⭐' : language === 'ru' ? 'Оставить отзыв ⭐⭐⭐⭐⭐' : 'Leave Stay Review ⭐⭐⭐⭐⭐'}</span>
-          </button>
-        }
-      >
-        <div className="space-y-3.5 tracking-tight">
-          <p className={`text-xs sm:text-sm font-normal leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-            Please complete these quick steps before turning the door latch.
-          </p>
-          
-          <div className="space-y-2">
-            {property.departureChecklist.map((item, idx) => (
-              <button
-                key={idx}
-                onClick={() => toggleCheck(idx)}
-                className={`w-full p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all cursor-pointer shadow-sm ${
-                  checkedItems[idx]
-                    ? isDark ? 'bg-zinc-900/60 text-zinc-500 line-through border-zinc-800' : 'bg-zinc-100 text-zinc-400 line-through border-zinc-200'
-                    : isDark ? 'bg-zinc-900 text-zinc-200 border-zinc-800 hover:border-zinc-700' : 'bg-white text-zinc-900 border-zinc-200 hover:border-zinc-300'
-                }`}
-              >
-                {checkedItems[idx] ? (
-                  <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                ) : (
-                  <Square className="w-4 h-4 text-zinc-500 shrink-0 mt-0.5" />
-                )}
-                <span className="text-xs sm:text-sm font-medium">{item}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </MobileBottomSheet>
-
-      {/* 7. Useful Stickers & Local Essentials Sheet */}
-      <MobileBottomSheet
-        isOpen={activeDrawer === 'stickers'}
-        onClose={() => setActiveDrawer(null)}
-        title={language === 'ka' ? 'სასარგებლო ბარათები & სერვისები' : 'Useful Stickers & Essentials'}
-        subtitle="24/7 Markets, Taxi Bolt, Trash, and neighborhood tips"
-        icon={<ShoppingBag className="w-5 h-5 text-zinc-300" />}
-      >
-        <div className="space-y-3 tracking-tight">
-          {/* 1. 24/7 Groceries & Supermarket */}
-          <div className={`p-4 rounded-xl border space-y-2 shadow-sm ${
-            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="w-4 h-4 text-zinc-400" />
-                <span className="font-semibold text-xs uppercase tracking-wider text-zinc-300">
-                  24/7 Groceries & Markets
-                </span>
-              </div>
-              <span className="font-mono text-xs text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-md border border-zinc-700">Spar & Nikora</span>
-            </div>
-            <p className={`text-xs sm:text-sm font-normal leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-              Convenience stores, fresh water, Georgian wine, and snacks are available 24/7 within a 2-minute walk.
-            </p>
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent('supermarket 24/7 near ' + property.address + ', ' + property.city)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-750 text-zinc-200 text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-all border border-zinc-700"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Find Nearest 24/7 Supermarkets</span>
-            </a>
-          </div>
-
-          {/* 2. Taxi & Transfers */}
-          <div className={`p-4 rounded-xl border space-y-2 shadow-sm ${
-            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Car className="w-4 h-4 text-emerald-400" />
-                <span className="font-semibold text-xs uppercase tracking-wider text-zinc-300">
-                  Taxi & Transfers
-                </span>
-              </div>
-              <span className="font-mono text-xs text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-md border border-zinc-700">Bolt App</span>
-            </div>
-            <p className={`text-xs sm:text-sm font-normal leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-              {property.taxiInfo}
-            </p>
-            <a
-              href="https://bolt.eu"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-750 text-zinc-200 text-xs font-semibold flex items-center justify-center gap-2 shadow-sm border border-zinc-700"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Open Bolt Taxi</span>
-            </a>
-          </div>
-
-          {/* Trash & Recycling */}
-          <div className={`p-4 rounded-xl border space-y-1.5 shadow-sm ${
-            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
-          }`}>
-            <span className={`text-xs font-mono uppercase font-semibold tracking-wider block ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-              Trash & Bin Location
-            </span>
-            <p className={`text-xs sm:text-sm font-normal leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-              {property.trashSchedule}
-            </p>
-          </div>
-
-          {/* Tap Water */}
-          <div className={`p-4 rounded-xl border space-y-1.5 shadow-sm ${
-            isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
-          }`}>
-            <span className={`text-xs font-mono uppercase font-semibold tracking-wider block ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-              💧 Tap Water Safety
-            </span>
-            <p className={`text-xs sm:text-sm font-normal leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-              Tbilisi tap water is mountain spring water, crystal clear, tested daily, and completely safe to drink.
-            </p>
-          </div>
-
-          {/* Discreet Emergency 112 Safety Link */}
-          <div className="pt-2 pb-1 text-center">
-            <a
-              href={`tel:${property.emergencyServicesNumber || '112'}`}
-              className={`text-xs font-normal inline-flex items-center justify-center gap-1.5 ${
-                isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900'
-              }`}
-            >
-              <span>Need emergency services? Call 112 (24/7 in English & Russian)</span>
-            </a>
-          </div>
-        </div>
-      </MobileBottomSheet>
-
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* GLOBAL MODALS: STAY FEEDBACK & INSTALL PWA PROMPT                */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      
-      {/* Private Stay Feedback Review Engine */}
-      <ReviewEngineModal
-        property={property}
-        isOpen={isReviewModalOpen}
-        onClose={() => setIsReviewModalOpen(false)}
-      />
-
-      {/* Install to Phone Home Screen Modal */}
-      <AddToHomeScreenModal
-        isOpen={isInstallModalOpen}
-        onClose={() => setIsInstallModalOpen(false)}
-      />
-
-      {/* Rich Fallback Share Guide Modal (System Share / WhatsApp / Telegram / QR Code / Copy Link) */}
-      <ShareGuideModal
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        property={property}
-        favoriteGems={favoriteGemsList}
-      />
-
-      {/* Direct Guest Request Modal */}
-      <GuestRequestModal
-        isOpen={isRequestModalOpen}
-        onClose={() => setIsRequestModalOpen(false)}
-      />
-
+      </div>
     </div>
   );
 };

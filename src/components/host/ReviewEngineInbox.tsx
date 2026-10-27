@@ -36,10 +36,19 @@ export const ReviewEngineInbox: React.FC<ReviewEngineInboxProps> = ({ propertyId
     resolveFeedback, 
     currentProperty, 
     properties,
-    showToast 
+    showToast,
+    firebaseUser
   } = useApp();
 
   const isDark = theme === 'dark';
+
+  const hostProperties = firebaseUser
+    ? properties.filter(p => p.ownerId === firebaseUser.uid && !p.isDemo)
+    : properties;
+
+  const hostFeedbacks = firebaseUser
+    ? feedbacks.filter(f => f.hostId === firebaseUser.uid)
+    : feedbacks;
 
   const [selectedPropId, setSelectedPropId] = useState<string>(propertyIdFilter || 'all');
   const [filterSentiment, setFilterSentiment] = useState<'all' | GuestSentiment>('all');
@@ -53,9 +62,9 @@ export const ReviewEngineInbox: React.FC<ReviewEngineInboxProps> = ({ propertyId
     }
   }, [propertyIdFilter]);
 
-  const propertyFeedbacks = feedbacks.filter(f => {
+  const propertyFeedbacks = hostFeedbacks.filter(f => {
     if (selectedPropId === 'all') return true;
-    return f.propertyId === selectedPropId || (!f.propertyId && selectedPropId === currentProperty.id);
+    return f.propertyId === selectedPropId || (!f.propertyId && currentProperty?.id && selectedPropId === currentProperty.id);
   });
 
   const total = propertyFeedbacks.length;
@@ -71,7 +80,8 @@ export const ReviewEngineInbox: React.FC<ReviewEngineInboxProps> = ({ propertyId
   });
 
   const handleCopyTestimonial = (item: StayFeedback) => {
-    const quote = `"${item.comment}" — ${item.guestName || 'Guest'} (Stayed at ${currentProperty.title})`;
+    const stayTitle = item.propertyName || currentProperty?.title || 'our property';
+    const quote = `"${item.comment}" — ${item.guestName || 'Guest'} (Stayed at ${stayTitle})`;
     navigator.clipboard.writeText(quote);
     setCopiedId(item.id);
     showToast('Copied testimonial quote to clipboard!');
@@ -117,9 +127,11 @@ export const ReviewEngineInbox: React.FC<ReviewEngineInboxProps> = ({ propertyId
                   isDark ? 'bg-stone-900 border-stone-700 text-white' : 'bg-white border-stone-300 text-stone-900'
                 }`}
               >
-                <option value="all">All Properties ({feedbacks.length} total)</option>
-                {properties.map(p => (
-                  <option key={p.id} value={p.id}>{p.title}</option>
+                <option value="all">All Properties ({hostFeedbacks.length} total)</option>
+                {hostProperties.map((p, pIdx) => (
+                  <option key={p.id ? `prop-rev-${p.id}` : `prop-rev-${pIdx}`} value={p.id || `prop-${pIdx}`}>
+                    {p.title || `Property ${pIdx + 1}`}
+                  </option>
                 ))}
               </select>
             </div>

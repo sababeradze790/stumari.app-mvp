@@ -10,8 +10,8 @@ interface PrintFlyerProps {
 }
 
 export const PrintFlyer: React.FC<PrintFlyerProps> = ({ property, onBack }) => {
-  const { showToast, language } = useApp();
-  const flyerUrl = `${window.location.origin}/#/g/${property.slug}`;
+  const { showToast, language, getGuestCheckInUrl } = useApp();
+  const flyerUrl = getGuestCheckInUrl(property, true);
 
   const i18n = {
     ka: {

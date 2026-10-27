@@ -2,29 +2,143 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Properties: readable by guests via QR / URL, writable by hosts
+    // Helper functions for authentication and tenancy
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isPropertyOwner(propertyId) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/properties/$(propertyId)).data.ownerId == request.auth.uid;
+    }
+
+    function isValidAccessToken(token) {
+      return token is string
+        && token.size() >= 32
+        && token.size() <= 128
+        && token.matches('^[a-zA-Z0-9_-]+$');
+    }
+
+    // Ensure sensitive access credentials, exact street addresses, personal phone numbers,
+    // and capability tokens are never stored on publicly readable parent property documents.
+    function hasNoPublicCredentials(data) {
+      return !('accessToken' in data)
+        && data.get('wifiNetwork', '') == ''
+        && data.get('wifiPassword', '') == ''
+        && data.get('doorKeypadCode', '') == ''
+        && data.get('lockboxCode', '') == ''
+        && data.get('arrivalDirections', '') == ''
+        && data.get('parkingInstructions', '') == ''
+        && data.get('address', '') == ''
+        && data.get('hostPhone', '') == ''
+        && data.get('hostWhatsApp', '') == ''
+        && data.get('emergencyContact', '') == '';
+    }
+
+    // ==========================================
+    // 1. Properties Collection (Public Guide Metadata Only)
+    // ==========================================
+    // - Published properties are publicly readable for guest guides (excluding private credentials/PII).
+    // - Draft properties are private to the owning host.
+    // - Hosts can only create, update, or delete their own properties, and cannot store
+    //   plaintext access credentials, exact addresses, personal phones, or capability tokens
+    //   on the public parent document.
     match /properties/{propertyId} {
-      allow read: if true;
-      allow write: if true;
+      allow get: if resource.data.status == 'published' || isOwner(resource.data.ownerId);
+      allow list: if resource.data.status == 'published' || isOwner(resource.data.ownerId);
+      allow create: if isOwner(request.resource.data.ownerId)
+                    && hasNoPublicCredentials(request.resource.data);
+      allow update: if isOwner(resource.data.ownerId)
+                    && request.resource.data.ownerId == resource.data.ownerId
+                    && hasNoPublicCredentials(request.resource.data);
+      allow delete: if isOwner(resource.data.ownerId);
+
+      // 1A. Host-Only Private Secrets Vault (stores active accessToken + full credentials for owner editing)
+      match /hostSecrets/{docId} {
+        allow read: if isPropertyOwner(propertyId);
+        allow create, update: if isPropertyOwner(propertyId)
+                              && request.resource.data.ownerId == request.auth.uid
+                              && isValidAccessToken(request.resource.data.accessToken);
+        allow delete: if isPropertyOwner(propertyId);
+      }
+
+      // 1B. Capability-Token-Gated Guest Access Credentials
+      // - Unauthenticated guests can 'get' a specific record only if they present a valid,
+      //   high-entropy capability token document ID matching isValidAccessToken(accessToken).
+      // - Listing/enumerating tokens is strictly forbidden for non-owners.
+      match /privateAccess/{accessToken} {
+        allow get: if isValidAccessToken(accessToken) || isPropertyOwner(propertyId);
+        allow list: if isPropertyOwner(propertyId);
+        allow create, update: if isPropertyOwner(propertyId) && isValidAccessToken(accessToken);
+        allow delete: if isPropertyOwner(propertyId);
+      }
     }
 
-    // Stay Feedbacks: writable by guests at checkout, readable by hosts
+    // ==========================================
+    // 2. Stay Feedbacks Collection
+    // ==========================================
+    // - Guests can submit private feedback for their stay.
+    // - Only the host who owns the property can read, list, update, or delete feedback.
     match /feedbacks/{feedbackId} {
-      allow read, write: if true;
+      allow get, list: if isOwner(resource.data.hostId);
+      allow create: if request.resource.data.propertyId is string 
+                    && request.resource.data.hostId is string 
+                    && request.resource.data.sentiment is string;
+      allow update: if isOwner(resource.data.hostId) && request.resource.data.hostId == resource.data.hostId;
+      allow delete: if isOwner(resource.data.hostId);
     }
 
-    // Stumari Gems: public directory of local recommendations
+    // ==========================================
+    // 3. Guest Requests Collection
+    // ==========================================
+    // - Guests can submit operational requests (linens, Wi-Fi help, AC).
+    // - Only the host who owns the property can read, list, manage, or delete requests.
+    match /requests/{requestId} {
+      allow get, list: if isOwner(resource.data.hostId);
+      allow create: if request.resource.data.propertyId is string 
+                    && request.resource.data.hostId is string 
+                    && request.resource.data.category is string 
+                    && request.resource.data.title is string
+                    && request.resource.data.status == 'new';
+      allow update: if isOwner(resource.data.hostId) && request.resource.data.hostId == resource.data.hostId;
+      allow delete: if isOwner(resource.data.hostId);
+    }
+
+    // ==========================================
+    // 4. Stumari Gems Collection
+    // ==========================================
+    // - Public curated city recommendations.
+    // - Authenticated hosts can create custom gems only under their own UID and
+    //   can only modify or delete custom gems they own.
     match /gems/{gemId} {
       allow read: if true;
-      allow write: if true;
+      allow create: if isAuthenticated()
+                    && request.resource.data.ownerId is string
+                    && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAuthenticated()
+                    && resource.data.ownerId is string
+                    && resource.data.ownerId == request.auth.uid
+                    && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isAuthenticated()
+                    && resource.data.ownerId is string
+                    && resource.data.ownerId == request.auth.uid;
     }
 
-    // User Profiles: readable and writable by the authenticated user
+    // ==========================================
+    // 5. Host User Profiles
+    // ==========================================
+    // - Private to the individual authenticated host.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isOwner(userId);
     }
 
-    // Default deny for unmapped collections
+    // ==========================================
+    // 6. Default Deny
+    // ==========================================
     match /{document=**} {
       allow read, write: if false;
     }

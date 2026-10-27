@@ -3,6 +3,7 @@ import { Property, HostUser, PlatformMetric, StayFeedback, GuestRequest, Arrival
 export const INITIAL_PROPERTIES: Property[] = [
   {
     id: 'prop-1',
+    isDemo: true,
     slug: 'old-tbilisi-apartment',
     title: 'Old Tbilisi Apartment',
     subtitle: '19th-Century Heritage Residence with Historic Balcony',
@@ -19,6 +20,30 @@ export const INITIAL_PROPERTIES: Property[] = [
     city: 'Tbilisi',
     country: 'Georgia',
     coverImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
+    photos: [
+      {
+        id: 'photo-p1-1',
+        url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
+        caption: 'Sunlit heritage living room with original Sololaki woodwork',
+        roomCategory: 'living',
+        isCover: true,
+        order: 0
+      },
+      {
+        id: 'photo-p1-2',
+        url: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80',
+        caption: 'Carved wooden balcony overlooking Old Tbilisi',
+        roomCategory: 'balcony',
+        order: 1
+      },
+      {
+        id: 'photo-p1-3',
+        url: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=1200&q=80',
+        caption: 'Fully equipped kitchen with DeLonghi espresso station',
+        roomCategory: 'kitchen',
+        order: 2
+      }
+    ],
     languages: ['en', 'ka'],
 
     hostName: 'Saba Beradze',
@@ -125,6 +150,14 @@ export const INITIAL_PROPERTIES: Property[] = [
         mapsUrl: 'https://maps.google.com/?q=Europroduct+Leonidze+Tbilisi'
       }
     ],
+    gemIds: [
+      'gem-amo-rame',
+      'gem-ezo',
+      'gem-dadi-wine',
+      'gem-coffee-lab',
+      'gem-kaleidoscope-house',
+      'gem-chreli-abano'
+    ],
 
     taxiInfo: 'Download the Bolt app (widely used in Tbilisi, accepts card payments, reliable). Taxis directly outside on Freedom Square are also plentiful.',
     transitInfo: 'Liberty Square Metro Station is a 10-minute walk through Gudiashvili Square. You can tap any contactless Visa/Mastercard directly at the turnstiles.',
@@ -140,6 +173,7 @@ export const INITIAL_PROPERTIES: Property[] = [
   },
   {
     id: 'prop-2',
+    isDemo: true,
     slug: 'sunny-sololaki',
     title: 'Sunny Sololaki',
     subtitle: 'Charming Old Town Sunlit Loft with Open Courtyard Balcony',
@@ -156,6 +190,23 @@ export const INITIAL_PROPERTIES: Property[] = [
     city: 'Tbilisi',
     country: 'Georgia',
     coverImage: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80',
+    photos: [
+      {
+        id: 'photo-p2-1',
+        url: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80',
+        caption: 'Bright Sololaki loft with courtyard garden view',
+        roomCategory: 'living',
+        isCover: true,
+        order: 0
+      },
+      {
+        id: 'photo-p2-2',
+        url: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80',
+        caption: 'Quiet bedroom facing the inner courtyard',
+        roomCategory: 'bedroom',
+        order: 1
+      }
+    ],
     languages: ['en', 'ka'],
 
     hostName: 'Saba Beradze',
@@ -217,6 +268,12 @@ export const INITIAL_PROPERTIES: Property[] = [
         mapsUrl: 'https://maps.google.com/?q=Amo+Rame+Tbilisi'
       }
     ],
+    gemIds: [
+      'gem-puri-guliani',
+      'gem-salobie-bia',
+      'gem-gulo-thermal',
+      'gem-gabriadze'
+    ],
 
     taxiInfo: 'Bolt operates 24/7 in Tbilisi. Fares are usually 5-8 GEL within the center.',
     transitInfo: 'Liberty Square Metro Station is an 8-minute walk away.',
@@ -230,6 +287,7 @@ export const INITIAL_PROPERTIES: Property[] = [
   },
   {
     id: 'prop-3',
+    isDemo: true,
     slug: 'batumi-sea-view',
     title: 'Batumi Sea View',
     subtitle: 'Panoramic Black Sea Sunsets & High-Rise Balcony',
@@ -307,6 +365,10 @@ export const INITIAL_PROPERTIES: Property[] = [
         mapsUrl: 'https://maps.google.com/?q=Old+Boulevard+Batumi'
       }
     ],
+    gemIds: [
+      'gem-mtatsminda-sunset',
+      'gem-botanical-waterfall'
+    ],
 
     taxiInfo: 'Bolt operates 24/7 across Batumi. Taxis are also stationed at the hotel boulevard roundabout.',
     transitInfo: 'Batumi seaside promenade electric bikes (Batumvelo) can be unlocked with the Batumvelo card or terminal.',
@@ -320,6 +382,7 @@ export const INITIAL_PROPERTIES: Property[] = [
   },
   {
     id: 'prop-4',
+    isDemo: true,
     slug: 'kazbegi-cabin',
     title: 'Kazbegi Cabin',
     subtitle: 'Alpine Sanctuary Facing Mount Kazbek & Gergeti Trinity',
@@ -396,6 +459,10 @@ export const INITIAL_PROPERTIES: Property[] = [
         mapsUrl: 'https://maps.google.com/?q=Rooms+Hotel+Kazbegi'
       }
     ],
+    gemIds: [
+      'gem-mtatsminda-sunset',
+      'gem-badagi-churchkhela'
+    ],
 
     taxiInfo: 'Local 4x4 drivers in the town square can drive you up to Gergeti Trinity Church or Truso Valley.',
     transitInfo: 'Minibuses (Marshrutkas) leave Didube Station in Tbilisi every hour for Stepantsminda.',
@@ -409,6 +476,7 @@ export const INITIAL_PROPERTIES: Property[] = [
   },
   {
     id: 'prop-5',
+    isDemo: true,
     slug: 'vake-garden-house',
     title: 'Vake Garden House',
     subtitle: 'Sophisticated Urban Residence with Private Courtyard & Greenery',
@@ -485,6 +553,12 @@ export const INITIAL_PROPERTIES: Property[] = [
         distance: '10 min by car / Bolt',
         mapsUrl: 'https://maps.google.com/?q=Lolita+Tbilisi'
       }
+    ],
+    gemIds: [
+      'gem-fabrika',
+      'gem-dry-bridge',
+      'gem-dezerter-bazaar',
+      'gem-badagi-churchkhela'
     ],
 
     taxiInfo: 'Bolt and Yandex both arrive in 2-3 minutes on Abashidze Street.',
